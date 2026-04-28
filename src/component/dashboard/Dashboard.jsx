@@ -45,6 +45,7 @@ function Dashboard() {
       >
         Logout
       </button>
+      <h1>Terakhir pi mas</h1>
     </div>
   );
 }
