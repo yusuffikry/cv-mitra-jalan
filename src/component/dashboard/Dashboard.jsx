@@ -9,8 +9,10 @@ function Dashboard() {
   useEffect(() => {
     // Fungsi untuk cek sesi user
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         // Jika tidak ada sesi login, lempar ke halaman login
         navigate("/");
@@ -28,15 +30,16 @@ function Dashboard() {
   };
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        Loading...
+      </div>
+    );
   }
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-4">Dashboard Admin</h1>
-      <p className="mb-6">Selamat datang di dashboard CV Mitra Jalan. Ini adalah halaman kosong untuk tes.</p>
-      
-      <button 
+      <button
         onClick={handleLogout}
         className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
       >
