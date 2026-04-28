@@ -19,7 +19,7 @@ import { twMerge } from "tailwind-merge";
 const customSidebarTheme = {
   root: {
     base: "h-full rounded-none",
-    inner: "h-full overflow-y-auto overflow-x-hidden rounded-none bg-white p-0", // p-0 di sini kuncinya
+    inner: "h-full overflow-y-auto overflow-x-hidden rounded-none bg-white p-0",
   },
 };
 export default function Navside() {
