@@ -5,6 +5,7 @@ import { useLocation, Link } from "react-router-dom";
 export default function Breadcumb() {
   const location = useLocation();
   const pathnames = location.pathname.split("/").filter((x) => x);
+
   return (
     <div>
       <Breadcrumb aria-label="Default breadcrumb example">

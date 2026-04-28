@@ -10,7 +10,7 @@ export default function Main() {
         <Navside />
         <div className="flex-1 flex flex-col">
           <Nav />
-          <main className="p-4 bg-gray-100 flex-1">
+          <main className="p-4 bg-neutral-400 flex-1">
             <Outlet />
           </main>
         </div>
