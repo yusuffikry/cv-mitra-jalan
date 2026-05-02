@@ -6,6 +6,8 @@ import Main from "./component/layout/main";
 import CarList from "./component/pages/CarList/CarList";
 import CarListCreate from "./component/pages/CarList/CarListCreate";
 import Customers from "./component/pages/Customers/Customers";
+import MainTransaction from "./component/pages/Transaction/MainTransaction";
+import ShowTransaction from "./component/pages/Transaction/ShowTransaction";
 function App() {
   return (
     <div>
@@ -17,6 +19,8 @@ function App() {
             <Route path="/carlist" element={<CarList />} />
             <Route path="/carlist/create" element={<CarListCreate />} />
             <Route path="/customers" element={<Customers />} />
+            <Route path="/transaction" element={<MainTransaction />} />
+            <Route path="/transaction/:id" element={<ShowTransaction />} />
           </Route>
         </Routes>
       </Router>

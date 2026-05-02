@@ -3,8 +3,6 @@ import { Link, useLocation } from "react-router-dom";
 
 export default function Navside() {
   const location = useLocation();
-
-  // Helper untuk menentukan menu aktif
   const isActive = (path) =>
     location.pathname === path ? "active" : "link-dark";
 
@@ -13,7 +11,6 @@ export default function Navside() {
       className="d-flex flex-column flex-shrink-0 p-3 bg-white border-end"
       style={{ width: "280px", minHeight: "100vh" }}
     >
-      {/* Brand Logo */}
       <Link
         to="/dashboard"
         className="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none"
@@ -29,8 +26,6 @@ export default function Navside() {
       </Link>
 
       <hr />
-
-      {/* User Profile Section */}
       <div className="d-flex align-items-center mb-3 px-2">
         <img
           src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
@@ -47,10 +42,7 @@ export default function Navside() {
           </small>
         </div>
       </div>
-
       <hr />
-
-      {/* Sidebar Menu */}
       <ul className="nav nav-pills flex-column mb-auto">
         <li className="nav-item small text-muted text-uppercase fw-bold mb-2 px-2">
           Main Menu
@@ -74,6 +66,14 @@ export default function Navside() {
             className={`nav-link ${isActive("/customers")}`}
           >
             <i className="fas fa-users me-2"></i> Customer List
+          </Link>
+        </li>
+        <li>
+          <Link
+            to="/transaction"
+            className={`nav-link ${isActive("/transaction")}`}
+          >
+            <i className="fas fa-users me-2"></i> Transaction
           </Link>
         </li>
 
