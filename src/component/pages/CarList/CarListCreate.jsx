@@ -27,7 +27,7 @@ export default function CarListCreate() {
                   <input
                     type="text"
                     className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan kode kendaraan..."
+                    placeholder="Masukkan jenis kendaraan..."
                     required
                   />
                 </div>
@@ -39,7 +39,7 @@ export default function CarListCreate() {
                   <input
                     type="text"
                     className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan merek mobil..."
+                    placeholder="Masukkan nomor plat mobil"
                     required
                   />
                 </div>
@@ -66,7 +66,7 @@ export default function CarListCreate() {
                   <input
                     type="text"
                     className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan plat nomor..."
+                    placeholder="Masukkan jenis transmisi"
                     required
                   />
                 </div>
@@ -93,9 +93,9 @@ export default function CarListCreate() {
                     Tanggal Servis
                   </label>
                   <input
-                    type="text"
+                    type="date"
                     className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan jenis unit..."
+                    placeholder="Masukkan tanggal servis"
                     required
                   />
                 </div>
@@ -105,9 +105,9 @@ export default function CarListCreate() {
                     Tanggal Pajak
                   </label>
                   <input
-                    type="text"
+                    type="date"
                     className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan jenis unit..."
+                    placeholder="Masukkan tanggal pajak kendaraan..."
                     required
                   />
                 </div>
@@ -115,26 +115,32 @@ export default function CarListCreate() {
                   <label className="form-label text-secondary small fw-bold">
                     GPS
                   </label>
-                  <select
-                    name=""
-                    className="form-select bg-light border-0 py-2"
-                    id=""
-                  >
-                    <option value="">-- Pilih GPS --</option>
-                    <option value="GPS-101">GPS-101</option>
-                    <option value="GPS-102">GPS-102</option>
-                    <option value="GPS-103">GPS-103</option>
-                    <option value="GPS-104">GPS-104</option>
-                  </select>
-                </div>
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Jatuh Tempo
-                  </label>
                   <input
                     type="text"
                     className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan jenis unit..."
+                    placeholder="Masukkan nomor GPS"
+                    required
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">
+                    Masa Aktif GPS
+                  </label>
+                  <input
+                    type="date"
+                    className="form-control bg-light border-0 py-2"
+                    placeholder="Masukkan tanggal masa aktif nomor GPS"
+                    required
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">
+                    Tanggal Jatuh Tempo
+                  </label>
+                  <input
+                    type="date"
+                    className="form-control bg-light border-0 py-2"
+                    placeholder="Masukkan tanggal jatuh tempo"
                     required
                   />
                 </div>
