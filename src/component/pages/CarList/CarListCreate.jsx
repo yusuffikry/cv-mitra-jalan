@@ -46,6 +46,21 @@ export default function CarListCreate() {
 
                 <div className="mb-3">
                   <label className="form-label text-secondary small fw-bold">
+                    Status GPS
+                  </label>
+                  <select
+                    name=""
+                    className="form-select bg-light border-0 py-2"
+                    id=""
+                  >
+                    <option value="">-- Pilih Status --</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Non-Aktif">Blacklist</option>
+                  </select>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">
                     Transmisi
                   </label>
                   <input
