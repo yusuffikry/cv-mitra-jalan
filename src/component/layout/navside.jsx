@@ -1,10 +1,62 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { supabase } from "../../supabaseClient";
 
 export default function Navside() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   const isActive = (path) =>
     location.pathname === path ? "active" : "link-dark";
+
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        if (!supabase) {
+          console.error("Supabase client belum diinisialisasi!");
+          navigate("/");
+          return;
+        }
+
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error || !session) {
+          navigate("/");
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Kesalahan autentikasi:", err);
+        navigate("/");
+      }
+    };
+
+    checkUser();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate("/");
+    } catch (err) {
+      console.error("Gagal logout:", err);
+    }
+  };
+
+  // Tampilan Loading saat memvalidasi sesi
+  if (loading) {
+    return (
+      <div className="d-flex vh-100 align-items-center justify-content-center bg-white">
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status"></div>
+          <p className="mt-2 text-muted">Memvalidasi Sesi...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -73,7 +125,7 @@ export default function Navside() {
             to="/transaction"
             className={`nav-link ${isActive("/transaction")}`}
           >
-            <i className="fas fa-users me-2"></i> Transaction
+            <i className="fas fa-receipt me-2"></i> Transaction
           </Link>
         </li>
 
@@ -116,7 +168,10 @@ export default function Navside() {
 
       {/* Logout Button */}
       <div className="px-2">
-        <button className="btn btn-outline-danger btn-sm w-100">
+        <button
+          className="btn btn-outline-danger btn-sm w-100"
+          onClick={handleLogout}
+        >
           <i className="fas fa-sign-out-alt me-2"></i> Logout
         </button>
       </div>

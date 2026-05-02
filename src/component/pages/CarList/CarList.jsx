@@ -70,12 +70,12 @@ export default function CarList() {
   const checkGpsStatus = (expiryDate) => {
     const today = new Date();
     const activeUntil = new Date(expiryDate);
-    
+
     // Set jam ke 00:00:00 agar perbandingan adil hanya berdasarkan tanggal
     today.setHours(0, 0, 0, 0);
     activeUntil.setHours(0, 0, 0, 0);
 
-    return activeUntil >= today; 
+    return activeUntil >= today;
   };
 
   // Fungsi untuk mengekspor data ke file CSV
@@ -95,13 +95,15 @@ export default function CarList() {
       "Masa Aktif GPS",
       "Status GPS",
       "Keluhan",
-      "Status"
+      "Status",
     ];
 
     // 2. Map data ke dalam bentuk baris (array of strings)
     const rows = cars.map((car, index) => {
-      const isGpsActive = checkGpsStatus(car.gpsActiveDate) ? "Aktif" : "Tidak Aktif";
-      
+      const isGpsActive = checkGpsStatus(car.gpsActiveDate)
+        ? "Aktif"
+        : "Tidak Aktif";
+
       return [
         index + 1,
         car.name,
@@ -116,26 +118,26 @@ export default function CarList() {
         car.gpsActiveDate,
         isGpsActive,
         `"${car.complaints}"`, // Dibungkus tanda kutip agar koma di dalam keluhan tidak merusak format CSV
-        car.status
+        car.status,
       ];
     });
 
     // 3. Gabungkan Header dan Baris menggunakan koma dan enter (\n)
     const csvContent = [
       headers.join(","), // Menggabungkan header
-      ...rows.map(row => row.join(",")) // Menggabungkan setiap baris data
+      ...rows.map((row) => row.join(",")), // Menggabungkan setiap baris data
     ].join("\n");
 
     // 4. Buat Blob dan tautan (link) untuk proses download
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement("a");
     link.href = url;
     link.setAttribute("download", "Data_Armada_Rental.csv"); // Nama file
     document.body.appendChild(link);
     link.click();
-    
+
     // Bersihkan memori setelah download
     document.body.removeChild(link);
   };
@@ -150,17 +152,17 @@ export default function CarList() {
             Data inventaris kendaraan aktif
           </p>
         </div>
-        
+
         {/* Tambahan Dropdown / Button Export di sini */}
         <div className="d-flex gap-2">
-          <button 
-            onClick={exportToCSV} 
+          <button
+            onClick={exportToCSV}
             className="btn btn-success shadow-sm px-3"
             title="Export data ke Excel/CSV"
           >
             <i className="fas fa-file-excel me-2"></i>Export CSV
           </button>
-          
+
           <Link to="/carlist/create" className="btn btn-primary shadow-sm px-3">
             <i className="fas fa-plus me-2"></i>Tambah Mobil
           </Link>
@@ -195,17 +197,39 @@ export default function CarList() {
           >
             <thead className="sticky-top bg-white" style={{ zIndex: 10 }}>
               <tr style={{ backgroundColor: "#f8f9fa" }}>
-                <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom">No</th>
-                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">Unit Kendaraan</th>
-                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">Plat Nomor</th>
-                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">Transmisi</th>
-                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">Jatuh Tempo</th>
-                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">Tgl Servis</th>
-                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">Tgl Pajak</th>
-                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">GPS & Masa Aktif</th>
-                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">Keluhan Unit</th>
-                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">Status</th>
-                <th className="py-3 text-center text-secondary fw-bold text-uppercase border-bottom">Aksi</th>
+                <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom">
+                  No
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">
+                  Unit Kendaraan
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">
+                  Plat Nomor
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">
+                  Transmisi
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">
+                  Jatuh Tempo
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">
+                  Tgl Servis
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">
+                  Tgl Pajak
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">
+                  GPS & Masa Aktif
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">
+                  Keluhan Unit
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">
+                  Status
+                </th>
+                <th className="py-3 text-center text-secondary fw-bold text-uppercase border-bottom">
+                  Aksi
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -236,11 +260,14 @@ export default function CarList() {
                     <td className="text-center">{car.dueDate}</td>
                     <td className="text-center">{car.serviceDate}</td>
                     <td className="text-center">{car.taxDate}</td>
-                    
+
                     {/* Kolom GPS dengan Logika Aktif/Tidak Aktif */}
                     <td className="text-center">
                       <div className="fw-bold text-dark">{car.gpsNumber}</div>
-                      <div className="text-muted mb-1" style={{ fontSize: "0.75rem" }}>
+                      <div
+                        className="text-muted mb-1"
+                        style={{ fontSize: "0.75rem" }}
+                      >
                         s/d {car.gpsActiveDate}
                       </div>
                       <span

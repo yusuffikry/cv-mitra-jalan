@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 
 function Dashboard() {
@@ -39,12 +39,6 @@ function Dashboard() {
 
   return (
     <div className="p-8">
-      <button
-        onClick={handleLogout}
-        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-      >
-        Logout
-      </button>
       <h1>Terakhir pi mas</h1>
     </div>
   );

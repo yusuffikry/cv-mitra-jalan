@@ -22,7 +22,7 @@ export default function CarListCreate() {
               <div className="col-md-6">
                 <div className="mb-3">
                   <label className="form-label text-secondary small fw-bold">
-                    KODE
+                    Unit Kendaraan
                   </label>
                   <input
                     type="text"
@@ -34,7 +34,7 @@ export default function CarListCreate() {
 
                 <div className="mb-3">
                   <label className="form-label text-secondary small fw-bold">
-                    MEREK
+                    Plat Nomor
                   </label>
                   <input
                     type="text"
@@ -46,7 +46,7 @@ export default function CarListCreate() {
 
                 <div className="mb-3">
                   <label className="form-label text-secondary small fw-bold">
-                    NOMOR PLAT
+                    Transmisi
                   </label>
                   <input
                     type="text"
@@ -55,16 +55,19 @@ export default function CarListCreate() {
                     required
                   />
                 </div>
-
                 <div className="mb-3">
                   <label className="form-label text-secondary small fw-bold">
-                    KELUHAN
+                    Status
                   </label>
-                  <textarea
-                    className="form-control bg-light border-0 py-2"
-                    rows="3"
-                    placeholder="Masukkan keluhan unit..."
-                  ></textarea>
+                  <select
+                    name=""
+                    className="form-select bg-light border-0 py-2"
+                    id=""
+                  >
+                    <option value="">-- Pilih Status --</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Non-Aktif">Blacklist</option>
+                  </select>
                 </div>
               </div>
 
@@ -72,7 +75,7 @@ export default function CarListCreate() {
               <div className="col-md-6">
                 <div className="mb-3">
                   <label className="form-label text-secondary small fw-bold">
-                    JENIS UNIT
+                    Tanggal Servis
                   </label>
                   <input
                     type="text"
@@ -84,13 +87,55 @@ export default function CarListCreate() {
 
                 <div className="mb-3">
                   <label className="form-label text-secondary small fw-bold">
-                    TRANSMISI
+                    Tanggal Pajak
                   </label>
-                  <select className="form-select bg-light border-0 py-2 text-muted">
-                    <option value="">--Pilih transmisi--</option>
-                    <option value="Manual">Manual</option>
-                    <option value="Automatic">Automatic</option>
+                  <input
+                    type="text"
+                    className="form-control bg-light border-0 py-2"
+                    placeholder="Masukkan jenis unit..."
+                    required
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">
+                    GPS
+                  </label>
+                  <select
+                    name=""
+                    className="form-select bg-light border-0 py-2"
+                    id=""
+                  >
+                    <option value="">-- Pilih GPS --</option>
+                    <option value="GPS-101">GPS-101</option>
+                    <option value="GPS-102">GPS-102</option>
+                    <option value="GPS-103">GPS-103</option>
+                    <option value="GPS-104">GPS-104</option>
                   </select>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">
+                    Jatuh Tempo
+                  </label>
+                  <input
+                    type="text"
+                    className="form-control bg-light border-0 py-2"
+                    placeholder="Masukkan jenis unit..."
+                    required
+                  />
+                </div>
+              </div>
+              <div className="row">
+                <div className="col">
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">
+                      Keluhan Unit
+                    </label>
+                    <textarea
+                      className="form-control bg-light border-0"
+                      rows="3"
+                      placeholder="Masukkan keluhan unit..."
+                    ></textarea>
+                  </div>
                 </div>
               </div>
             </div>

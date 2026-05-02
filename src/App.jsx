@@ -8,6 +8,8 @@ import CarListCreate from "./component/pages/CarList/CarListCreate";
 import Customers from "./component/pages/Customers/Customers";
 import MainTransaction from "./component/pages/Transaction/MainTransaction";
 import ShowTransaction from "./component/pages/Transaction/ShowTransaction";
+import CustomersCreate from "./component/pages/Customers/CustomersCreate";
+import CreateTransaction from "./component/pages/Transaction/CreateTransaction";
 function App() {
   return (
     <div>
@@ -16,11 +18,19 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route element={<Main />}>
             <Route path="/dashboard" element={<Dashboard />} />
+
+            {/* Car List Routes */}
             <Route path="/carlist" element={<CarList />} />
             <Route path="/carlist/create" element={<CarListCreate />} />
+
+            {/* Customers Routes */}
             <Route path="/customers" element={<Customers />} />
+            <Route path="/customers/create" element={<CustomersCreate />} />
+
+            {/* Transaction Routes */}
             <Route path="/transaction" element={<MainTransaction />} />
             <Route path="/transaction/:id" element={<ShowTransaction />} />
+            <Route path="/transaction/create" element={<CreateTransaction />} />
           </Route>
         </Routes>
       </Router>

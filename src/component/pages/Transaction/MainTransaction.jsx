@@ -1,6 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
+import ShowTransaction from "./ShowTransaction"; // Pastikan path file benar
 
 export default function MainTransaction() {
+  // State untuk menyimpan data yang sedang dilihat
+  const [selectedData, setSelectedData] = useState(null);
+
   const transactions = Array(10).fill({
     waktu: "17 Oktober 2025 13:00",
     mobil: "DD 2020 RR",
@@ -10,16 +14,32 @@ export default function MainTransaction() {
     dibuat: "12 Okt 2020",
   });
 
+  // Fungsi untuk memilih data dan menampilkan halaman detail
+  const handleViewDetails = (data) => {
+    setSelectedData(data);
+  };
+
+  // Jika ada data yang dipilih, tampilkan ShowTransaction
+  if (selectedData) {
+    return (
+      <ShowTransaction
+        data={selectedData}
+        onBack={() => setSelectedData(null)}
+      />
+    );
+  }
+
   return (
     <div className="d-flex flex-column h-100 bg-light overflow-hidden">
       <div className="p-4 flex-grow-1 d-flex flex-column overflow-hidden">
         <div className="d-flex justify-content-end mb-3 flex-shrink-0">
-          <button
+          <a
+            href="/transaction/create"
             className="btn text-white px-4 py-2 shadow-sm"
             style={{ backgroundColor: "#0cc2aa", borderRadius: "12px" }}
           >
             Tambah
-          </button>
+          </a>
         </div>
         <div
           className="card border-0 shadow-sm flex-grow-1 d-flex flex-column overflow-hidden"
@@ -114,7 +134,9 @@ export default function MainTransaction() {
                         >
                           <i className="fas fa-trash p-1"></i>
                         </button>
+                        {/* Tombol Copy diset untuk membuka detail (ShowTransaction) */}
                         <button
+                          onClick={() => handleViewDetails(item)}
                           className="btn btn-sm p-1 shadow-sm"
                           style={{
                             backgroundColor: "#0cc2aa",
