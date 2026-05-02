@@ -1,154 +1,192 @@
-import {
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeadCell,
-  TableRow,
-  Pagination,
-} from "flowbite-react";
+import React from "react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
-export default function CarList() {
-  const [currentPage, setCurrentPage] = useState(1);
-  const onPageChange = (page) => setCurrentPage(page);
-  return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center pb-5 md:justify-end gap-4">
-        <div className="relative w-full md:w-80">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <svg
-              className="w-4 h-4 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
-          <input
-            type="text"
-            className="block w-full p-2.5 pl-10 text-sm text-gray-900 border border-gray-200 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            placeholder="Cari data..."
-          />
-        </div>
-        <Button color="green" href="/carlist/create">
-          <span className="flex items-center">
-            <svg
-              className="w-4 h-4 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Tambah
-          </span>
-        </Button>
-      </div>
-      <div className="space-y-4 bg-white p-2 rounded-lg">
-        <div className="overflow-x-auto border border-gray-100 rounded-lg shadow-sm">
-          <Table hoverable>
-            <TableHead>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                NO
-              </TableHeadCell>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                KODE
-              </TableHeadCell>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                JENIS UNIT
-              </TableHeadCell>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                MEREK
-              </TableHeadCell>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                NO GPS & MASA AKTIF
-              </TableHeadCell>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                NOMOR PLAT
-              </TableHeadCell>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                TRANSMISI
-              </TableHeadCell>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                TANGGAL JATUH TEMPO
-              </TableHeadCell>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                KELUHAN UNIT
-              </TableHeadCell>
-              <TableHeadCell className="!bg-gray-100 !text-gray-600 border-b border-gray-200 uppercase text-xs font-bold">
-                ACTION
-              </TableHeadCell>
-            </TableHead>
 
-            <TableBody className="divide-y divide-gray-100">
-              <TableRow className="!bg-white hover:!bg-gray-50 transition-colors">
-                <TableCell className="text-gray-600">1</TableCell>
-                <TableCell className="text-gray-600">CR-001</TableCell>
-                <TableCell className="text-gray-600">Avanza</TableCell>
-                <TableCell className="text-gray-900">Toyota</TableCell>
-                <TableCell className="text-gray-600">
-                  0/12 (082134215743)
-                </TableCell>
-                <TableCell className="text-gray-600">DD 123 CC</TableCell>
-                <TableCell className="text-gray-600">MANUAL</TableCell>
-                <TableCell className="text-gray-600">300.000</TableCell>
-                <TableCell className="text-gray-600">NaN</TableCell>
-                <TableCell>
-                  <a
-                    href="#"
-                    className="font-semibold text-blue-600 hover:underline"
-                  >
-                    Edit
-                  </a>
-                  <a
-                    href="#"
-                    className="font-semibold text-red-600 hover:underline ml-2"
-                  >
-                    Hapus
-                  </a>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-          <div className="flex justify-center md:justify-end border-t !border-gray-100 !bg-white px-4 py-3">
-            <div className="flex overflow-x-auto">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={100}
-                onPageChange={onPageChange}
-                showIcons
-                theme={{
-                  pages: {
-                    base: "xs:mt-0 mt-2 inline-flex items-center -space-x-px",
-                    showIcon: "inline-flex",
-                    list: "inline-flex items-center -space-x-px",
-                    selector: {
-                      base: "w-10 border !border-gray-200 !bg-white py-2 leading-tight !text-gray-500 enabled:hover:!bg-gray-100 enabled:hover:!text-gray-700",
-                      active:
-                        "!bg-blue-50 !text-blue-600 hover:!bg-blue-100 hover:!text-blue-700 !border-blue-200 z-10",
-                      disabled: "opacity-50 cursor-not-allowed",
-                    },
-                    button: {
-                      base: "border !border-gray-200 !bg-white py-2 px-3 leading-tight !text-gray-500 enabled:hover:!bg-gray-100 enabled:hover:!text-gray-700",
-                      active: "!bg-blue-50 !text-blue-600 !border-blue-200",
-                    },
-                  },
-                }}
-              />
+export default function CarList() {
+  const cars = [
+    {
+      id: 1,
+      name: "Toyota Avanza",
+      plate: "B 1234 ABC",
+      status: "Tersedia",
+      type: "MPV",
+      year: "2022",
+    },
+    {
+      id: 2,
+      name: "Mitsubishi Xpander",
+      plate: "B 5678 DEF",
+      status: "Disewa",
+      type: "MPV",
+      year: "2021",
+    },
+    {
+      id: 3,
+      name: "Honda HR-V",
+      plate: "B 9012 GHI",
+      status: "Tersedia",
+      type: "SUV",
+      year: "2023",
+    },
+    {
+      id: 4,
+      name: "Suzuki Ertiga",
+      plate: "B 4432 JKL",
+      status: "Tersedia",
+      type: "MPV",
+      year: "2022",
+    },
+  ];
+
+  return (
+    /* h-100 dan overflow-hidden agar halaman tidak scroll ke bawah secara keseluruhan */
+    <div className="d-flex flex-column vh-100 bg-light p-4 overflow-hidden">
+      {/* Header Tetap di Atas */}
+      <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+        <div>
+          <h4 className="fw-bold text-dark mb-1">Manajemen Armada</h4>
+          <p className="text-muted small mb-0">
+            Data inventaris kendaraan aktif
+          </p>
+        </div>
+        <Link to="/carlist/create" className="btn btn-primary shadow-sm px-3">
+          <i className="fas fa-plus me-2"></i>Tambah Mobil
+        </Link>
+      </div>
+
+      {/* Card Utama dengan flex-grow agar mengisi sisa layar */}
+      <div className="card border-0 shadow-sm d-flex flex-column flex-grow-1 overflow-hidden">
+        {/* Toolbar Atas */}
+        <div className="card-header bg-white py-3 border-bottom-0 flex-shrink-0">
+          <div className="row">
+            <div className="col-md-4">
+              <div className="input-group input-group-sm">
+                <span className="input-group-text bg-light border-end-0">
+                  <i className="fas fa-search text-muted"></i>
+                </span>
+                <input
+                  type="text"
+                  className="form-control bg-light border-start-0"
+                  placeholder="Cari unit..."
+                />
+              </div>
             </div>
+          </div>
+        </div>
+
+        {/* Area Tabel dengan Scroll Internal jika data banyak */}
+        <div className="card-body p-0 flex-grow-1 overflow-auto">
+          <table
+            className="table table-hover align-middle mb-0"
+            style={{ fontSize: "0.85rem" }}
+          >
+            <thead className="sticky-top bg-white" style={{ zIndex: 10 }}>
+              <tr style={{ backgroundColor: "#f8f9fa" }}>
+                <th
+                  className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom"
+                  style={{ width: "60px" }}
+                >
+                  No
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">
+                  Unit Kendaraan
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">
+                  Plat Nomor
+                </th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">
+                  Status
+                </th>
+                <th
+                  className="py-3 text-center text-secondary fw-bold text-uppercase border-bottom"
+                  style={{ width: "120px" }}
+                >
+                  Aksi
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {cars.map((car, index) => (
+                <tr key={car.id}>
+                  <td className="px-4 text-muted">{index + 1}</td>
+                  <td>
+                    <div className="fw-bold text-dark">{car.name}</div>
+                    <div
+                      className="text-muted small"
+                      style={{ fontSize: "0.75rem" }}
+                    >
+                      {car.type} • {car.year}
+                    </div>
+                  </td>
+                  <td className="text-center">
+                    <span
+                      className="badge border text-dark fw-bold bg-white px-2 py-1"
+                      style={{ letterSpacing: "1px" }}
+                    >
+                      {car.plate}
+                    </span>
+                  </td>
+                  <td className="text-center">
+                    <span
+                      className={`badge rounded-pill px-3 py-2 ${
+                        car.status === "Tersedia"
+                          ? "bg-success-subtle text-success"
+                          : "bg-warning-subtle text-warning"
+                      }`}
+                    >
+                      <i
+                        className="fas fa-circle me-1"
+                        style={{ fontSize: "6px" }}
+                      ></i>{" "}
+                      {car.status}
+                    </span>
+                  </td>
+                  <td className="text-center">
+                    <div className="btn-group shadow-sm">
+                      <button className="btn btn-sm btn-white border text-primary">
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button className="btn btn-sm btn-white border text-danger">
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer Tetap di Bawah Card dan Mepet Kanan */}
+        <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
+          <div className="d-flex justify-content-between align-items-center">
+            <span className="text-muted small">
+              Total: <strong>{cars.length}</strong> unit
+            </span>
+            <nav>
+              <ul className="pagination pagination-sm mb-0">
+                <li className="page-item disabled">
+                  <span className="page-link border-0 bg-transparent">
+                    Prev
+                  </span>
+                </li>
+                <li className="page-item active">
+                  <span
+                    className="page-link border-0 rounded mx-1 shadow-sm px-3"
+                    style={{ backgroundColor: "#0061f2" }}
+                  >
+                    1
+                  </span>
+                </li>
+                <li className="page-item">
+                  <span className="page-link border-0 text-dark mx-1">2</span>
+                </li>
+                <li className="page-item">
+                  <span className="page-link border-0 bg-transparent text-primary">
+                    Next
+                  </span>
+                </li>
+              </ul>
+            </nav>
           </div>
         </div>
       </div>

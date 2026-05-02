@@ -6,16 +6,16 @@ import { Outlet } from "react-router-dom";
 
 export default function Main() {
   return (
-    <div>
-      <div className="flex min-h-screen">
-        <Navside />
-        <div className="flex-1 flex flex-col">
-          <Nav />
-          <main className="p-4 bg-neutral-400 flex-1">
+    <div className="flex h-screen overflow-hidden">
+      <Navside />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Nav />
+        <main className="p-4 bg-neutral-100 flex-1 overflow-hidden">
+          <div className="h-full w-full">
             <Outlet />
-          </main>
-          <FooterNav />
-        </div>
+          </div>
+        </main>
+        <FooterNav />
       </div>
     </div>
   );
