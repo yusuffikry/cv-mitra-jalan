@@ -1,6 +1,7 @@
 import React from "react";
 import Navside from "./navside";
 import Nav from "./nav";
+import FooterNav from "./fotter";
 import { Outlet } from "react-router-dom";
 
 export default function Main() {
@@ -13,6 +14,7 @@ export default function Main() {
           <main className="p-4 bg-neutral-400 flex-1">
             <Outlet />
           </main>
+          <FooterNav />
         </div>
       </div>
     </div>

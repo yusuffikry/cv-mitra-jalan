@@ -84,13 +84,23 @@ export default function Navside() {
             <SidebarItemGroup>
               <b className="text-slate-500 text-sm leading-tight">Main Menu</b>
               <SidebarItem
-                href="#"
+                href="/dashboard"
                 active={window.location.pathname === "/dashboard"}
-                className="!text-slate-300"
               >
                 Dashboard
               </SidebarItem>
-              <SidebarItem href="#">Car List </SidebarItem>
+              <SidebarItem
+                href="/carlist"
+                active={window.location.pathname === "/carlist"}
+              >
+                Car List
+              </SidebarItem>
+              <SidebarItem
+              // href="/carlist"
+              // active={window.location.pathname === "/carlist"}
+              >
+                Customer List
+              </SidebarItem>
               <SidebarItem href="#">Transaction</SidebarItem>
             </SidebarItemGroup>
             <SidebarItemGroup>
