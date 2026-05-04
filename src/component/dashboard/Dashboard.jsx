@@ -39,6 +39,26 @@ function Dashboard() {
 
   return (
     <div className="p-8">
+      <img
+        src="/public/Image/erul.png"
+        className="w-40 h-40 rounded-circle shadow-lg"
+        alt=""
+      />
+      <img
+        src="/public/Image/erul.png"
+        className="w-40 h-40 rounded-circle shadow-lg"
+        alt=""
+      />
+      <img
+        src="/public/Image/erul.png"
+        className="w-40 h-40 rounded-circle shadow-lg"
+        alt=""
+      />
+      <img
+        src="/public/Image/erul.png"
+        className="w-40 h-40 rounded-circle shadow-lg"
+        alt=""
+      />
       <h1>Terakhir pi mas</h1>
     </div>
   );
