@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { supabase } from "../../../supabaseClient"; // Pastikan path ini benar
 
 export default function EditCarList() {
   const navigate = useNavigate();
-  // const { id } = useParams(); // Aktifkan ini jika sudah menggunakan backend
+  const { id } = useParams(); // Mengambil ID dari URL (/carlist/edit/:id)
+
+  // State loading untuk fetching dan submitting
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // State untuk menyimpan data armada
   const [formData, setFormData] = useState({
@@ -21,27 +26,46 @@ export default function EditCarList() {
     complaints: "",
   });
 
-  // Simulasi fetch data berdasarkan ID
+  // 1. Fetch data spesifik berdasarkan ID saat komponen dimuat
   useEffect(() => {
-    // Pada implementasi nyata: fetch(`/api/cars/${id}`)
-    const dummyCarData = {
-      id: 1,
-      name: "Toyota Avanza",
-      plate: "B 1234 ABC",
-      status: "Tersedia",
-      type: "MPV",
-      year: "2022",
-      dueDate: "2026-06-15",
-      serviceDate: "2026-05-20",
-      taxDate: "2027-01-10",
-      gpsNumber: "GPS-101",
-      gpsActiveDate: "2026-04-30",
-      transmission: "Otomatis",
-      complaints: "AC kurang dingin",
+    const fetchCarData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("cars")
+          .select("*")
+          .eq("cars_id", id) // Cari berdasarkan Primary Key
+          .single(); // Ambil hanya 1 baris
+
+        if (error) throw error;
+
+        // Jika data ditemukan, masukkan ke state formData
+        if (data) {
+          setFormData({
+            name: data.jenis_unit || "",
+            plate: data.nomor_plat || "",
+            status: data.status_mobil || "Tersedia",
+            type: data.tipe_kendaraan || "MPV",
+            year: data.tahun_produksi || "",
+            dueDate: data.tgl_jatuh_tempo || "",
+            serviceDate: data.tgl_pergantian_oli || "",
+            taxDate: data.tgl_mati_pajak || "",
+            gpsNumber: data.no_gps || "",
+            gpsActiveDate: data.masa_aktif_gps || "",
+            transmission: data.transmisi || "Manual",
+            complaints: data.keluhan_unit || "",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching car details:", error.message);
+        alert("Gagal memuat data kendaraan.");
+        navigate("/carlist"); // Tendang balik jika error/ID tidak valid
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    setFormData(dummyCarData);
-  }, []);
+    fetchCarData();
+  }, [id, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -51,12 +75,54 @@ export default function EditCarList() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  // 2. Fungsi untuk mengirim perintah UPDATE ke Supabase
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Data Armada Diperbarui:", formData);
-    alert("Data kendaraan berhasil diperbarui!");
-    navigate("/carlist"); // Kembali ke halaman utama armada
+    setIsSubmitting(true);
+    
+    try {
+      const { error } = await supabase
+        .from("cars")
+        .update({
+          jenis_unit: formData.name,
+          nomor_plat: formData.plate,
+          tahun_produksi: formData.year,
+          tipe_kendaraan: formData.type,
+          transmisi: formData.transmission,
+          status_mobil: formData.status,
+          keluhan_unit: formData.complaints || null,
+          tgl_jatuh_tempo: formData.dueDate,
+          tgl_mati_pajak: formData.taxDate,
+          tgl_pergantian_oli: formData.serviceDate,
+          no_gps: formData.gpsNumber,
+          masa_aktif_gps: formData.gpsActiveDate,
+        })
+        .eq("cars_id", id); // PENTING: Jangan lupa klausa WHERE, kalau tidak semua mobil ikut terupdate!
+
+      if (error) throw error;
+
+      alert("Data kendaraan berhasil diperbarui!");
+      navigate("/carlist"); // Kembali ke halaman utama armada
+
+    } catch (error) {
+      console.error("Error updating car:", error.message);
+      alert("Gagal memperbarui data: " + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  // Tampilkan loading spinner jika data masih ditarik dari database
+  if (isLoading) {
+    return (
+      <div className="container-fluid py-4 bg-light min-vh-100 d-flex justify-content-center align-items-center">
+        <div className="text-center text-muted">
+          <div className="spinner-border mb-2" role="status"></div>
+          <p>Memuat data kendaraan...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container-fluid py-4 bg-light min-vh-100">
@@ -149,7 +215,7 @@ export default function EditCarList() {
                       required
                     >
                       <option value="Manual">Manual</option>
-                      <option value="Otomatis">Otomatis</option>
+                      <option value="Matic">Matic</option>
                     </select>
                   </div>
                 </div>
@@ -165,7 +231,7 @@ export default function EditCarList() {
                   >
                     <option value="Tersedia">Tersedia</option>
                     <option value="Disewa">Disewa</option>
-                    <option value="Dalam Perbaikan">Dalam Perbaikan</option>
+                    <option value="Pemeliharaan">Pemeliharaan</option> {/* Disesuaikan DB */}
                   </select>
                 </div>
 
@@ -266,10 +332,18 @@ export default function EditCarList() {
               </Link>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                style={{ backgroundColor: "#0cc2aa", border: "none", borderRadius: "12px" }}
+                style={{ backgroundColor: "#0cc2aa", border: "none", borderRadius: "12px", opacity: isSubmitting ? 0.7 : 1 }}
               >
-                Simpan Perubahan
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Menyimpan...
+                  </>
+                ) : (
+                  "Simpan Perubahan"
+                )}
               </button>
             </div>
             

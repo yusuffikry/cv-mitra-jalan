@@ -1,8 +1,12 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "../../../supabaseClient"; // Pastikan path ini benar
 
 export default function CarListCreate() {
   const navigate = useNavigate();
+
+  // State untuk indikator loading saat submit
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // State untuk menyimpan data form pendaftaran mobil baru
   const [formData, setFormData] = useState({
@@ -29,15 +33,43 @@ export default function CarListCreate() {
     }));
   };
 
-  // Fungsi untuk menangani submit form
-  const handleSubmit = (e) => {
+  // Fungsi untuk menangani submit form ke Supabase
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Data Kendaraan Baru Disimpan:", formData);
+    setIsSubmitting(true); // Mulai proses loading
     
-    // TODO: Tambahkan logika POST ke API di sini
-    
-    alert("Data kendaraan berhasil ditambahkan!");
-    navigate("/carlist"); // Kembali ke halaman utama armada
+    try {
+      // Mapping state formData ke nama kolom Supabase
+      const { error } = await supabase
+        .from("cars")
+        .insert([
+          {
+            jenis_unit: formData.name,
+            nomor_plat: formData.plate,
+            tahun_produksi: formData.year,
+            tipe_kendaraan: formData.type,
+            transmisi: formData.transmission,
+            status_mobil: formData.status,
+            keluhan_unit: formData.complaints || null, // Kosongkan jadi null jika tidak ada keluhan
+            tgl_jatuh_tempo: formData.dueDate,
+            tgl_mati_pajak: formData.taxDate,
+            tgl_pergantian_oli: formData.serviceDate,
+            no_gps: formData.gpsNumber,
+            masa_aktif_gps: formData.gpsActiveDate,
+          }
+        ]);
+
+      if (error) throw error; // Lempar error jika gagal insert
+
+      alert("Data kendaraan berhasil ditambahkan!");
+      navigate("/carlist"); // Kembali ke halaman utama armada
+
+    } catch (error) {
+      console.error("Error inserting car:", error.message);
+      alert("Gagal menambahkan kendaraan: " + error.message);
+    } finally {
+      setIsSubmitting(false); // Matikan loading
+    }
   };
 
   return (
@@ -131,7 +163,7 @@ export default function CarListCreate() {
                       required
                     >
                       <option value="Manual">Manual</option>
-                      <option value="Otomatis">Otomatis</option>
+                      <option value="Matic">Matic</option>
                     </select>
                   </div>
                 </div>
@@ -147,7 +179,7 @@ export default function CarListCreate() {
                   >
                     <option value="Tersedia">Tersedia</option>
                     <option value="Disewa">Disewa</option>
-                    <option value="Dalam Perbaikan">Dalam Perbaikan</option>
+                    <option value="Pemeliharaan">Pemeliharaan</option> {/* Disesuaikan dengan CHECK constraint di DB */}
                   </select>
                 </div>
 
@@ -239,7 +271,7 @@ export default function CarListCreate() {
               </div>
             </div>
 
-            {/* Tombol Aksi - Mepet Kanan sesuai Gambar */}
+            {/* Tombol Aksi */}
             <div className="d-flex justify-content-end gap-3 mt-5 border-top pt-4">
               <Link
                 to="/carlist"
@@ -250,10 +282,18 @@ export default function CarListCreate() {
               </Link>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                style={{ backgroundColor: "#0cc2aa", border: "none", borderRadius: "12px" }}
+                style={{ backgroundColor: "#0cc2aa", border: "none", borderRadius: "12px", opacity: isSubmitting ? 0.7 : 1 }}
               >
-                Submit Kendaraan
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Menyimpan...
+                  </>
+                ) : (
+                  "Submit Kendaraan"
+                )}
               </button>
             </div>
             

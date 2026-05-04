@@ -5,6 +5,7 @@ import { supabase } from "../../../supabaseClient";
 export default function CarList() {
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [carToDelete, setCarToDelete] = useState(null);
@@ -64,7 +65,7 @@ export default function CarList() {
       // Refresh tabel
       fetchCars();
       
-      // Pesan sukses (bisa kamu ganti pakai Toast nanti kalau mau lebih estetik)
+      // Pesan sukses
       alert(`Kendaraan ${carToDelete.name} (${carToDelete.plate}) berhasil dihapus!`);
     } catch (error) {
       console.error("Error deleting car:", error.message);
@@ -124,6 +125,14 @@ export default function CarList() {
     document.body.removeChild(link);
   };
 
+  const filteredCars = cars.filter((car) => {
+    const searchLower = searchTerm.toLowerCase();
+    const matchName = (car.jenis_unit || "").toLowerCase().includes(searchLower);
+    const matchPlate = (car.nomor_plat || "").toLowerCase().includes(searchLower);
+    
+    return matchName || matchPlate;
+  });
+
   return (
     <div className="d-flex flex-column vh-100 bg-light p-4 overflow-hidden">
       {/* Header */}
@@ -145,7 +154,6 @@ export default function CarList() {
 
       {/* Card Utama */}
       <div className="card border-0 shadow-sm d-flex flex-column flex-grow-1 overflow-hidden">
-        {/* Toolbar (Pencarian dll) */}
         <div className="card-header bg-white py-3 border-bottom-0 flex-shrink-0">
           <div className="row">
             <div className="col-md-4">
@@ -153,7 +161,23 @@ export default function CarList() {
                 <span className="input-group-text bg-light border-end-0">
                   <i className="fas fa-search text-muted"></i>
                 </span>
-                <input type="text" className="form-control bg-light border-start-0" placeholder="Cari unit..." />
+                <input 
+                  type="text" 
+                  className={`form-control bg-light ${searchTerm ? 'border-end-0' : ''} border-start-0`} 
+                  placeholder="Cari nama unit atau plat..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                  <button 
+                    className="btn btn-light border border-start-0" 
+                    type="button" 
+                    onClick={() => setSearchTerm("")}
+                    title="Hapus pencarian"
+                  >
+                    <i className="fas fa-times text-muted"></i>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -191,8 +215,14 @@ export default function CarList() {
                     Tidak ada data kendaraan yang ditemukan.
                   </td>
                 </tr>
+              ) : filteredCars.length === 0 ? (
+                <tr>
+                  <td colSpan="11" className="text-center py-5 text-muted">
+                    Kendaraan dengan kata kunci "{searchTerm}" tidak ditemukan.
+                  </td>
+                </tr>
               ) : (
-                cars.map((car, index) => {
+                filteredCars.map((car, index) => {
                   const isGpsActive = checkGpsStatus(car.masa_aktif_gps) && car.status_gps === 'Aktif';
 
                   return (
@@ -253,7 +283,6 @@ export default function CarList() {
                           <Link to={`/carlist/edit/${car.cars_id}`} className="btn btn-sm btn-white border text-primary">
                             <i className="fas fa-edit"></i>
                           </Link>
-                          {/* --- TOMBOL TRASH DIUBAH MEMANGGIL handleDeleteClick --- */}
                           <button
                             onClick={() => handleDeleteClick(car.cars_id, car.jenis_unit, car.nomor_plat)}
                             className="btn btn-sm btn-white border text-danger"
@@ -274,7 +303,8 @@ export default function CarList() {
         <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
           <div className="d-flex justify-content-between align-items-center">
             <span className="text-muted small">
-              Total: <strong>{cars.length}</strong> unit
+              {/* --- DIUBAH MENJADI filteredCars.length --- */}
+              Total: <strong>{filteredCars.length}</strong> unit
             </span>
             <nav>
               <ul className="pagination pagination-sm mb-0">
@@ -298,35 +328,56 @@ export default function CarList() {
         </div>
       </div>
 
-      {/* --- KODE UI POP UP MODAL HAPUS --- */}
       {showDeleteModal && (
         <div 
           className="modal fade show d-block" 
           tabIndex="-1" 
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)' }}
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', zIndex: 1050 }}
         >
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content border-0 shadow-lg">
-              <div className="modal-header border-bottom-0 pb-0">
-                <h5 className="modal-title fw-bold text-danger">Konfirmasi Hapus</h5>
-                <button type="button" className="btn-close" onClick={cancelDelete}></button>
-              </div>
-              <div className="modal-body py-4">
-                <p className="mb-0 text-center fs-5">
-                  Apakah Anda yakin ingin menghapus mobil <br/>
-                  <strong>{carToDelete?.name}</strong> (<strong>{carToDelete?.plate}</strong>)?
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+              <div className="modal-body p-4 text-center">
+                
+                <div 
+                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-danger-subtle text-danger" 
+                  style={{ width: "64px", height: "64px", borderRadius: "50%" }}
+                >
+                  <i className="fas fa-trash-alt fs-3"></i>
+                </div>
+
+                <h5 className="fw-bold text-dark mb-2">Hapus Data Unit?</h5>
+                <p className="text-muted mb-4" style={{ fontSize: "0.9rem" }}>
+                  Anda akan menghapus data kendaraan <br />
+                  <span className="fw-bold text-dark fs-6">{carToDelete?.name}</span> <br />
+                  <span className="badge bg-light border text-dark mt-2 px-3 py-2" style={{ letterSpacing: "1px" }}>
+                    {carToDelete?.plate}
+                  </span>
                 </p>
-                <p className="text-center text-muted small mt-2 mb-0">
-                  Data yang dihapus akan hilang secara permanen dari sistem.
-                </p>
-              </div>
-              <div className="modal-footer border-top-0 pt-0 justify-content-center gap-2">
-                <button type="button" className="btn btn-light px-4 border" onClick={cancelDelete}>
-                  Batal
-                </button>
-                <button type="button" className="btn btn-danger px-4" onClick={confirmDelete}>
-                  Ya, Hapus Data
-                </button>
+
+                <div className="alert alert-warning border-0 bg-warning-subtle text-warning-emphasis p-2 rounded-3 mb-4 text-start d-flex align-items-center" style={{ fontSize: "0.8rem" }}>
+                  <i className="fas fa-exclamation-triangle me-2 fs-6"></i>
+                  Data ini tidak dapat dikembalikan setelah dihapus.
+                </div>
+
+                <div className="d-flex gap-2">
+                  <button 
+                    type="button" 
+                    className="btn btn-light w-50 fw-bold border shadow-sm" 
+                    style={{ borderRadius: "10px" }}
+                    onClick={cancelDelete}
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-danger w-50 fw-bold shadow-sm" 
+                    style={{ borderRadius: "10px" }}
+                    onClick={confirmDelete}
+                  >
+                    Ya, Hapus
+                  </button>
+                </div>
+                
               </div>
             </div>
           </div>
