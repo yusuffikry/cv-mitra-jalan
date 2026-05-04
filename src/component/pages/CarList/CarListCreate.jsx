@@ -1,192 +1,262 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function CarListCreate() {
   const navigate = useNavigate();
 
+  // State untuk menyimpan data form pendaftaran mobil baru
+  const [formData, setFormData] = useState({
+    name: "",
+    plate: "",
+    status: "Tersedia",
+    type: "MPV",
+    year: "",
+    dueDate: "",
+    serviceDate: "",
+    taxDate: "",
+    gpsNumber: "",
+    gpsActiveDate: "",
+    transmission: "Manual",
+    complaints: "",
+  });
+
+  // Fungsi untuk menangani perubahan input form
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Fungsi untuk menangani submit form
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log("Data Kendaraan Baru Disimpan:", formData);
+    
+    // TODO: Tambahkan logika POST ke API di sini
+    
+    alert("Data kendaraan berhasil ditambahkan!");
+    navigate("/carlist"); // Kembali ke halaman utama armada
+  };
+
   return (
     <div className="container-fluid py-4 bg-light min-vh-100">
       {/* Header Halaman */}
-      <div className="mb-4">
-        <h4 className="fw-bold text-dark mb-1">Registrasi Kendaraan Baru</h4>
-        <p className="text-muted small">
-          Lengkapi formulir di bawah ini untuk menambahkan unit ke armada
-        </p>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h4 className="fw-bold text-dark mb-1">Registrasi Kendaraan Baru</h4>
+          <p className="text-muted small mb-0">
+            Lengkapi formulir di bawah ini untuk menambahkan unit ke armada.
+          </p>
+        </div>
+        <Link to="/carlist" className="btn btn-outline-secondary shadow-sm px-3">
+          <i className="fas fa-arrow-left me-2"></i>Kembali
+        </Link>
       </div>
 
       <div className="card shadow-sm border-0 rounded-3">
         <div className="card-body p-4 p-lg-5">
-          <form>
+          <form onSubmit={handleSubmit}>
             <div className="row g-4">
-              {/* Kolom Kiri */}
+              
+              {/* === KOLOM KIRI: Data Spesifikasi === */}
               <div className="col-md-6">
+                <h6 className="fw-bold text-primary mb-3">Informasi Kendaraan</h6>
+                
                 <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Unit Kendaraan
-                  </label>
+                  <label className="form-label text-secondary small fw-bold">Unit Kendaraan</label>
                   <input
                     type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
                     className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan jenis kendaraan..."
+                    placeholder="Contoh: Toyota Avanza"
                     required
                   />
                 </div>
 
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Plat Nomor
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan nomor plat mobil"
-                    required
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Status GPS
-                  </label>
-                  <select
-                    name=""
-                    className="form-select bg-light border-0 py-2"
-                    id=""
-                  >
-                    <option value="">-- Pilih Status --</option>
-                    <option value="Aktif">Aktif</option>
-                    <option value="Non-Aktif">Blacklist</option>
-                  </select>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Transmisi
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan jenis transmisi"
-                    required
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Status
-                  </label>
-                  <select
-                    name=""
-                    className="form-select bg-light border-0 py-2"
-                    id=""
-                  >
-                    <option value="">-- Pilih Status --</option>
-                    <option value="Aktif">Aktif</option>
-                    <option value="Non-Aktif">Blacklist</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Kolom Kanan */}
-              <div className="col-md-6">
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Tanggal Servis
-                  </label>
-                  <input
-                    type="date"
-                    className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan tanggal servis"
-                    required
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Tanggal Pajak
-                  </label>
-                  <input
-                    type="date"
-                    className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan tanggal pajak kendaraan..."
-                    required
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    GPS
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan nomor GPS"
-                    required
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Masa Aktif GPS
-                  </label>
-                  <input
-                    type="date"
-                    className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan tanggal masa aktif nomor GPS"
-                    required
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">
-                    Tanggal Jatuh Tempo
-                  </label>
-                  <input
-                    type="date"
-                    className="form-control bg-light border-0 py-2"
-                    placeholder="Masukkan tanggal jatuh tempo"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="row">
-                <div className="col">
-                  <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">
-                      Keluhan Unit
-                    </label>
-                    <textarea
-                      className="form-control bg-light border-0"
-                      rows="3"
-                      placeholder="Masukkan keluhan unit..."
-                    ></textarea>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label text-secondary small fw-bold">Plat Nomor</label>
+                    <input
+                      type="text"
+                      name="plate"
+                      value={formData.plate}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Contoh: B 1234 ABC"
+                      required
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label text-secondary small fw-bold">Tahun Produksi</label>
+                    <input
+                      type="number"
+                      name="year"
+                      value={formData.year}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Contoh: 2022"
+                      required
+                    />
                   </div>
                 </div>
+
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label text-secondary small fw-bold">Tipe Kendaraan</label>
+                    <select
+                      name="type"
+                      value={formData.type}
+                      onChange={handleChange}
+                      className="form-select bg-light border-0 py-2"
+                      required
+                    >
+                      <option value="MPV">MPV</option>
+                      <option value="SUV">SUV</option>
+                      <option value="Sedan">Sedan</option>
+                      <option value="Hatchback">Hatchback</option>
+                      <option value="Minibus">Minibus</option>
+                    </select>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label text-secondary small fw-bold">Transmisi</label>
+                    <select
+                      name="transmission"
+                      value={formData.transmission}
+                      onChange={handleChange}
+                      className="form-select bg-light border-0 py-2"
+                      required
+                    >
+                      <option value="Manual">Manual</option>
+                      <option value="Otomatis">Otomatis</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">Status Ketersediaan</label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    className="form-select bg-light border-0 py-2"
+                    required
+                  >
+                    <option value="Tersedia">Tersedia</option>
+                    <option value="Disewa">Disewa</option>
+                    <option value="Dalam Perbaikan">Dalam Perbaikan</option>
+                  </select>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">Keluhan / Catatan Unit Awal</label>
+                  <textarea
+                    name="complaints"
+                    value={formData.complaints}
+                    onChange={handleChange}
+                    className="form-control bg-light border-0 py-2"
+                    rows="3"
+                    placeholder="Opsional: Tuliskan catatan fisik kendaraan saat didaftarkan..."
+                  ></textarea>
+                </div>
+              </div>
+
+              {/* === KOLOM KANAN: Data Administrasi & GPS === */}
+              <div className="col-md-6">
+                <h6 className="fw-bold text-success mb-3">Administrasi & Monitoring</h6>
+
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">Tanggal Jatuh Tempo (Asuransi/Kontrak)</label>
+                  <input
+                    type="date"
+                    name="dueDate"
+                    value={formData.dueDate}
+                    onChange={handleChange}
+                    className="form-control bg-light border-0 py-2"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">Tanggal Pajak Tahunan</label>
+                  <input
+                    type="date"
+                    name="taxDate"
+                    value={formData.taxDate}
+                    onChange={handleChange}
+                    className="form-control bg-light border-0 py-2"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label text-secondary small fw-bold">Jadwal Servis Rutin</label>
+                  <input
+                    type="date"
+                    name="serviceDate"
+                    value={formData.serviceDate}
+                    onChange={handleChange}
+                    className="form-control bg-light border-0 py-2"
+                    required
+                  />
+                </div>
+
+                <div className="p-3 bg-light rounded-3 mt-4 border">
+                  <h6 className="fw-bold text-dark mb-3">
+                    <i className="fas fa-satellite-dish me-2 text-primary"></i>Perangkat GPS
+                  </h6>
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Nomor / ID GPS</label>
+                    <input
+                      type="text"
+                      name="gpsNumber"
+                      value={formData.gpsNumber}
+                      onChange={handleChange}
+                      className="form-control py-2"
+                      placeholder="Contoh: GPS-101"
+                      required
+                    />
+                  </div>
+                  <div className="mb-0">
+                    <label className="form-label text-secondary small fw-bold">Batas Masa Aktif GPS</label>
+                    <input
+                      type="date"
+                      name="gpsActiveDate"
+                      value={formData.gpsActiveDate}
+                      onChange={handleChange}
+                      className="form-control py-2"
+                      required
+                    />
+                    <small className="text-muted mt-1 d-block" style={{ fontSize: "0.75rem" }}>
+                      *Status Aktif/Tidak Aktif akan dikalkulasi otomatis oleh sistem berdasarkan tanggal ini.
+                    </small>
+                  </div>
+                </div>
+
               </div>
             </div>
 
             {/* Tombol Aksi - Mepet Kanan sesuai Gambar */}
-            <div className="d-flex justify-content-end gap-3 mt-5">
-              <button
-                type="button"
+            <div className="d-flex justify-content-end gap-3 mt-5 border-top pt-4">
+              <Link
+                to="/carlist"
                 className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                style={{
-                  backgroundColor: "#ff9a90",
-                  border: "none",
-                  borderRadius: "12px",
-                }}
-                onClick={() => navigate("/carlist")}
+                style={{ backgroundColor: "#ff9a90", border: "none", borderRadius: "12px" }}
               >
-                Back
-              </button>
+                Batal
+              </Link>
               <button
                 type="submit"
                 className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                style={{
-                  backgroundColor: "#0cc2aa",
-                  border: "none",
-                  borderRadius: "12px",
-                }}
+                style={{ backgroundColor: "#0cc2aa", border: "none", borderRadius: "12px" }}
               >
-                Submit
+                Submit Kendaraan
               </button>
             </div>
+            
           </form>
         </div>
       </div>
