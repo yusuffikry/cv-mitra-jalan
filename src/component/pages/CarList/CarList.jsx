@@ -78,6 +78,19 @@ export default function CarList() {
     return activeUntil >= today;
   };
 
+  // Fungsi untuk menangani penghapusan data armada
+  const handleDelete = (id, name, plate) => {
+    const isConfirmed = window.confirm(`Apakah Anda yakin ingin menghapus data kendaraan ${name} dengan plat ${plate}?`);
+    
+    if (isConfirmed) {
+      console.log(`Menghapus data mobil dengan ID: ${id}`);
+      alert(`Kendaraan ${name} (${plate}) berhasil dihapus!`);
+      // TODO: Panggil API DELETE ke backend di sini
+    } else {
+      console.log("Penghapusan mobil dibatalkan.");
+    }
+  };
+
   // Fungsi untuk mengekspor data ke file CSV
   const exportToCSV = () => {
     // 1. Buat Header Kolom
@@ -303,10 +316,17 @@ export default function CarList() {
                     </td>
                     <td className="text-center">
                       <div className="btn-group shadow-sm">
-                        <button className="btn btn-sm btn-white border text-primary">
+                        <Link 
+                          to={`/carlist/edit/${car.id}`} 
+                          className="btn btn-sm btn-white border text-primary"
+                        >
                           <i className="fas fa-edit"></i>
-                        </button>
-                        <button className="btn btn-sm btn-white border text-danger">
+                        </Link>
+                        {/* Event onClick ditambahkan di sini */}
+                        <button 
+                          onClick={() => handleDelete(car.id, car.name, car.plate)}
+                          className="btn btn-sm btn-white border text-danger"
+                        >
                           <i className="fas fa-trash"></i>
                         </button>
                       </div>

@@ -34,12 +34,12 @@ export default function CustomersCreate() {
 
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
-                      Nik
+                      NIK
                     </label>
                     <input
                       type="number"
                       className="form-control bg-light border-0 py-2"
-                      placeholder="Masukkan nik pelanggan..."
+                      placeholder="Masukkan NIK pelanggan..."
                       required
                     />
                   </div>
@@ -55,13 +55,32 @@ export default function CustomersCreate() {
                       required
                     />
                   </div>
+                  
+                  {/* Tambahan Kolom Input Total Rental */}
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">
+                      Total Rental Awal
+                    </label>
+                    <div className="input-group">
+                      <input
+                        type="number"
+                        className="form-control bg-light border-0 py-2"
+                        placeholder="0"
+                        min="0"
+                        defaultValue={0} // Nilai default untuk user baru
+                        required
+                      />
+                      <span className="input-group-text bg-light border-0">Kali</span>
+                    </div>
+                  </div>
+                  
                 </div>
 
                 {/* Kolom Kanan */}
                 <div className="col-md-6">
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
-                      Kontak
+                      Kontak / WhatsApp
                     </label>
                     <input
                       type="text"
@@ -82,6 +101,7 @@ export default function CustomersCreate() {
                       required
                     />
                   </div>
+                  
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
                       Status
@@ -90,10 +110,11 @@ export default function CustomersCreate() {
                       name=""
                       className="form-select bg-light border-0 py-2"
                       id=""
+                      required
                     >
                       <option value="">-- Pilih Status --</option>
                       <option value="Aktif">Aktif</option>
-                      <option value="Non-Aktif">Blacklist</option>
+                      <option value="Blacklist">Blacklist</option>
                     </select>
                   </div>
                 </div>
@@ -109,7 +130,7 @@ export default function CustomersCreate() {
                     border: "none",
                     borderRadius: "12px",
                   }}
-                  onClick={() => navigate("/carlist")}
+                  onClick={() => navigate("/customers")} // Diperbaiki dari /carlist menjadi /customers
                 >
                   Back
                 </button>

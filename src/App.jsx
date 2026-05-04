@@ -5,10 +5,16 @@ import Dashboard from "./component/dashboard/Dashboard";
 import Main from "./component/layout/main";
 import CarList from "./component/pages/CarList/CarList";
 import CarListCreate from "./component/pages/CarList/CarListCreate";
+
+import EditCarList from "./component/pages/CarList/EditCarList";
+
 import Customers from "./component/pages/Customers/Customers";
 import MainTransaction from "./component/pages/Transaction/MainTransaction";
 import ShowTransaction from "./component/pages/Transaction/ShowTransaction";
 import CustomersCreate from "./component/pages/Customers/CustomersCreate";
+
+import EditCustomer from "./component/pages/Customers/EditCustomer";
+
 import CreateTransaction from "./component/pages/Transaction/CreateTransaction";
 function App() {
   return (
@@ -22,10 +28,12 @@ function App() {
             {/* Car List Routes */}
             <Route path="/carlist" element={<CarList />} />
             <Route path="/carlist/create" element={<CarListCreate />} />
+            <Route path="/carlist/edit/:id" element={<EditCarList />} />
 
             {/* Customers Routes */}
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/create" element={<CustomersCreate />} />
+            <Route path="/customers/edit/:id" element={<EditCustomer />} />
 
             {/* Transaction Routes */}
             <Route path="/transaction" element={<MainTransaction />} />
