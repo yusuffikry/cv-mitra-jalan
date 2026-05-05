@@ -5,17 +5,19 @@ import Dashboard from "./component/dashboard/Dashboard";
 import Main from "./component/layout/main";
 import CarList from "./component/pages/CarList/CarList";
 import CarListCreate from "./component/pages/CarList/CarListCreate";
-
 import EditCarList from "./component/pages/CarList/EditCarList";
 
 import Customers from "./component/pages/Customers/Customers";
-import MainTransaction from "./component/pages/Transaction/MainTransaction";
-import ShowTransaction from "./component/pages/Transaction/ShowTransaction";
 import CustomersCreate from "./component/pages/Customers/CustomersCreate";
-
 import EditCustomer from "./component/pages/Customers/EditCustomer";
 
+import MainTransaction from "./component/pages/Transaction/MainTransaction";
+import ShowTransaction from "./component/pages/Transaction/ShowTransaction";
+import EditTransaction from "./component/pages/Transaction/EditTransaction";
 import CreateTransaction from "./component/pages/Transaction/CreateTransaction";
+
+
+
 function App() {
   return (
     <div>
@@ -39,6 +41,7 @@ function App() {
             <Route path="/transaction" element={<MainTransaction />} />
             <Route path="/transaction/:id" element={<ShowTransaction />} />
             <Route path="/transaction/create" element={<CreateTransaction />} />
+            <Route path="/transaction/edit/:id" element={<EditTransaction />} />
           </Route>
         </Routes>
       </Router>
