@@ -1,93 +1,107 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { supabase } from "../../../supabaseClient";
 
 export default function Customers() {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
+  
+  // State baru untuk Modal Sukses
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Data dummy untuk simulasi dengan tambahan atribut total_rental
-  const customers = [
-    {
-      id: 1,
-      name: "Andi Herlambang",
-      nik: "73710123456789",
-      contact: "08123456789",
-      city: "Makassar",
-      rental_city: "Maros",
-      total_rental: 5, // Tambahan atribut
-      status: "Aktif",
-    },
-    {
-      id: 2,
-      name: "Budi Santoso",
-      nik: "73710987654321",
-      contact: "08567890123",
-      city: "Gowa",
-      rental_city: "Makassar",
-      total_rental: 2, // Tambahan atribut
-      status: "Tidak Aktif",
-    },
-  ];
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
-  // Fungsi untuk menangani penghapusan data
-  const handleDelete = (id, name) => {
-    // Menampilkan jendela konfirmasi bawaan browser
-    const isConfirmed = window.confirm(`Apakah Anda yakin ingin menghapus pelanggan "${name}"?`);
-    
-    if (isConfirmed) {
-      // Jika user klik "OK", jalankan logika hapus data di sini
-      console.log(`Menghapus data pelanggan dengan ID: ${id}`);
-      alert(`Data pelanggan "${name}" berhasil dihapus!`);
-      
-      // Catatan: Pada aplikasi nyata, kamu akan memanggil API DELETE di sini:
-      // fetch(`/api/customers/${id}`, { method: 'DELETE' })
-      //   .then(() => {
-      //      // Update state data lokal agar barisnya hilang dari tabel
-      //   })
-    } else {
-      // Jika user klik "Cancel", batalkan penghapusan
-      console.log("Penghapusan dibatalkan.");
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .order("nama_pelanggan", { ascending: true });
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error) {
+      console.error("Error fetching customers:", error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Fungsi untuk mengekspor data ke file CSV
+  const handleDeleteClick = (id, name, nik) => {
+    setCustomerToDelete({ id, name, nik });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!customerToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from("customers")
+        .delete()
+        .eq("customer_id", customerToDelete.id);
+
+      if (error) throw error;
+
+      // 1. Tutup modal konfirmasi hapus
+      setShowDeleteModal(false);
+      
+      // 2. Refresh data di tabel
+      fetchCustomers();
+
+      // 3. Tampilkan Modal Sukses
+      setShowSuccessModal(true);
+
+      // 4. Set Timer 2 detik untuk menutup Modal Sukses
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        setCustomerToDelete(null); // Bersihkan state setelah animasi selesai
+      }, 2000);
+
+    } catch (error) {
+      console.error("Error deleting customer:", error.message);
+      alert("Gagal menghapus data pelanggan. Silakan coba lagi.");
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setCustomerToDelete(null);
+  };
+
   const exportToCSV = () => {
-    // 1. Buat Header Kolom sesuai dengan tabel Customers
     const headers = [
-      "No",
-      "Nama Pelanggan",
-      "ID Pelanggan",
-      "NIK",
-      "Kontak",
-      "Domisili",
-      "Kota Rental",
-      "Total Rental", // Tambahan Header
-      "Status",
+      "No", "Nama Pelanggan", "NIK", "Kontak", 
+      "Alamat (Domisili)", "Kota Rental", "Total Rental", "Status",
     ];
 
-    // 2. Map data ke dalam bentuk baris (array of strings)
     const rows = customers.map((cust, index) => {
-      const customerIdStr = `CUST-${cust.id.toString().padStart(3, "0")}`;
+      const displayStatus = cust.status === 'active' ? 'Aktif' : cust.status === 'blacklist' ? 'Blacklist' : cust.status;
       
       return [
         index + 1,
-        `"${cust.name}"`, 
-        customerIdStr,
-        `'${cust.nik}`, 
-        `'${cust.contact}`, 
-        `"${cust.city}"`,
-        `"${cust.rental_city}"`,
-        cust.total_rental, // Tambahan data di baris CSV
-        cust.status,
+        `"${cust.nama_pelanggan || "-"}"`, 
+        `'${cust.nik || "-"}`, 
+        `'${cust.kontak || "-"}`, 
+        `"${cust.alamat || "-"}"`,
+        `"${cust.kota || "-"}"`,
+        cust.total_rental || 0,
+        displayStatus,
       ];
     });
 
-    // 3. Gabungkan Header dan Baris menggunakan koma dan enter (\n)
     const csvContent = [
       headers.join(","), 
       ...rows.map((row) => row.join(",")), 
     ].join("\n");
 
-    // 4. Buat Blob dan tautan (link) untuk proses download
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
 
@@ -96,189 +110,297 @@ export default function Customers() {
     link.setAttribute("download", "Data_Pelanggan.csv"); 
     document.body.appendChild(link);
     link.click();
-
-    // Bersihkan memori setelah download
     document.body.removeChild(link);
   };
 
+  const filteredCustomers = customers.filter((cust) => {
+    const searchLower = searchTerm.toLowerCase();
+    const matchName = (cust.nama_pelanggan || "").toLowerCase().includes(searchLower);
+    const matchNik = (cust.nik || "").toLowerCase().includes(searchLower);
+    
+    return matchName || matchNik;
+  });
+
   return (
-    <div className="d-flex flex-column h-100 bg-light">
-      {/* Search & Action Header */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mb-4 flex-shrink-0">
-        <div className="position-relative w-100" style={{ maxWidth: "350px" }}>
-          <span className="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
-            <i className="fas fa-search small"></i>
-          </span>
-          <input
-            type="text"
-            className="form-control ps-5 border-0 shadow-sm"
-            placeholder="Cari nama atau NIK pelanggan..."
-            style={{ borderRadius: "8px" }}
-          />
+    <div className="d-flex flex-column vh-100 bg-light p-4 overflow-hidden">
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+        <div>
+          <h4 className="fw-bold text-dark mb-1">Manajemen Pelanggan</h4>
+          <p className="text-muted small mb-0">Data informasi dan riwayat penyewa</p>
         </div>
 
-        {/* Grup Tombol Aksi */}
         <div className="d-flex gap-2">
-          {/* Tombol Export CSV */}
-          <button
-            onClick={exportToCSV}
-            className="btn btn-outline-success px-3 d-flex align-items-center shadow-sm bg-white"
-            title="Export data ke Excel/CSV"
-          >
-            <i className="fas fa-file-excel me-2"></i>
-            <span className="ms-2">Export CSV</span>
+          <button onClick={exportToCSV} className="btn btn-success shadow-sm px-3" title="Export data ke Excel/CSV">
+            <i className="fas fa-file-excel me-2"></i>Export CSV
           </button>
-
-          <Link
-            to="/customers/create"
-            className="btn btn-success px-4 d-flex align-items-center shadow-sm"
-          >
-            <i className="fas fa-plus-circle me-2"></i>
-            <span className="ms-2">Tambah Pelanggan</span>
+          <Link to="/customers/create" className="btn btn-primary shadow-sm px-3">
+            <i className="fas fa-plus me-2"></i>Tambah Pelanggan
           </Link>
         </div>
       </div>
 
-      {/* Main Card Container */}
-      <div className="card border-0 shadow-sm flex-grow-1 overflow-hidden d-flex flex-column rounded-3">
-        {/* Table Body - Scrollable Area */}
-        <div className="card-body p-0 flex-grow-1 overflow-auto bg-white">
-          <table
-            className="table table-hover align-middle mb-0 text-nowrap"
-            style={{ fontSize: "0.85rem" }}
-          >
+      {/* Card Utama */}
+      <div className="card border-0 shadow-sm d-flex flex-column flex-grow-1 overflow-hidden">
+        
+        {/* Toolbar Pencarian */}
+        <div className="card-header bg-white py-3 border-bottom-0 flex-shrink-0">
+          <div className="row">
+            <div className="col-md-4">
+              <div className="input-group input-group-sm">
+                <span className="input-group-text bg-light border-end-0">
+                  <i className="fas fa-search text-muted"></i>
+                </span>
+                <input 
+                  type="text" 
+                  className={`form-control bg-light ${searchTerm ? 'border-end-0' : ''} border-start-0`} 
+                  placeholder="Cari nama atau NIK pelanggan..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                  <button 
+                    className="btn btn-light border border-start-0" 
+                    type="button" 
+                    onClick={() => setSearchTerm("")}
+                    title="Hapus pencarian"
+                  >
+                    <i className="fas fa-times text-muted"></i>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Area Tabel */}
+        <div className="card-body p-0 flex-grow-1 overflow-auto">
+          <table className="table table-hover align-middle mb-0 text-nowrap" style={{ fontSize: "0.85rem" }}>
             <thead className="sticky-top bg-white" style={{ zIndex: 10 }}>
-              <tr className="border-bottom">
-                <th className="px-4 py-3 text-secondary fw-bold text-uppercase" style={{ fontSize: "0.75rem", width: "60px" }}>
-                  NO
-                </th>
-                <th className="py-3 text-secondary fw-bold text-uppercase" style={{ fontSize: "0.75rem" }}>
-                  Nama Pelanggan
-                </th>
-                <th className="py-3 text-secondary fw-bold text-uppercase" style={{ fontSize: "0.75rem" }}>
-                  NIK
-                </th>
-                <th className="py-3 text-secondary fw-bold text-uppercase" style={{ fontSize: "0.75rem" }}>
-                  Kontak
-                </th>
-                <th className="py-3 text-secondary fw-bold text-uppercase" style={{ fontSize: "0.75rem" }}>
-                  Domisili
-                </th>
-                <th className="py-3 text-secondary fw-bold text-uppercase" style={{ fontSize: "0.75rem" }}>
-                  Kota Rental
-                </th>
-                <th className="py-3 text-center text-secondary fw-bold text-uppercase" style={{ fontSize: "0.75rem" }}>
-                  Total Rental
-                </th>
-                <th className="py-3 text-secondary fw-bold text-uppercase" style={{ fontSize: "0.75rem" }}>
-                  Status
-                </th>
-                <th className="py-3 text-center text-secondary fw-bold text-uppercase" style={{ fontSize: "0.75rem" }}>
-                  Aksi
-                </th>
+              <tr style={{ backgroundColor: "#f8f9fa" }}>
+                <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom" style={{ width: "60px" }}>No</th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">Nama Pelanggan</th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">NIK</th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">Kontak</th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">Alamat (Domisili)</th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">Kota Rental</th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">Total Rental</th>
+                <th className="py-3 text-secondary fw-bold text-uppercase border-bottom text-center">Status</th>
+                <th className="py-3 text-center text-secondary fw-bold text-uppercase border-bottom">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {customers.map((cust, index) => (
-                <tr key={cust.id} className="border-bottom-0">
-                  <td className="px-4 text-muted">{index + 1}</td>
-                  <td>
-                    <div className="fw-bold text-dark">{cust.name}</div>
-                    <div className="text-muted" style={{ fontSize: "0.7rem" }}>
-                      ID: CUST-{cust.id.toString().padStart(3, "0")}
-                    </div>
-                  </td>
-                  <td>
-                    <span className="text-secondary">{cust.nik}</span>
-                  </td>
-                  <td>
-                    <div className="d-flex align-items-center text-primary">
-                      <i className="fab fa-whatsapp me-2"></i>
-                      {cust.contact}
-                    </div>
-                  </td>
-                  <td>{cust.city}</td>
-                  <td>{cust.rental_city}</td>
-                  
-                  <td className="text-center">
-                    <span className="badge bg-light text-dark border px-2 py-1">
-                      {cust.total_rental} Kali
-                    </span>
-                  </td>
-
-                  <td>
-                    <span 
-                      className={`badge rounded-pill px-3 py-2 border ${
-                        cust.status === "Aktif" 
-                          ? "bg-success-subtle text-success border-success-subtle" 
-                          : "bg-secondary-subtle text-secondary border-secondary-subtle"
-                      }`}
-                    >
-                      <i
-                        className="fas fa-circle me-2"
-                        style={{ fontSize: "6px" }}
-                      ></i>
-                      {cust.status}
-                    </span>
-                  </td>
-                  <td className="text-center">
-                    <div className="btn-group">
-                      <Link 
-                        to={`/customers/edit/${cust.id}`} 
-                        className="btn btn-sm btn-light border-0 text-primary px-3 shadow-none" 
-                        title="Edit"
-                      >
-                        <i className="fas fa-edit"></i>
-                      </Link>
-                      {/* Tombol Hapus dengan event onClick memanggil fungsi handleDelete */}
-                      <button
-                        onClick={() => handleDelete(cust.id, cust.name)}
-                        className="btn btn-sm btn-light border-0 text-danger px-3 shadow-none"
-                        title="Hapus"
-                      >
-                        <i className="fas fa-trash-alt"></i>
-                      </button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan="9" className="text-center py-5 text-muted">
+                    <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Memuat data pelanggan...
                   </td>
                 </tr>
-              ))}
+              ) : customers.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="text-center py-5 text-muted">
+                    Belum ada data pelanggan yang didaftarkan.
+                  </td>
+                </tr>
+              ) : filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="text-center py-5 text-muted">
+                    Pelanggan dengan kata kunci "{searchTerm}" tidak ditemukan.
+                  </td>
+                </tr>
+              ) : (
+                filteredCustomers.map((cust, index) => {
+                  const isActive = cust.status === "active";
+                  const isBlacklist = cust.status === "blacklist";
+
+                  return (
+                    <tr key={cust.customer_id}>
+                      <td className="px-4 text-muted">{index + 1}</td>
+                      <td>
+                        <div className="fw-bold text-dark">{cust.nama_pelanggan || "-"}</div>
+                      </td>
+                      <td className="text-center">
+                        <span className="badge border text-dark fw-bold bg-white px-2 py-1" style={{ letterSpacing: "1px" }}>
+                          {cust.nik || "-"}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        <div className="text-primary fw-medium">
+                          <i className="fab fa-whatsapp me-2"></i>
+                          {cust.kontak || "-"}
+                        </div>
+                      </td>
+                      
+                      <td className="text-wrap text-muted" style={{ minWidth: "200px", maxWidth: "300px" }}>
+                        {cust.alamat || "-"}
+                      </td>
+                      
+                      <td>{cust.kota || "-"}</td>
+
+                      <td className="text-center">
+                        <span className="badge bg-light text-dark border px-2 py-1">
+                          {cust.total_rental || 0} Kali
+                        </span>
+                      </td>
+                      
+                      <td className="text-center">
+                        <span
+                          className={`badge rounded-pill px-3 py-2 border ${
+                            isActive
+                              ? "bg-success-subtle text-success border-success-subtle"
+                              : isBlacklist
+                              ? "bg-danger-subtle text-danger border-danger-subtle"
+                              : "bg-secondary-subtle text-secondary border-secondary-subtle"
+                          }`}
+                        >
+                          <i className="fas fa-circle me-1" style={{ fontSize: "6px" }}></i>{" "}
+                          {isActive ? "Aktif" : isBlacklist ? "Blacklist" : cust.status || "-"}
+                        </span>
+                      </td>
+
+                      <td className="text-center">
+                        <div className="btn-group shadow-sm">
+                          <Link to={`/customers/edit/${cust.customer_id}`} className="btn btn-sm btn-white border text-primary">
+                            <i className="fas fa-edit"></i>
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteClick(cust.customer_id, cust.nama_pelanggan, cust.nik)}
+                            className="btn btn-sm btn-white border text-danger"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Card Footer - Locked at Bottom */}
+        {/* Footer */}
         <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
           <div className="d-flex justify-content-between align-items-center">
-            <div className="text-muted small">
-              Menampilkan <span className="fw-bold text-dark">1</span> dari{" "}
-              <span className="fw-bold text-dark">{customers.length}</span> entri pelanggan
-            </div>
-
+            <span className="text-muted small">
+              Total: <strong>{filteredCustomers.length}</strong> pelanggan
+            </span>
             <nav>
               <ul className="pagination pagination-sm mb-0">
                 <li className="page-item disabled">
-                  <span className="page-link border-0 bg-transparent">
-                    Prev
-                  </span>
+                  <span className="page-link border-0 bg-transparent">Prev</span>
                 </li>
                 <li className="page-item active">
-                  <span
-                    className="page-link border-0 rounded shadow-sm mx-1"
-                    style={{ backgroundColor: "#0d6efd" }}
-                  >
+                  <span className="page-link border-0 rounded mx-1 shadow-sm px-3" style={{ backgroundColor: "#0061f2" }}>
                     1
                   </span>
                 </li>
                 <li className="page-item">
-                  <span className="page-link border-0 bg-transparent text-primary">
-                    Next
-                  </span>
+                  <span className="page-link border-0 text-dark mx-1">2</span>
+                </li>
+                <li className="page-item">
+                  <span className="page-link border-0 bg-transparent text-primary">Next</span>
                 </li>
               </ul>
             </nav>
           </div>
         </div>
       </div>
+
+      {/* MODAL HAPUS */}
+      {showDeleteModal && (
+        <div 
+          className="modal fade show d-block" 
+          tabIndex="-1" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', zIndex: 1050 }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+              <div className="modal-body p-4 text-center">
+                
+                <div 
+                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-danger-subtle text-danger" 
+                  style={{ width: "64px", height: "64px", borderRadius: "50%" }}
+                >
+                  <i className="fas fa-trash-alt fs-3"></i>
+                </div>
+
+                <h5 className="fw-bold text-dark mb-2">Hapus Data Pelanggan?</h5>
+                <p className="text-muted mb-4" style={{ fontSize: "0.9rem" }}>
+                  Anda akan menghapus data pelanggan <br />
+                  <span className="fw-bold text-dark fs-6">{customerToDelete?.name}</span> <br />
+                  <span className="badge bg-light border text-dark mt-2 px-3 py-2" style={{ letterSpacing: "1px" }}>
+                    NIK: {customerToDelete?.nik}
+                  </span>
+                </p>
+
+                <div className="alert alert-warning border-0 bg-warning-subtle text-warning-emphasis p-2 rounded-3 mb-4 text-start d-flex align-items-center" style={{ fontSize: "0.8rem" }}>
+                  <i className="fas fa-exclamation-triangle me-2 fs-6"></i>
+                  Data ini tidak dapat dikembalikan setelah dihapus.
+                </div>
+
+                <div className="d-flex gap-2">
+                  <button 
+                    type="button" 
+                    className="btn btn-light w-50 fw-bold border shadow-sm" 
+                    style={{ borderRadius: "10px" }}
+                    onClick={cancelDelete}
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-danger w-50 fw-bold shadow-sm" 
+                    style={{ borderRadius: "10px" }}
+                    onClick={confirmDelete}
+                  >
+                    Ya, Hapus
+                  </button>
+                </div>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL POP UP SUKSES HAPUS (AUTO CLOSE) --- */}
+      {showSuccessModal && (
+        <div 
+          className="modal fade show d-block" 
+          tabIndex="-1" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', zIndex: 1050 }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+              <div className="modal-body p-4 text-center">
+                
+                {/* Ikon Centang Hijau Soft */}
+                <div 
+                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success" 
+                  style={{ width: "64px", height: "64px", borderRadius: "50%" }}
+                >
+                  <i className="fas fa-check fs-2"></i>
+                </div>
+
+                <h5 className="fw-bold text-dark mb-2">Berhasil Dihapus!</h5>
+                <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
+                  Data pelanggan <span className="fw-bold text-dark">{customerToDelete?.name}</span> telah berhasil dihapus dari sistem.
+                </p>
+
+                {/* Indikator Loading Kecil */}
+                <div className="d-flex align-items-center justify-content-center text-muted small">
+                  <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: '12px', height: '12px' }}></div>
+                  Memperbarui tabel...
+                </div>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
