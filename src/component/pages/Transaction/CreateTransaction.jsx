@@ -139,7 +139,7 @@ export default function CreateTransaction() {
     formDataUpload.append("file", file);
     formDataUpload.append(
       "metadata",
-      new blob([JSON.stringify(metadata)], { type: "application/json" }),
+      new Blob([JSON.stringify(metadata)], { type: "application/json" }),
     );
 
     const response = await fetch(
