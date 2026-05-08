@@ -135,7 +135,7 @@ export default function CreateTransaction() {
       parents: [DRIVE_FOLDER_ID],
     };
 
-    const formDataUpload = new formData();
+    const formDataUpload = new FormData();
     formDataUpload.append("file", file);
     formDataUpload.append(
       "metadata",
