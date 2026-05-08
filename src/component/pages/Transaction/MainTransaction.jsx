@@ -167,7 +167,6 @@ export default function MainTransaction() {
     setCurrentPage(1);
   };
 
-  // Render halaman Detail jika ada data yang di-klik
   if (selectedData) {
     return (
       <ShowTransaction
@@ -178,231 +177,234 @@ export default function MainTransaction() {
   }
 
   return (
-    <div className="d-flex flex-column vh-100 bg-light p-4 overflow-hidden">
-      {/* Header Halaman */}
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
-        <div>
-          <h4 className="fw-bold text-dark mb-1">Manajemen Transaksi</h4>
-          <p className="text-muted small mb-0">Data penyewaan dan pembayaran armada</p>
-        </div>
-
-        <div className="d-flex gap-2">
-          <button onClick={exportToCSV} className="btn btn-success shadow-sm px-3" title="Export data ke Excel/CSV">
-            <i className="fas fa-file-excel me-2"></i>Export CSV
-          </button>
-          <Link to="/transaction/create" className="btn btn-primary shadow-sm px-3">
-            <i className="fas fa-plus me-2"></i>Buat Transaksi
-          </Link>
-        </div>
-      </div>
-
-      {/* Card Utama */}
-      <div className="card border-0 shadow-sm d-flex flex-column flex-grow-1 overflow-hidden">
+    <div className="h-100 bg-light d-flex flex-column">
+      
+      <div className="flex-grow-1 overflow-auto p-4 d-flex flex-column">
         
-        {/* Toolbar Pencarian / Filter */}
-        <div className="card-header bg-white py-3 border-bottom-0 flex-shrink-0">
-          <div className="row g-2 align-items-center">
-            <div className="col-md-3">
-              <div className="input-group input-group-sm">
-                <span className="input-group-text bg-light border-end-0">
-                  <i className="fas fa-user text-muted"></i>
-                </span>
-                <input 
-                  type="text" 
-                  className="form-control bg-light border-start-0 shadow-none" 
-                  placeholder="Cari Pelanggan..." 
-                  value={searchCustomer}
-                  onChange={(e) => setSearchCustomer(e.target.value)}
-                />
+        {/* Header Halaman */}
+        <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+          <div>
+            <h4 className="fw-bold text-dark mb-1">Manajemen Transaksi</h4>
+            <p className="text-muted small mb-0">Data penyewaan dan pembayaran armada</p>
+          </div>
+
+          <div className="d-flex gap-2">
+            <button onClick={exportToCSV} className="btn btn-success shadow-sm px-3" title="Export data ke Excel/CSV">
+              <i className="fas fa-file-excel me-2"></i>Export CSV
+            </button>
+            <Link to="/transaction/create" className="btn btn-primary shadow-sm px-3">
+              <i className="fas fa-plus me-2"></i>Buat Transaksi
+            </Link>
+          </div>
+        </div>
+
+        {/* Card Utama */}
+        <div className="card border-0 shadow-sm d-flex flex-column flex-grow-1">
+          
+          {/* Toolbar Pencarian / Filter */}
+          <div className="card-header bg-white py-3 border-bottom-0 flex-shrink-0">
+            <div className="row g-2 align-items-center">
+              <div className="col-md-3">
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text bg-light border-end-0">
+                    <i className="fas fa-user text-muted"></i>
+                  </span>
+                  <input 
+                    type="text" 
+                    className="form-control bg-light border-start-0 shadow-none" 
+                    placeholder="Cari Pelanggan..." 
+                    value={searchCustomer}
+                    onChange={(e) => setSearchCustomer(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text bg-light border-end-0">
+                    <i className="fas fa-car text-muted"></i>
+                  </span>
+                  <input 
+                    type="text" 
+                    className="form-control bg-light border-start-0 shadow-none" 
+                    placeholder="Cari Plat Mobil..." 
+                    value={searchPlat}
+                    onChange={(e) => setSearchPlat(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text bg-light border-end-0">
+                    <i className="fas fa-calendar-alt text-muted"></i>
+                  </span>
+                  <input 
+                    type="date" 
+                    className="form-control bg-light border-start-0 shadow-none text-muted" 
+                    value={searchDate}
+                    onChange={(e) => setSearchDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="col-md-2">
+                {(searchCustomer || searchPlat || searchDate) && (
+                  <button 
+                    className="btn btn-sm btn-light border w-100 shadow-sm" 
+                    onClick={resetFilters}
+                  >
+                    <i className="fas fa-times me-1"></i>Reset
+                  </button>
+                )}
               </div>
             </div>
-            <div className="col-md-3">
-              <div className="input-group input-group-sm">
-                <span className="input-group-text bg-light border-end-0">
-                  <i className="fas fa-car text-muted"></i>
-                </span>
-                <input 
-                  type="text" 
-                  className="form-control bg-light border-start-0 shadow-none" 
-                  placeholder="Cari Plat Mobil..." 
-                  value={searchPlat}
-                  onChange={(e) => setSearchPlat(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="col-md-3">
-              <div className="input-group input-group-sm">
-                <span className="input-group-text bg-light border-end-0">
-                  <i className="fas fa-calendar-alt text-muted"></i>
-                </span>
-                <input 
-                  type="date" 
-                  className="form-control bg-light border-start-0 shadow-none text-muted" 
-                  value={searchDate}
-                  onChange={(e) => setSearchDate(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="col-md-2">
-              {(searchCustomer || searchPlat || searchDate) && (
-                <button 
-                  className="btn btn-sm btn-light border w-100 shadow-sm" 
-                  onClick={resetFilters}
-                >
-                  <i className="fas fa-times me-1"></i>Reset
-                </button>
+          </div>
+
+          {/* Area Tabel */}
+          <div className="card-body p-0 flex-grow-1 overflow-auto">
+            {/* PERBAIKAN 1: Hapus text-nowrap agar tabel pas di layar dan teks panjang bisa turun ke bawah */}
+            <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.85rem" }}>
+              <thead className="sticky-top bg-white shadow-sm" style={{ zIndex: 10 }}>
+                <tr style={{ backgroundColor: "#f8f9fa" }}>
+                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "5%" }}>No</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "15%" }}>Waktu Peminjaman</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "20%" }}>Mobil/Plat</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "15%" }}>Nama Customer</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "10%" }}>Rute</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "15%" }}>Keterangan</th>
+                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-end text-nowrap" style={{ width: "15%" }}>Total Pembayaran</th>
+                  <th className="px-4 py-3 text-center text-secondary fw-bold text-uppercase border-bottom text-nowrap" style={{ width: "5%" }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="8" className="text-center py-5 text-muted">
+                      <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                      Memuat data transaksi...
+                    </td>
+                  </tr>
+                ) : currentItems.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="text-center py-5 text-muted">
+                      Tidak ada transaksi yang ditemukan.
+                    </td>
+                  </tr>
+                ) : (
+                  currentItems.map((item, index) => {
+                    return (
+                      <tr key={item.transaction_id}>
+                        <td className="px-4 text-muted text-center">{indexOfFirstItem + index + 1}</td>
+                        
+                        <td className="px-3 text-start text-nowrap">
+                          <div className="fw-bold text-dark">{item.tanggal_sewa || "-"}</div>
+                          <div className="text-muted small" style={{ fontSize: "0.75rem" }}>{item.jam_sewa || "-"}</div>
+                        </td>
+
+                        <td className="px-3 text-start">
+                          <div className="fw-bold text-dark text-uppercase">{item.cars?.jenis_unit || "-"}</div>
+                          <span className="badge border text-dark bg-white px-2 py-1 mt-1 shadow-sm text-nowrap" style={{ letterSpacing: "1px" }}>
+                            {item.cars?.nomor_plat || "-"}
+                          </span>
+                        </td>
+
+                        <td className="px-3 text-start">
+                          <div className="fw-bold text-primary">{item.customers?.nama_pelanggan || "-"}</div>
+                        </td>
+
+                        <td className="px-3 text-center">
+                          <span className="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 text-uppercase text-nowrap">
+                            {item.rute || "-"}
+                          </span>
+                        </td>
+
+                        <td className="px-3 text-start text-wrap text-muted" style={{ minWidth: "150px" }}>
+                          {item.keterangan || "-"}
+                        </td>
+
+                        <td className="px-4 text-end fw-bold text-success text-nowrap">
+                          Rp {formatRupiah(item.total_pembayaran || 0)}
+                        </td>
+
+                        <td className="px-4 text-center text-nowrap">
+                          <div className="btn-group shadow-sm">
+                            <button
+                              onClick={() => handleViewDetails(item)}
+                              className="btn btn-sm btn-white border text-info"
+                              title="Lihat Detail Transaksi"
+                            >
+                              <i className="fas fa-eye"></i>
+                            </button>
+                            <Link
+                              to={`/transaction/edit/${item.transaction_id}`}
+                              className="btn btn-sm btn-white border text-primary"
+                              title="Edit Transaksi"
+                            >
+                              <i className="fas fa-edit"></i>
+                            </Link>
+                            <button
+                              onClick={() => handleDeleteClick(item.transaction_id, item.customers?.nama_pelanggan)}
+                              className="btn btn-sm btn-white border text-danger"
+                              title="Hapus Transaksi"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer & Pagination */}
+          <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
+            <div className="d-flex justify-content-between align-items-center">
+              {/* PERBAIKAN 2: Ubah teks menjadi format "Showing X to Y of Z entries" */}
+              <span className="text-muted small">
+                Showing {filteredTransactions.length > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, filteredTransactions.length)} of {filteredTransactions.length} entries
+              </span>
+              
+              {/* PERBAIKAN 3: Sembunyikan pagination jika data cuma 1 halaman (<= 10 entries) */}
+              {totalPages > 1 && (
+                <nav>
+                  <ul className="pagination pagination-sm mb-0">
+                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                      <button 
+                        className="page-link border-0 text-muted bg-transparent" 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      >
+                        Prev
+                      </button>
+                    </li>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => (
+                      <li key={i + 1} className={`page-item ${currentPage === i + 1 ? 'active' : ''}`}>
+                        <button
+                          className={`page-link border-0 rounded mx-1 shadow-sm px-3 ${currentPage === i + 1 ? 'text-white' : 'text-dark'}`}
+                          style={{ backgroundColor: currentPage === i + 1 ? "#0061f2" : "transparent" }}
+                          onClick={() => setCurrentPage(i + 1)}
+                        >
+                          {i + 1}
+                        </button>
+                      </li>
+                    ))}
+
+                    <li className={`page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`}>
+                      <button 
+                        className="page-link border-0 text-primary bg-transparent"
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      >
+                        Next
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
               )}
             </div>
           </div>
         </div>
 
-        {/* Area Tabel (Scrollable dengan Spacing Presisi) */}
-        <div className="card-body p-0 flex-grow-1 overflow-auto">
-          {/* HAPUS text-center dari <table> utama agar bisa di-custom per kolom */}
-          <table className="table table-hover align-middle mb-0 text-nowrap" style={{ fontSize: "0.85rem" }}>
-            <thead className="sticky-top bg-white" style={{ zIndex: 10 }}>
-              <tr style={{ backgroundColor: "#f8f9fa" }}>
-                <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "5%" }}>No</th>
-                <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "15%" }}>Waktu Peminjaman</th>
-                <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "20%" }}>Mobil/Plat</th>
-                <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "15%" }}>Nama Customer</th>
-                <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "10%" }}>Rute</th>
-                <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "15%" }}>Keterangan</th>
-                <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-end" style={{ width: "15%" }}>Total Pembayaran</th>
-                <th className="px-4 py-3 text-center text-secondary fw-bold text-uppercase border-bottom" style={{ width: "5%" }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="8" className="text-center py-5 text-muted">
-                    <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                    Memuat data transaksi...
-                  </td>
-                </tr>
-              ) : currentItems.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="text-center py-5 text-muted">
-                    Tidak ada transaksi yang ditemukan.
-                  </td>
-                </tr>
-              ) : (
-                currentItems.map((item, index) => {
-                  return (
-                    <tr key={item.transaction_id}>
-                      <td className="px-4 text-muted text-center">{indexOfFirstItem + index + 1}</td>
-                      
-                      {/* Waktu Peminjaman: Kiri */}
-                      <td className="px-3 text-start">
-                        <div className="fw-bold text-dark">{item.tanggal_sewa || "-"}</div>
-                        <div className="text-muted small" style={{ fontSize: "0.75rem" }}>{item.jam_sewa || "-"}</div>
-                      </td>
-
-                      {/* Mobil/Plat: Kiri */}
-                      <td className="px-3 text-start">
-                        <div className="fw-bold text-dark text-uppercase">{item.cars?.jenis_unit || "-"}</div>
-                        <span className="badge border text-dark bg-white px-2 py-1 mt-1 shadow-sm" style={{ letterSpacing: "1px" }}>
-                          {item.cars?.nomor_plat || "-"}
-                        </span>
-                      </td>
-
-                      {/* Nama Customer: Kiri, Biru */}
-                      <td className="px-3 text-start">
-                        <div className="fw-bold text-primary">{item.customers?.nama_pelanggan || "-"}</div>
-                      </td>
-
-                      {/* Rute: Tengah, Badge Biru Muda */}
-                      <td className="px-3 text-center">
-                        <span className="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 text-uppercase">
-                          {item.rute || "-"}
-                        </span>
-                      </td>
-
-                      {/* Keterangan: Kiri, Text Muted */}
-                      <td className="px-3 text-start text-wrap text-muted" style={{ maxWidth: "200px" }}>
-                        {item.keterangan || "-"}
-                      </td>
-
-                      {/* Total Pembayaran: Kanan, Hijau */}
-                      <td className="px-4 text-end fw-bold text-success">
-                        Rp {formatRupiah(item.total_pembayaran || 0)}
-                      </td>
-
-                      {/* Aksi: Tengah */}
-                      <td className="px-4 text-center">
-                        <div className="btn-group shadow-sm">
-                          <button
-                            onClick={() => handleViewDetails(item)}
-                            className="btn btn-sm btn-white border text-info"
-                            title="Lihat Detail Transaksi"
-                          >
-                            <i className="fas fa-eye"></i>
-                          </button>
-                          <Link
-                            to={`/transaction/edit/${item.transaction_id}`}
-                            className="btn btn-sm btn-white border text-primary"
-                            title="Edit Transaksi"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </Link>
-                          <button
-                            onClick={() => handleDeleteClick(item.transaction_id, item.customers?.nama_pelanggan)}
-                            className="btn btn-sm btn-white border text-danger"
-                            title="Hapus Transaksi"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer & Pagination */}
-        <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
-          <div className="d-flex justify-content-between align-items-center">
-            <span className="text-muted small">
-              Total: <strong>{filteredTransactions.length}</strong> transaksi
-            </span>
-            <nav>
-              <ul className="pagination pagination-sm mb-0">
-                <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                  <button 
-                    className="page-link border-0 text-muted bg-transparent" 
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  >
-                    Prev
-                  </button>
-                </li>
-                
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <li key={i + 1} className={`page-item ${currentPage === i + 1 ? 'active' : ''}`}>
-                    <button
-                      className={`page-link border-0 rounded mx-1 shadow-sm px-3 ${currentPage === i + 1 ? 'text-white' : 'text-dark'}`}
-                      style={{ backgroundColor: currentPage === i + 1 ? "#0061f2" : "transparent" }}
-                      onClick={() => setCurrentPage(i + 1)}
-                    >
-                      {i + 1}
-                    </button>
-                  </li>
-                ))}
-
-                <li className={`page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`}>
-                  <button 
-                    className="page-link border-0 text-primary bg-transparent"
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  >
-                    Next
-                  </button>
-                </li>
-              </ul>
-            </nav>
-          </div>
-        </div>
       </div>
 
       {/* --- MODAL HAPUS KONFIRMASI --- */}

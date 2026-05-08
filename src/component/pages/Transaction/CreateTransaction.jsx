@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
-// import { blob, json } from "node:stream/consumers";
 
 export default function CreateTransaction() {
   const navigate = useNavigate();
@@ -21,10 +20,12 @@ export default function CreateTransaction() {
   const [fotoFile, setFotoFile] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
   const [googleToken, setGoogleToken] = useState("");
-  const DRIVE_FOLDER_ID =
-    "https://drive.google.com/drive/folders/1yOQ3Z2FYM_Ykj1BOjJb6coP75G08oKrh";
 
-  // State form utama
+  // REVISI: Pisahkan ID Folder Drive untuk Foto dan Video
+  const DRIVE_PHOTO_FOLDER_ID = "1BBNYFg2TWx_-OOWUdL4HtmmMmILInWqI";
+  const DRIVE_VIDEO_FOLDER_ID = "1hG4Vsh9C-bl8dWKVcgY7OkmnrgWr3aLM";
+
+  // State form utama (sisa_pembayaran dihapus dari state karena dihitung otomatis)
   const [formData, setFormData] = useState({
     waktu: "",
     waktu_pengembalian: "",
@@ -33,12 +34,22 @@ export default function CreateTransaction() {
     rute: "",
     car_id: "",
     dp: "",
-    sisa_pembayaran: "",
     total_pembayaran: "",
     keterangan: "",
-    foto_mobil: "",
-    video_mobil: "",
   });
+
+  // --- LOGIKA MENGHITUNG SISA PEMBAYARAN OTOMATIS ---
+  // Jika DP kosong ("") atau diisi 0, Sisa = 0 (Anggap lunas). Jika ada nominal DP, Sisa = Total - DP
+  const currentTotalPay = parseInt(formData.total_pembayaran) || 0;
+  let currentDp = parseInt(formData.dp);
+  if (isNaN(currentDp)) currentDp = 0;
+
+  let currentSisaPay;
+  if (formData.dp === "" || currentDp === 0) {
+    currentSisaPay = 0;
+  } else {
+    currentSisaPay = currentTotalPay - currentDp;
+  }
 
   // --- AMBIL DATA DARI SUPABASE ---
   useEffect(() => {
@@ -98,6 +109,7 @@ export default function CreateTransaction() {
           if (response.access_token) {
             setGoogleToken(response.access_token);
             console.log("Token berhasil didapat");
+            alert("Login Google berhasil! Sekarang Anda bisa mengupload file.");
           }
         },
       });
@@ -125,23 +137,21 @@ export default function CreateTransaction() {
     });
   };
 
-  // upload to drive
-  const uploadToDrive = async (file, accessToken) => {
+  // REVISI: upload to drive dengan pemisahan Direct Link untuk Foto
+  const uploadToDrive = async (file, folderId, accessToken) => {
     if (!file) return null;
 
     const metadata = {
       name: file.name,
       mimeType: file.type,
-      parents: [DRIVE_FOLDER_ID],
+      parents: [folderId], 
     };
 
     const dataUpload = new FormData();
-    // 1. Metadata HARUS pertama
     dataUpload.append(
       "metadata",
       new Blob([JSON.stringify(metadata)], { type: "application/json" }),
     );
-    // 2. File HARUS setelah metadata
     dataUpload.append("file", file);
 
     try {
@@ -163,7 +173,17 @@ export default function CreateTransaction() {
       }
 
       const result = await response.json();
-      return result.webViewLink; // Ini link yang akan masuk ke Supabase
+      
+      // LOGIKA FINAL & PALING AMPUH:
+      if (file.type.startsWith("image/")) {
+        // Format lh3.googleusercontent.com ini adalah direct link asli Google
+        // Dijamin 100% langsung muncul jika dipakai di dalam tag <img src="...">
+        return `https://drive.google.com/thumbnail?id=${result.id}&sz=w1000`;
+      } else {
+        // Untuk video biarkan pakai preview agar bisa diputar stabil di iframe
+        return `https://drive.google.com/file/d/${result.id}/preview`; 
+      }
+      
     } catch (error) {
       console.error("Network error Drive:", error);
       return null;
@@ -172,13 +192,14 @@ export default function CreateTransaction() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!formData.customer_id) {
-      return;
       alert("Harap pilih Customer dari daftar Dropdown yang muncul!");
-    }
-    if (!googleToken) {
       return;
-      alert("Silahkan login google dlu untuk upload file");
+    }
+    if ((fotoFile || videoFile) && !googleToken) {
+      alert("Silahkan login google dulu untuk upload file foto/video");
+      return;
     }
 
     setIsSubmitting(true);
@@ -193,11 +214,30 @@ export default function CreateTransaction() {
         }
       }
       const tglSewa = formData.waktu.split("T")[0];
-      const linkFoto = await uploadToDrive(fotoFile, googleToken);
-      const linkVideo = await uploadToDrive(videoFile, googleToken);
       const jamSewa = formData.waktu.split("T")[1] + ":00";
       const tglKembali = formData.waktu_pengembalian.split("T")[0];
       const jamKembali = formData.waktu_pengembalian.split("T")[1] + ":00";
+
+      // REVISI: Upload file ke folder masing-masing
+      let linkFoto = null;
+      let linkVideo = null;
+
+      if (fotoFile && googleToken) {
+        linkFoto = await uploadToDrive(
+          fotoFile,
+          DRIVE_PHOTO_FOLDER_ID,
+          googleToken
+        );
+      }
+      if (videoFile && googleToken) {
+        linkVideo = await uploadToDrive(
+          videoFile,
+          DRIVE_VIDEO_FOLDER_ID,
+          googleToken
+        );
+      }
+
+      // REVISI: Masukkan nilai sisa pembayaran yang sudah terhitung otomatis
       const { error } = await supabase.from("transactions").insert([
         {
           customer_id: formData.customer_id,
@@ -208,17 +248,17 @@ export default function CreateTransaction() {
           jam_pengembalian: jamKembali,
           rute: formData.rute,
           jumlah_hari: jumlah_hari,
-          dp: parseInt(formData.dp),
-          sisa_pembayaran: parseInt(formData.sisa_pembayaran),
-          total_pembayaran: parseInt(formData.total_pembayaran),
+          dp: currentDp,
+          total_pembayaran: currentTotalPay,
+          sisa_pembayaran: currentSisaPay,
           keterangan: formData.keterangan || null,
-          foto_mobil: formData.foto_mobil || null,
-          video_mobil: formData.video_mobil || null,
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
         },
       ]);
+
       if (error) throw error;
+
       setShowSuccessModal(true);
       setIsSubmitting(false);
       setTimeout(() => {
@@ -231,6 +271,7 @@ export default function CreateTransaction() {
       setIsSubmitting(false);
     }
   };
+
   const getMinReturnDate = () => {
     if (!formData.waktu) return "";
     const pickupDate = new Date(formData.waktu);
@@ -504,18 +545,18 @@ export default function CreateTransaction() {
                 <div className="col-md-4">
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
-                      Sisa Pembayaran
+                      Sisa Pembayaran (Otomatis)
                     </label>
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">
                         Rp
                       </span>
+                      {/* INPUT INI SEKARANG READONLY DAN MENGHITUNG OTOMATIS */}
                       <input
                         type="number"
-                        name="sisa_pembayaran"
-                        onChange={handleChange}
                         className="form-control bg-light border-0 py-2"
-                        placeholder="0"
+                        value={currentSisaPay}
+                        readOnly
                       />
                     </div>
                   </div>
@@ -543,6 +584,7 @@ export default function CreateTransaction() {
                     </label>
                     <input
                       type="file"
+                      accept="image/*"
                       onChange={(e) => setFotoFile(e.target.files[0])}
                       className="form-control bg-light border-0 py-2"
                     />
@@ -554,6 +596,7 @@ export default function CreateTransaction() {
                     </label>
                     <input
                       type="file"
+                      accept="video/*"
                       onChange={(e) => setVideoFile(e.target.files[0])}
                       className="form-control bg-light border-0 py-2"
                     />

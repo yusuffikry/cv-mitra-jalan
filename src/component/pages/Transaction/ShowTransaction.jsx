@@ -233,8 +233,9 @@ export default function ShowTransaction({ data, onBack }) {
                     <img 
                       src={renderPhotoUrl} 
                       alt="Dokumentasi Mobil" 
+                      referrerPolicy="no-referrer"
                       onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/400x300?text=Izin+Akses+Drive+Ditolak";
+                        e.target.src = "https://placehold.co/400x300/eeeeee/999999?text=Izin+Akses+Ditolak";
                       }}
                     />
                   </div>

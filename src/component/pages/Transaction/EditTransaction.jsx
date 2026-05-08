@@ -17,23 +17,43 @@ export default function EditTransaction() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // handle file drive
+  const [fotoFile, setFotoFile] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
+  const [googleToken, setGoogleToken] = useState("");
+
+  // REVISI: Pisahkan ID Folder Drive untuk Foto dan Video
+  const DRIVE_PHOTO_FOLDER_ID = "1BBNYFg2TWx_-OOWUdL4HtmmMmILInWqI";
+  const DRIVE_VIDEO_FOLDER_ID = "1hG4Vsh9C-bl8dWKVcgY7OkmnrgWr3aLM";
+
   // State form utama
   const [formData, setFormData] = useState({
-    waktu: "", 
+    waktu: "",
     waktu_pengembalian: "",
     customer_id: "", 
-    nama_customer: "", 
+    nama_customer: "",
     rute: "",
-    car_id: "", 
+    car_id: "",
     dp: "",
-    sisa_pembayaran: "",
     total_pembayaran: "",
     keterangan: "",
-    foto_mobil: "", 
-    video_mobil: "", 
+    foto_mobil: "", // Simpan link lama
+    video_mobil: "", // Simpan link lama
   });
 
-  // --- AMBIL DATA DARI SUPABASE (Pilihan & Data Transaksi Lama) ---
+  // --- LOGIKA MENGHITUNG SISA PEMBAYARAN OTOMATIS ---
+  const currentTotalPay = parseInt(formData.total_pembayaran) || 0;
+  let currentDp = parseInt(formData.dp);
+  if (isNaN(currentDp)) currentDp = 0;
+
+  let currentSisaPay;
+  if (formData.dp === "" || currentDp === 0) {
+    currentSisaPay = 0;
+  } else {
+    currentSisaPay = currentTotalPay - currentDp;
+  }
+
+  // --- AMBIL DATA AWAL (Pilihan & Data Transaksi Lama) ---
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -58,17 +78,16 @@ export default function EditTransaction() {
         if (id) {
           const { data: trxData, error: trxError } = await supabase
             .from("transactions")
-            .select(`*, customers(nama_pelanggan)`) // Join untuk mengambil nama customer lama
+            .select(`*, customers(nama_pelanggan)`) 
             .eq("transaction_id", id)
             .single();
 
           if (trxError) throw trxError;
 
           if (trxData) {
-            // Gabungkan Tanggal & Jam dari DB agar cocok dengan format datetime-local HTML
             const formatDateTime = (dateStr, timeStr) => {
               if (!dateStr || !timeStr) return "";
-              const time = timeStr.substring(0, 5); // Ambil "HH:mm"
+              const time = timeStr.substring(0, 5); 
               return `${dateStr}T${time}`;
             };
 
@@ -81,15 +100,13 @@ export default function EditTransaction() {
               nama_customer: namaCust,
               rute: trxData.rute || "",
               car_id: trxData.car_id || "",
-              dp: trxData.dp || "",
-              sisa_pembayaran: trxData.sisa_pembayaran || "",
-              total_pembayaran: trxData.total_pembayaran || "",
+              dp: trxData.dp || 0,
+              total_pembayaran: trxData.total_pembayaran || 0,
               keterangan: trxData.keterangan || "",
               foto_mobil: trxData.foto_mobil || "",
               video_mobil: trxData.video_mobil || "",
             });
             
-            // Isi kolom pencarian dengan nama customer yang sudah ada
             setSearchTerm(namaCust);
           }
         }
@@ -106,20 +123,76 @@ export default function EditTransaction() {
     c.nama_pelanggan?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // handle drive login
+  const handleGoogleLogin = () => {
+    if (!window.google || !window.google.accounts) {
+      alert("Library Google belum dimuat. Silakan refresh halaman.");
+      return;
+    }
+
+    try {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: "792749158806-1len8ms3h3cq3v16h58qcj9befc8log9.apps.googleusercontent.com",
+        scope: "https://www.googleapis.com/auth/drive.file",
+        callback: (response) => {
+          if (response.access_token) {
+            setGoogleToken(response.access_token);
+            alert("Login Google berhasil! Sekarang Anda bisa mengganti file.");
+          }
+        },
+      });
+      client.requestAccessToken();
+    } catch (err) {
+      console.error("Gagal inisialisasi Google Login:", err);
+    }
+  };
+
+  const uploadToDrive = async (file, folderId, accessToken) => {
+    if (!file) return null;
+
+    const metadata = {
+      name: file.name,
+      mimeType: file.type,
+      parents: [folderId], 
+    };
+
+    const dataUpload = new FormData();
+    dataUpload.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+    dataUpload.append("file", file);
+
+    try {
+      const response = await fetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: dataUpload,
+        }
+      );
+
+      const result = await response.json();
+      
+      // REVISI: Samakan format link dengan Create (Direct Link untuk Foto)
+      if (file.type.startsWith("image/")) {
+        return `https://drive.google.com/thumbnail?id=${result.id}&sz=w1000`;
+      } else {
+        return `https://drive.google.com/file/d/${result.id}/preview`; 
+      }
+    } catch (error) {
+      return null;
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
     setFormData((prev) => {
       const newData = { ...prev, [name]: value };
-      
-      // Jika user mengubah waktu ambil, cek apakah waktu kembali masih valid
       if (name === "waktu") {
         const minReturn = getMinReturnDate();
         if (newData.waktu_pengembalian && newData.waktu_pengembalian < minReturn) {
-          newData.waktu_pengembalian = ""; // Reset jika tidak valid
+          newData.waktu_pengembalian = ""; 
         }
       }
-      
       return newData;
     });
   };
@@ -128,50 +201,57 @@ export default function EditTransaction() {
     e.preventDefault();
 
     if (!formData.customer_id) {
-      alert("Harap pilih Customer dari daftar Dropdown yang muncul!");
+      alert("Harap pilih Customer!");
+      return;
+    }
+
+    // Jika admin mau ganti file tapi belum login google
+    if ((fotoFile || videoFile) && !googleToken) {
+      alert("Silahkan login google dulu untuk upload file baru");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Hitung Ulang Jumlah Hari
       let jumlah_hari = 0;
       if (formData.waktu && formData.waktu_pengembalian) {
         const start = new Date(formData.waktu);
         const end = new Date(formData.waktu_pengembalian);
-        const diffTime = end - start;
-        if (diffTime > 0) {
-          jumlah_hari = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        }
+        jumlah_hari = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
       }
 
-      // Format Tanggal dan Jam
-      const tglSewa = formData.waktu.split("T")[0];
-      const jamSewa = formData.waktu.split("T")[1] + ":00";
-      const tglKembali = formData.waktu_pengembalian.split("T")[0];
-      const jamKembali = formData.waktu_pengembalian.split("T")[1] + ":00";
+      // Handle Upload (Gunakan link lama jika tidak ada file baru yang dipilih)
+      let linkFoto = formData.foto_mobil;
+      let linkVideo = formData.video_mobil;
 
-      // Proses UPDATE ke tabel transactions
+      if (fotoFile && googleToken) {
+        linkFoto = await uploadToDrive(fotoFile, DRIVE_PHOTO_FOLDER_ID, googleToken);
+      }
+      if (videoFile && googleToken) {
+        linkVideo = await uploadToDrive(videoFile, DRIVE_VIDEO_FOLDER_ID, googleToken);
+      }
+
+      // Proses UPDATE
       const { error } = await supabase
         .from("transactions")
         .update({
           customer_id: formData.customer_id,
           car_id: formData.car_id,
-          tanggal_sewa: tglSewa,
-          jam_sewa: jamSewa,
-          tanggal_pengembalian: tglKembali,
-          jam_pengembalian: jamKembali,
+          tanggal_sewa: formData.waktu.split("T")[0],
+          jam_sewa: formData.waktu.split("T")[1] + ":00",
+          tanggal_pengembalian: formData.waktu_pengembalian.split("T")[0],
+          jam_pengembalian: formData.waktu_pengembalian.split("T")[1] + ":00",
           rute: formData.rute,
           jumlah_hari: jumlah_hari,
-          dp: parseInt(formData.dp),
-          sisa_pembayaran: parseInt(formData.sisa_pembayaran),
-          total_pembayaran: parseInt(formData.total_pembayaran),
+          dp: currentDp,
+          total_pembayaran: currentTotalPay,
+          sisa_pembayaran: currentSisaPay,
           keterangan: formData.keterangan || null,
-          foto_mobil: formData.foto_mobil || null,
-          video_mobil: formData.video_mobil || null,
+          foto_mobil: linkFoto,
+          video_mobil: linkVideo,
         })
-        .eq("transaction_id", id); // UPDATE BERDASARKAN ID
+        .eq("transaction_id", id); 
 
       if (error) throw error;
 
@@ -184,22 +264,19 @@ export default function EditTransaction() {
       }, 2000);
 
     } catch (error) {
-      console.error("Error updating transaction:", error.message);
+      console.error("Error:", error.message);
       alert("Gagal memperbarui transaksi: " + error.message);
       setIsSubmitting(false);
     }
   };
 
-  // Fungsi untuk menghitung H+1 dari waktu sewa jam 00:00
   const getMinReturnDate = () => {
     if (!formData.waktu) return "";
     const pickupDate = new Date(formData.waktu);
     pickupDate.setDate(pickupDate.getDate() + 1);
-    
     const year = pickupDate.getFullYear();
     const month = String(pickupDate.getMonth() + 1).padStart(2, '0');
     const day = String(pickupDate.getDate()).padStart(2, '0');
-    
     return `${year}-${month}-${day}T00:00`;
   };
 
@@ -227,7 +304,6 @@ export default function EditTransaction() {
               <div className="row g-4 mb-5">
                 <div className="col-md-6">
                   
-                  {/* --- CUSTOM SEARCHABLE DROPDOWN UNTUK CUSTOMER --- */}
                   <div className="mb-3 position-relative">
                     <label className="form-label text-secondary small fw-bold">Nama Customer (Cari / Pilih)</label>
                     <div className="position-relative">
@@ -336,13 +412,9 @@ export default function EditTransaction() {
                       required
                     />
                     {!formData.waktu ? (
-                      <small className="text-danger" style={{ fontSize: "10px" }}>
-                        *Isi jadwal ambil terlebih dahulu
-                      </small>
+                      <small className="text-danger" style={{ fontSize: "10px" }}>*Isi jadwal ambil terlebih dahulu</small>
                     ) : (
-                      <small className="text-muted" style={{ fontSize: "10px" }}>
-                        *Minimal pengembalian adalah H+1 dari jadwal ambil.
-                      </small>
+                      <small className="text-muted" style={{ fontSize: "10px" }}>*Minimal pengembalian adalah H+1 dari jadwal ambil.</small>
                     )}
                   </div>
                 </div>
@@ -408,16 +480,14 @@ export default function EditTransaction() {
                 </div>
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Sisa Pembayaran</label>
+                    <label className="form-label text-secondary small fw-bold">Sisa Pembayaran (Otomatis)</label>
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">Rp</span>
                       <input
                         type="number"
-                        name="sisa_pembayaran"
-                        value={formData.sisa_pembayaran}
-                        onChange={handleChange}
                         className="form-control bg-light border-0 py-2"
-                        placeholder="0"
+                        value={currentSisaPay}
+                        readOnly
                       />
                     </div>
                   </div>
@@ -427,27 +497,34 @@ export default function EditTransaction() {
               <h6 className="fw-bold text-success mb-3">Dokumentasi & Keterangan</h6>
               <div className="row g-4 mb-4">
                 <div className="col-md-6">
+                  {!googleToken && (
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      className="btn btn-outline-danger mb-3 btn-sm"
+                    >
+                      1. Klik Login Google untuk Ganti File
+                    </button>
+                  )}
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Link Foto Kendaraan (GDrive)</label>
+                    <label className="form-label text-secondary small fw-bold">Ganti Foto Kendaraan</label>
                     <input
-                      type="url"
-                      name="foto_mobil"
-                      value={formData.foto_mobil}
-                      onChange={handleChange}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setFotoFile(e.target.files[0])}
                       className="form-control bg-light border-0 py-2"
-                      placeholder="https://drive.google.com/..."
                     />
+                    {formData.foto_mobil && <small className="text-muted italic">*Sudah ada dokumentasi tersimpan</small>}
                   </div>
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Link Video Kendaraan (GDrive)</label>
+                    <label className="form-label text-secondary small fw-bold">Ganti Video Kendaraan</label>
                     <input
-                      type="url"
-                      name="video_mobil"
-                      value={formData.video_mobil}
-                      onChange={handleChange}
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => setVideoFile(e.target.files[0])}
                       className="form-control bg-light border-0 py-2"
-                      placeholder="https://drive.google.com/..."
                     />
+                    {formData.video_mobil && <small className="text-muted italic">*Sudah ada dokumentasi tersimpan</small>}
                   </div>
                 </div>
                 <div className="col-md-6">
@@ -513,7 +590,11 @@ export default function EditTransaction() {
                 </div>
                 <h5 className="fw-bold text-dark mb-2">Berhasil Diperbarui!</h5>
                 <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
-                  Transaksi untuk <span className="fw-bold text-dark">{formData.nama_customer || "Customer"}</span> berhasil diperbarui.
+                  Transaksi untuk{" "}
+                  <span className="fw-bold text-dark">
+                    {formData.nama_customer || "Customer"}
+                  </span>{" "}
+                  berhasil diperbarui.
                 </p>
                 <div className="d-flex align-items-center justify-content-center text-muted small">
                   <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: '12px', height: '12px' }}></div>
