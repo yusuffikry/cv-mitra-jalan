@@ -22,7 +22,7 @@ export default function CreateTransaction() {
   const [videoFile, setVideoFile] = useState(null);
   const [googleToken, setGoogleToken] = useState("");
   const DRIVE_FOLDER_ID =
-    "https://drive.google.com/drive/folders/1KrzAbvNEro0gNVy91B8py58d1ZDg6Zg1?usp=drive_link";
+    "https://drive.google.com/drive/folders/1yOQ3Z2FYM_Ykj1BOjJb6coP75G08oKrh";
 
   // State form utama
   const [formData, setFormData] = useState({
@@ -135,24 +135,39 @@ export default function CreateTransaction() {
       parents: [DRIVE_FOLDER_ID],
     };
 
-    const formDataUpload = new FormData();
-    formDataUpload.append("file", file);
-    formDataUpload.append(
+    const dataUpload = new FormData();
+    // 1. Metadata HARUS pertama
+    dataUpload.append(
       "metadata",
       new Blob([JSON.stringify(metadata)], { type: "application/json" }),
     );
+    // 2. File HARUS setelah metadata
+    dataUpload.append("file", file);
 
-    const response = await fetch(
-      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
-      {
-        method: "POST",
-        Headers: { Authorization: `Bearer ${accessToken}` },
-        body: formData,
-      },
-    );
+    try {
+      const response = await fetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: dataUpload,
+        },
+      );
 
-    const result = await response.json();
-    return result.webViewLink;
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Gagal ke GDrive:", errorData);
+        return null;
+      }
+
+      const result = await response.json();
+      return result.webViewLink; // Ini link yang akan masuk ke Supabase
+    } catch (error) {
+      console.error("Network error Drive:", error);
+      return null;
+    }
   };
 
   const handleSubmit = async (e) => {
