@@ -91,7 +91,8 @@ export default function CreateTransaction() {
 
     try {
       const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+        client_id:
+          "792749158806-1len8ms3h3cq3v16h58qcj9befc8log9.apps.googleusercontent.com",
         scope: "https://www.googleapis.com/auth/drive.file",
         callback: (response) => {
           if (response.access_token) {
