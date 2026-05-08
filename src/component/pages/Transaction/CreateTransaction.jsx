@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
+// import { blob, json } from "node:stream/consumers";
 
 export default function CreateTransaction() {
   const navigate = useNavigate();
@@ -16,20 +17,27 @@ export default function CreateTransaction() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // handel foto drive
+  const [fotoFile, setFotoFile] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
+  const [googleToken, setGoogleToken] = useState("");
+  const DRIVE_FOLDER_ID =
+    "https://drive.google.com/drive/folders/1KrzAbvNEro0gNVy91B8py58d1ZDg6Zg1?usp=drive_link";
+
   // State form utama
   const [formData, setFormData] = useState({
-    waktu: "", 
+    waktu: "",
     waktu_pengembalian: "",
     customer_id: "", // Kita simpan ID-nya langsung
-    nama_customer: "", 
+    nama_customer: "",
     rute: "",
-    car_id: "", 
+    car_id: "",
     dp: "",
     sisa_pembayaran: "",
     total_pembayaran: "",
     keterangan: "",
-    foto_mobil: "", 
-    video_mobil: "", 
+    foto_mobil: "",
+    video_mobil: "",
   });
 
   // --- AMBIL DATA DARI SUPABASE ---
@@ -41,7 +49,7 @@ export default function CreateTransaction() {
           .from("customers")
           .select("*")
           .eq("status", "active");
-        
+
         if (customerError) {
           console.error("Error muat customer:", customerError.message);
         } else {
@@ -52,7 +60,7 @@ export default function CreateTransaction() {
         const { data: carData, error: carError } = await supabase
           .from("cars")
           .select("*");
-        
+
         if (carError) {
           console.error("Error muat mobil:", carError.message);
         } else {
@@ -68,38 +76,96 @@ export default function CreateTransaction() {
 
   // --- FILTER NAMA CUSTOMER SECARA REAL-TIME ---
   const filteredCustomers = customers.filter((c) =>
-    c.nama_pelanggan?.toLowerCase().includes(searchTerm.toLowerCase())
+    c.nama_pelanggan?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
+
+  // handle drive
+  const handleGoogleLogin = () => {
+    // Cek apakah library google sudah ada di window
+    if (!window.google || !window.google.accounts) {
+      alert(
+        "Library Google belum dimuat. Silakan refresh halaman atau tunggu sebentar.",
+      );
+      return;
+    }
+
+    try {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+        scope: "https://www.googleapis.com/auth/drive.file",
+        callback: (response) => {
+          if (response.access_token) {
+            setGoogleToken(response.access_token);
+            console.log("Token berhasil didapat");
+          }
+        },
+      });
+      client.requestAccessToken();
+    } catch (err) {
+      console.error("Gagal inisialisasi Google Login:", err);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     setFormData((prev) => {
       const newData = { ...prev, [name]: value };
-      
-      // Jika user mengubah waktu ambil, cek apakah waktu kembali masih valid
       if (name === "waktu") {
         const minReturn = getMinReturnDate();
-        if (newData.waktu_pengembalian && newData.waktu_pengembalian < minReturn) {
-          newData.waktu_pengembalian = ""; // Reset jika tidak valid
+        if (
+          newData.waktu_pengembalian &&
+          newData.waktu_pengembalian < minReturn
+        ) {
+          newData.waktu_pengembalian = "";
         }
       }
-      
       return newData;
     });
   };
 
+  // upload to drive
+  const uploadToDrive = async (file, accessToken) => {
+    if (!file) return null;
+
+    const metadata = {
+      name: file.name,
+      mimeType: file.type,
+      parents: [DRIVE_FOLDER_ID],
+    };
+
+    const formDataUpload = new formData();
+    formDataUpload.append("file", file);
+    formDataUpload.append(
+      "metadata",
+      new blob([JSON.stringify(metadata)], { type: "application/json" }),
+    );
+
+    const response = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+      {
+        method: "POST",
+        Headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      },
+    );
+
+    const result = await response.json();
+    return result.webViewLink;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Validasi apakah customer sudah dipilih dari dropdown
     if (!formData.customer_id) {
-      alert("Harap pilih Customer dari daftar Dropdown yang muncul!");
       return;
+      alert("Harap pilih Customer dari daftar Dropdown yang muncul!");
+    }
+    if (!googleToken) {
+      return;
+      alert("Silahkan login google dlu untuk upload file");
     }
 
     setIsSubmitting(true);
-
     try {
       let jumlah_hari = 0;
       if (formData.waktu && formData.waktu_pengembalian) {
@@ -110,14 +176,12 @@ export default function CreateTransaction() {
           jumlah_hari = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         }
       }
-
-      // Format Tanggal dan Jam
       const tglSewa = formData.waktu.split("T")[0];
+      const linkFoto = await uploadToDrive(fotoFile, googleToken);
+      const linkVideo = await uploadToDrive(videoFile, googleToken);
       const jamSewa = formData.waktu.split("T")[1] + ":00";
       const tglKembali = formData.waktu_pengembalian.split("T")[0];
       const jamKembali = formData.waktu_pengembalian.split("T")[1] + ":00";
-
-      // Proses Insert ke tabel transactions
       const { error } = await supabase.from("transactions").insert([
         {
           customer_id: formData.customer_id,
@@ -134,71 +198,71 @@ export default function CreateTransaction() {
           keterangan: formData.keterangan || null,
           foto_mobil: formData.foto_mobil || null,
           video_mobil: formData.video_mobil || null,
+          foto_mobil: linkFoto,
+          video_mobil: linkVideo,
         },
       ]);
-
       if (error) throw error;
-
       setShowSuccessModal(true);
       setIsSubmitting(false);
-
       setTimeout(() => {
         setShowSuccessModal(false);
         navigate("/transaction");
       }, 2000);
-
     } catch (error) {
       console.error("Error inserting transaction:", error.message);
       alert("Gagal menyimpan transaksi: " + error.message);
       setIsSubmitting(false);
     }
   };
-
-  // Fungsi untuk menghitung H+1 dari waktu sewa jam 00:00
   const getMinReturnDate = () => {
     if (!formData.waktu) return "";
-    
     const pickupDate = new Date(formData.waktu);
-    // Tambah 1 hari
     pickupDate.setDate(pickupDate.getDate() + 1);
-    
-    // Format ke YYYY-MM-DD
     const year = pickupDate.getFullYear();
-    const month = String(pickupDate.getMonth() + 1).padStart(2, '0');
-    const day = String(pickupDate.getDate()).padStart(2, '0');
-    
-    // Set ke jam 00:00 agar tidak bisa pilih di hari yang sama
+    const month = String(pickupDate.getMonth() + 1).padStart(2, "0");
+    const day = String(pickupDate.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}T00:00`;
   };
 
   return (
     <div className="h-100 bg-light d-flex flex-column">
       <div className="flex-grow-1 overflow-auto p-4">
-        
-        <div className="d-flex justify-content-between align-items-center mb-4 mx-auto" style={{ maxWidth: "1000px" }}>
+        <div
+          className="d-flex justify-content-between align-items-center mb-4 mx-auto"
+          style={{ maxWidth: "1000px" }}
+        >
           <div>
             <h4 className="fw-bold text-dark mb-1">Transaksi Baru</h4>
             <p className="text-muted small mb-0">
               Lengkapi formulir di bawah ini untuk menambahkan penyewaan armada.
             </p>
           </div>
-          <Link to="/transaction" className="btn btn-outline-secondary shadow-sm px-3">
+          <Link
+            to="/transaction"
+            className="btn btn-outline-secondary shadow-sm px-3"
+          >
             <i className="fas fa-arrow-left me-2"></i>Kembali
           </Link>
         </div>
 
-        <div className="card shadow-sm border-0 rounded-3 mb-5 mx-auto" style={{ maxWidth: "1000px" }}>
+        <div
+          className="card shadow-sm border-0 rounded-3 mb-5 mx-auto"
+          style={{ maxWidth: "1000px" }}
+        >
           <div className="card-body p-4 p-lg-5">
             <form onSubmit={handleSubmit}>
-              
-              <h6 className="fw-bold text-primary mb-3">Informasi Peminjaman</h6>
+              <h6 className="fw-bold text-primary mb-3">
+                Informasi Peminjaman
+              </h6>
               <div className="row g-4 mb-5">
                 <div className="col-md-6">
-                  
                   {/* --- CUSTOM SEARCHABLE DROPDOWN UNTUK CUSTOMER --- */}
                   <div className="mb-3 position-relative">
-                    <label className="form-label text-secondary small fw-bold">Nama Customer (Cari / Pilih)</label>
-                    
+                    <label className="form-label text-secondary small fw-bold">
+                      Nama Customer (Cari / Pilih)
+                    </label>
+
                     {/* Bungkus input dan tombol X dalam div relative */}
                     <div className="position-relative">
                       <input
@@ -210,13 +274,17 @@ export default function CreateTransaction() {
                           setSearchTerm(e.target.value);
                           setShowDropdown(true);
                           // Reset ID jika user mengubah ketikan
-                          setFormData((prev) => ({ ...prev, customer_id: "", nama_customer: "" }));
+                          setFormData((prev) => ({
+                            ...prev,
+                            customer_id: "",
+                            nama_customer: "",
+                          }));
                         }}
                         onFocus={() => setShowDropdown(true)}
                         onBlur={() => setShowDropdown(false)}
                         required={!formData.customer_id}
                       />
-                      
+
                       {/* Tombol X (Clear Input) yang muncul hanya jika ada isinya */}
                       {searchTerm && (
                         <button
@@ -226,7 +294,11 @@ export default function CreateTransaction() {
                           onMouseDown={(e) => {
                             e.preventDefault(); // Mencegah input kehilangan fokus
                             setSearchTerm("");
-                            setFormData((prev) => ({ ...prev, customer_id: "", nama_customer: "" }));
+                            setFormData((prev) => ({
+                              ...prev,
+                              customer_id: "",
+                              nama_customer: "",
+                            }));
                             setShowDropdown(true); // Langsung buka dropdown lagi setelah dihapus
                           }}
                         >
@@ -234,12 +306,17 @@ export default function CreateTransaction() {
                         </button>
                       )}
                     </div>
-                    
+
                     {/* Menu Dropdown yang melayang */}
                     {showDropdown && (
-                      <ul 
-                        className="dropdown-menu show w-100 shadow border-0 mt-1" 
-                        style={{ maxHeight: "200px", overflowY: "auto", position: "absolute", zIndex: 1000 }}
+                      <ul
+                        className="dropdown-menu show w-100 shadow border-0 mt-1"
+                        style={{
+                          maxHeight: "200px",
+                          overflowY: "auto",
+                          position: "absolute",
+                          zIndex: 1000,
+                        }}
                       >
                         {filteredCustomers.length > 0 ? (
                           filteredCustomers.map((cust) => (
@@ -248,12 +325,12 @@ export default function CreateTransaction() {
                                 type="button"
                                 className="dropdown-item py-2"
                                 onMouseDown={(e) => {
-                                  e.preventDefault(); 
+                                  e.preventDefault();
                                   setSearchTerm(cust.nama_pelanggan);
-                                  setFormData((prev) => ({ 
-                                    ...prev, 
-                                    customer_id: cust.id || cust.customer_id, 
-                                    nama_customer: cust.nama_pelanggan 
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    customer_id: cust.id || cust.customer_id,
+                                    nama_customer: cust.nama_pelanggan,
                                   }));
                                   setShowDropdown(false);
                                 }}
@@ -263,14 +340,20 @@ export default function CreateTransaction() {
                             </li>
                           ))
                         ) : (
-                          <li><span className="dropdown-item text-muted disabled">Pelanggan tidak ditemukan</span></li>
+                          <li>
+                            <span className="dropdown-item text-muted disabled">
+                              Pelanggan tidak ditemukan
+                            </span>
+                          </li>
                         )}
                       </ul>
                     )}
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Rute Perjalanan</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Rute Perjalanan
+                    </label>
                     <select
                       name="rute"
                       onChange={handleChange}
@@ -280,14 +363,18 @@ export default function CreateTransaction() {
                       <option value="">-- Pilih Rute --</option>
                       <option value="DALKOT">Dalam Kota</option>
                       <option value="LURKOT">Luar Kota</option>
-                      <option value="DALKOT & LURKOT">Dalam Kota & Luar Kota</option>
+                      <option value="DALKOT & LURKOT">
+                        Dalam Kota & Luar Kota
+                      </option>
                     </select>
                   </div>
                 </div>
-                
+
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Jadwal Ambil</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Jadwal Ambil
+                    </label>
                     <input
                       type="datetime-local"
                       name="waktu"
@@ -297,7 +384,9 @@ export default function CreateTransaction() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Jadwal Kembali</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Jadwal Kembali
+                    </label>
                     <input
                       type="datetime-local"
                       name="waktu_pengembalian"
@@ -311,30 +400,41 @@ export default function CreateTransaction() {
                       required
                     />
                     {!formData.waktu ? (
-                      <small className="text-danger" style={{ fontSize: "10px" }}>
+                      <small
+                        className="text-danger"
+                        style={{ fontSize: "10px" }}
+                      >
                         *Isi jadwal ambil terlebih dahulu
                       </small>
                     ) : (
-                      <small className="text-muted" style={{ fontSize: "10px" }}>
+                      <small
+                        className="text-muted"
+                        style={{ fontSize: "10px" }}
+                      >
                         *Minimal pengembalian adalah H+1 dari jadwal ambil.
                       </small>
                     )}
                   </div>
                 </div>
               </div>
-
-              <h6 className="fw-bold text-primary mb-3">Data Kendaraan Terpilih</h6>
+              <h6 className="fw-bold text-primary mb-3">
+                Data Kendaraan Terpilih
+              </h6>
               <div className="row g-4 mb-5">
                 <div className="col-md-12">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Mobil (Plat Nomor)</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Mobil (Plat Nomor)
+                    </label>
                     <select
                       name="car_id"
                       onChange={handleChange}
                       className="form-select bg-light border-0 py-2"
                       required
                     >
-                      <option value="">-- Pilih Kendaraan yang Disewa --</option>
+                      <option value="">
+                        -- Pilih Kendaraan yang Disewa --
+                      </option>
                       {cars.map((car) => (
                         <option key={car.cars_id} value={car.cars_id}>
                           {car.jenis_unit} ({car.nomor_plat})
@@ -344,14 +444,17 @@ export default function CreateTransaction() {
                   </div>
                 </div>
               </div>
-
               <h6 className="fw-bold text-success mb-3">Rincian Pembayaran</h6>
               <div className="row g-4 mb-5">
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Total Pembayaran</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Total Pembayaran
+                    </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      <span className="input-group-text bg-light border-0 text-muted">
+                        Rp
+                      </span>
                       <input
                         type="number"
                         name="total_pembayaran"
@@ -365,9 +468,13 @@ export default function CreateTransaction() {
                 </div>
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Uang Muka (DP)</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Uang Muka (DP)
+                    </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      <span className="input-group-text bg-light border-0 text-muted">
+                        Rp
+                      </span>
                       <input
                         type="number"
                         name="dp"
@@ -380,9 +487,13 @@ export default function CreateTransaction() {
                 </div>
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Sisa Pembayaran</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Sisa Pembayaran
+                    </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      <span className="input-group-text bg-light border-0 text-muted">
+                        Rp
+                      </span>
                       <input
                         type="number"
                         name="sisa_pembayaran"
@@ -394,34 +505,49 @@ export default function CreateTransaction() {
                   </div>
                 </div>
               </div>
-
-              <h6 className="fw-bold text-success mb-3">Dokumentasi & Keterangan</h6>
+              <h6 className="fw-bold text-success mb-3">
+                Dokumentasi & Keterangan
+              </h6>
               <div className="row g-4 mb-4">
                 <div className="col-md-6">
+                  {/* Tombol Login Google jika belum ada token */}
+                  {!googleToken && (
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      className="btn btn-outline-danger mb-3 btn-sm"
+                    >
+                      1. Klik Login Google untuk Aktifkan Upload
+                    </button>
+                  )}
+
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Link Foto Kendaraan (GDrive)</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Foto Kendaraan
+                    </label>
                     <input
-                      type="url"
-                      name="foto_mobil"
-                      onChange={handleChange}
+                      type="file"
+                      onChange={(e) => setFotoFile(e.target.files[0])}
                       className="form-control bg-light border-0 py-2"
-                      placeholder="https://drive.google.com/..."
                     />
                   </div>
+
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Link Video Kendaraan (GDrive)</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Video Kendaraan
+                    </label>
                     <input
-                      type="url"
-                      name="video_mobil"
-                      onChange={handleChange}
+                      type="file"
+                      onChange={(e) => setVideoFile(e.target.files[0])}
                       className="form-control bg-light border-0 py-2"
-                      placeholder="https://drive.google.com/..."
                     />
                   </div>
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3 h-100">
-                    <label className="form-label text-secondary small fw-bold">Keterangan Tambahan</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Keterangan Tambahan
+                    </label>
                     <textarea
                       name="keterangan"
                       onChange={handleChange}
@@ -432,12 +558,15 @@ export default function CreateTransaction() {
                   </div>
                 </div>
               </div>
-
               <div className="d-flex justify-content-end gap-3 mt-5 border-top pt-4">
                 <Link
                   to="/transaction"
                   className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                  style={{ backgroundColor: "#ff9a90", border: "none", borderRadius: "12px" }}
+                  style={{
+                    backgroundColor: "#ff9a90",
+                    border: "none",
+                    borderRadius: "12px",
+                  }}
                 >
                   Batal
                 </Link>
@@ -445,11 +574,20 @@ export default function CreateTransaction() {
                   type="submit"
                   disabled={isSubmitting}
                   className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                  style={{ backgroundColor: "#0cc2aa", border: "none", borderRadius: "12px", opacity: isSubmitting ? 0.7 : 1 }}
+                  style={{
+                    backgroundColor: "#0cc2aa",
+                    border: "none",
+                    borderRadius: "12px",
+                    opacity: isSubmitting ? 0.7 : 1,
+                  }}
                 >
                   {isSubmitting ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      <span
+                        className="spinner-border spinner-border-sm me-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
                       Menyimpan...
                     </>
                   ) : (
@@ -457,34 +595,48 @@ export default function CreateTransaction() {
                   )}
                 </button>
               </div>
-
             </form>
           </div>
         </div>
-
       </div>
-
       {showSuccessModal && (
-        <div 
-          className="modal fade show d-block" 
-          tabIndex="-1" 
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', zIndex: 1050 }}
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{
+            backgroundColor: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(5px)",
+            zIndex: 1050,
+          }}
         >
           <div className="modal-dialog modal-dialog-centered modal-sm">
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+            <div
+              className="modal-content border-0 shadow-lg"
+              style={{ borderRadius: "16px" }}
+            >
               <div className="modal-body p-4 text-center">
-                <div 
-                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success" 
+                <div
+                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success"
                   style={{ width: "64px", height: "64px", borderRadius: "50%" }}
                 >
                   <i className="fas fa-check fs-2"></i>
                 </div>
-                <h5 className="fw-bold text-dark mb-2">Berhasil Ditambahkan!</h5>
+                <h5 className="fw-bold text-dark mb-2">
+                  Berhasil Ditambahkan!
+                </h5>
                 <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
-                  Transaksi untuk <span className="fw-bold text-dark">{formData.nama_customer || "Customer"}</span> berhasil dibuat.
+                  Transaksi untuk{" "}
+                  <span className="fw-bold text-dark">
+                    {formData.nama_customer || "Customer"}
+                  </span>{" "}
+                  berhasil dibuat.
                 </p>
                 <div className="d-flex align-items-center justify-content-center text-muted small">
-                  <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: '12px', height: '12px' }}></div>
+                  <div
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    style={{ width: "12px", height: "12px" }}
+                  ></div>
                   Mengalihkan...
                 </div>
               </div>
@@ -492,7 +644,6 @@ export default function CreateTransaction() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
