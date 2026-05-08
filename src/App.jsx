@@ -16,6 +16,8 @@ import ShowTransaction from "./component/pages/Transaction/ShowTransaction";
 import EditTransaction from "./component/pages/Transaction/EditTransaction";
 import CreateTransaction from "./component/pages/Transaction/CreateTransaction";
 
+import Income from "./component/pages/Profit/Income";
+
 
 
 function App() {
@@ -42,6 +44,9 @@ function App() {
             <Route path="/transaction/:id" element={<ShowTransaction />} />
             <Route path="/transaction/create" element={<CreateTransaction />} />
             <Route path="/transaction/edit/:id" element={<EditTransaction />} />
+
+
+            <Route path="/income" element={<Income />} />
           </Route>
         </Routes>
       </Router>

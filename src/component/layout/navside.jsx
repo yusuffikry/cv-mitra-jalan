@@ -134,7 +134,7 @@ export default function Navside() {
           Profit
         </li>
         <li>
-          <a href="#" className="nav-link link-dark">
+          <a href="/income" className="nav-link link-dark">
             <i className="fas fa-arrow-circle-down text-success me-2"></i>{" "}
             Pemasukan
           </a>
