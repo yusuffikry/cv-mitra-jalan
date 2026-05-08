@@ -17,7 +17,6 @@ export default function Navside() {
           navigate("/");
           return;
         }
-
         const {
           data: { session },
           error,
@@ -33,7 +32,6 @@ export default function Navside() {
         navigate("/");
       }
     };
-
     checkUser();
   }, [navigate]);
 
@@ -134,18 +132,17 @@ export default function Navside() {
           Profit
         </li>
         <li>
-          <a href="/income" className="nav-link link-dark">
+          <Link to="/income" className={`nav-link ${isActive("/income")}`}>
             <i className="fas fa-arrow-circle-down text-success me-2"></i>{" "}
             Pemasukan
-          </a>
+          </Link>
         </li>
         <li>
-          <a href="#" className="nav-link link-dark">
+          <Link to="/outcome" className={`nav-link ${isActive("/outcome")}`}>
             <i className="fas fa-arrow-circle-up text-danger me-2"></i>{" "}
             Pengeluaran
-          </a>
+          </Link>
         </li>
-
         {/* Kendaraan Section */}
         <li className="nav-item small text-muted text-uppercase fw-bold mt-4 mb-2 px-2">
           Kendaraan

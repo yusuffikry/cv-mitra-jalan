@@ -17,8 +17,12 @@ import EditTransaction from "./component/pages/Transaction/EditTransaction";
 import CreateTransaction from "./component/pages/Transaction/CreateTransaction";
 
 import Income from "./component/pages/Profit/Income";
+import CreateIncome from "./component/pages/Profit/CreateIncome";
+import ShowIncome from "./component/pages/Profit/Showincome";
 
-
+import Outcome from "./component/pages/Profit/Outcome";
+import CreateOutcome from "./component/pages/Profit/CreateOutcome";
+import ShowOutcome from "./component/pages/Profit/ShowOutcome";
 
 function App() {
   return (
@@ -45,8 +49,14 @@ function App() {
             <Route path="/transaction/create" element={<CreateTransaction />} />
             <Route path="/transaction/edit/:id" element={<EditTransaction />} />
 
-
+            {/* profit routes  */}
             <Route path="/income" element={<Income />} />
+            <Route path="/income/create" element={<CreateIncome />} />
+            <Route path="/income/show" element={<ShowIncome />} />
+
+            <Route path="/outcome" element={<Outcome />} />
+            <Route path="/outcome/create" element={<CreateOutcome />} />
+            <Route path="/outcome/show" element={<ShowOutcome />} />
           </Route>
         </Routes>
       </Router>

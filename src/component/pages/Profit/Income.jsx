@@ -43,7 +43,9 @@ export default function Income() {
 
   // Fungsi hapus (simulasi)
   const handleDelete = (plat) => {
-    const isConfirmed = window.confirm(`Apakah Anda yakin ingin menghapus data pendapatan untuk mobil plat ${plat}?`);
+    const isConfirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus data pendapatan untuk mobil plat ${plat}?`,
+    );
     if (isConfirmed) {
       alert(`Data pendapatan mobil ${plat} berhasil dihapus!`);
     }
@@ -56,7 +58,7 @@ export default function Income() {
       "Jenis Unit",
       "Nomor Plat",
       "Total Penghasilan (Rp)",
-      "Total Jalan (Kali)"
+      "Total Jalan (Kali)",
     ];
 
     const rows = incomes.map((item, index) => [
@@ -85,7 +87,6 @@ export default function Income() {
   return (
     <div className="d-flex flex-column h-100 bg-light overflow-hidden">
       <div className="p-4 flex-grow-1 d-flex flex-column overflow-hidden">
-        
         {/* Top Bar: Pencarian & Tombol Aksi */}
         <div className="d-flex justify-content-between align-items-center mb-4 flex-shrink-0">
           <div className="d-flex gap-3">
@@ -112,15 +113,16 @@ export default function Income() {
             >
               <i className="fas fa-file-excel me-2"></i>Export CSV
             </button>
-            <button
+            <Link
+              to="/income/create"
               className="btn text-white px-4 py-2 shadow-sm d-flex align-items-center"
               style={{ backgroundColor: "#0cc2aa", borderRadius: "8px" }}
             >
               <i className="fas fa-plus me-2"></i>Tambah
-            </button>
+            </Link>
           </div>
         </div>
-        
+
         {/* Card Tabel Pendapatan */}
         <div
           className="card border-0 shadow-sm flex-grow-1 d-flex flex-column overflow-hidden"
@@ -133,12 +135,24 @@ export default function Income() {
             >
               <thead className="sticky-top" style={{ zIndex: 10 }}>
                 <tr style={{ backgroundColor: "#e2e2e2" }}>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">No. ⇅</th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">Jenis Mobil ⇅</th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">Nomor Plat ⇅</th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">Total Pemasukan ⇅</th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">Total Jalan ⇅</th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">Aksi</th>
+                  <th className="py-3 text-secondary fw-bold border-bottom-0">
+                    No. ⇅
+                  </th>
+                  <th className="py-3 text-secondary fw-bold border-bottom-0">
+                    Jenis Mobil ⇅
+                  </th>
+                  <th className="py-3 text-secondary fw-bold border-bottom-0">
+                    Nomor Plat ⇅
+                  </th>
+                  <th className="py-3 text-secondary fw-bold border-bottom-0">
+                    Total Pemasukan ⇅
+                  </th>
+                  <th className="py-3 text-secondary fw-bold border-bottom-0">
+                    Total Jalan ⇅
+                  </th>
+                  <th className="py-3 text-secondary fw-bold border-bottom-0">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white">
@@ -149,7 +163,9 @@ export default function Income() {
                     <td className="fw-bold" style={{ color: "#0cc2aa" }}>
                       {item.nomor_plat}
                     </td>
-                    <td className="text-dark fw-bold">Rp {item.total_penghasilan}</td>
+                    <td className="text-dark fw-bold">
+                      Rp {item.total_penghasilan}
+                    </td>
                     <td className="text-dark">{item.total_jalan} Kali</td>
                     <td>
                       <div className="d-flex justify-content-center gap-2">
@@ -157,7 +173,13 @@ export default function Income() {
                         <button
                           className="btn btn-sm p-1 shadow-sm d-flex align-items-center justify-content-center"
                           title="Edit Data"
-                          style={{ backgroundColor: "#ffb366", color: "white", borderRadius: "4px", width: "28px", height: "28px" }}
+                          style={{
+                            backgroundColor: "#ffb366",
+                            color: "white",
+                            borderRadius: "4px",
+                            width: "28px",
+                            height: "28px",
+                          }}
                         >
                           <i className="fas fa-edit"></i>
                         </button>
@@ -166,18 +188,30 @@ export default function Income() {
                           onClick={() => handleDelete(item.nomor_plat)}
                           className="btn btn-sm p-1 shadow-sm d-flex align-items-center justify-content-center"
                           title="Hapus Data"
-                          style={{ backgroundColor: "#ff4d4d", color: "white", borderRadius: "4px", width: "28px", height: "28px" }}
+                          style={{
+                            backgroundColor: "#ff4d4d",
+                            color: "white",
+                            borderRadius: "4px",
+                            width: "28px",
+                            height: "28px",
+                          }}
                         >
                           <i className="fas fa-trash"></i>
                         </button>
-                        {/* Tombol Detail/Copy (Hijau) */}
-                        <button
+                        <Link
+                          to="/income/show"
                           className="btn btn-sm p-1 shadow-sm d-flex align-items-center justify-content-center"
                           title="Detail Rekap"
-                          style={{ backgroundColor: "#0cc2aa", color: "white", borderRadius: "4px", width: "28px", height: "28px" }}
+                          style={{
+                            backgroundColor: "#0cc2aa",
+                            color: "white",
+                            borderRadius: "4px",
+                            width: "28px",
+                            height: "28px",
+                          }}
                         >
                           <i className="fas fa-file-alt"></i>
-                        </button>
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -185,7 +219,7 @@ export default function Income() {
               </tbody>
             </table>
           </div>
-          
+
           {/* Footer Pagination */}
           <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
             <div className="d-flex justify-content-between align-items-center">
@@ -195,21 +229,32 @@ export default function Income() {
               <nav>
                 <ul className="pagination pagination-sm mb-0">
                   <li className="page-item disabled">
-                    <span className="page-link border-0 text-muted">Previous</span>
+                    <span className="page-link border-0 text-muted">
+                      Previous
+                    </span>
                   </li>
                   <li className="page-item active">
-                    <span className="page-link border-0 shadow-sm mx-1 rounded" style={{ backgroundColor: "#5493ff" }}>
+                    <span
+                      className="page-link border-0 shadow-sm mx-1 rounded"
+                      style={{ backgroundColor: "#5493ff" }}
+                    >
                       1
                     </span>
                   </li>
                   <li className="page-item">
-                    <span className="page-link border-0 text-primary mx-1">2</span>
+                    <span className="page-link border-0 text-primary mx-1">
+                      2
+                    </span>
                   </li>
                   <li className="page-item">
-                    <span className="page-link border-0 text-primary mx-1">3</span>
+                    <span className="page-link border-0 text-primary mx-1">
+                      3
+                    </span>
                   </li>
                   <li className="page-item">
-                    <span className="page-link border-0 text-primary">Next</span>
+                    <span className="page-link border-0 text-primary">
+                      Next
+                    </span>
                   </li>
                 </ul>
               </nav>
