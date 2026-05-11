@@ -1,266 +1,336 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom"; // Tambahkan import Link
+import { supabase } from "../../../supabaseClient";
 
 export default function Income() {
-  // Data dummy untuk tabel pendapatan
-  const [incomes] = useState([
-    {
-      id: 1,
-      jenis_unit: "Pajero Sport",
-      nomor_plat: "CR001",
-      total_penghasilan: "20.000.000",
-      total_jalan: 11,
-    },
-    {
-      id: 2,
-      jenis_unit: "Toyota Avanza",
-      nomor_plat: "DD 2020 RR",
-      total_penghasilan: "15.500.000",
-      total_jalan: 18,
-    },
-    {
-      id: 3,
-      jenis_unit: "Honda HR-V",
-      nomor_plat: "B 1234 ABC",
-      total_penghasilan: "22.300.000",
-      total_jalan: 14,
-    },
-    {
-      id: 4,
-      jenis_unit: "Mitsubishi Xpander",
-      nomor_plat: "B 5678 DEF",
-      total_penghasilan: "18.000.000",
-      total_jalan: 20,
-    },
-    {
-      id: 5,
-      jenis_unit: "Suzuki Ertiga",
-      nomor_plat: "B 4432 JKL",
-      total_penghasilan: "12.000.000",
-      total_jalan: 15,
-    },
-  ]);
+  // State untuk Supabase
+  const [incomes, setIncomes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Fungsi hapus (simulasi)
-  const handleDelete = (plat) => {
-    const isConfirmed = window.confirm(
-      `Apakah Anda yakin ingin menghapus data pendapatan untuk mobil plat ${plat}?`,
-    );
-    if (isConfirmed) {
-      alert(`Data pendapatan mobil ${plat} berhasil dihapus!`);
+  // State untuk Filter
+  const [searchPlat, setSearchPlat] = useState("");
+  const [searchUnit, setSearchUnit] = useState("");
+  const [filterMonth, setFilterMonth] = useState(""); 
+
+  // State untuk Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // --- AMBIL DATA DARI FUNCTION SUPABASE ---
+  useEffect(() => {
+    fetchProfits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterMonth]);
+
+  const fetchProfits = async () => {
+    try {
+      setLoading(true);
+
+      let start_date = null;
+      let end_date = null;
+
+      if (filterMonth) {
+        const [year, month] = filterMonth.split("-");
+        start_date = `${year}-${month}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        end_date = `${year}-${month}-${lastDay}`;
+      }
+
+      const { data, error } = await supabase.rpc("get_profits", {
+        start_date: start_date,
+        end_date: end_date,
+      });
+
+      if (error) throw error;
+      setIncomes(data || []);
+    } catch (error) {
+      console.error("Error fetching profits:", error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Fungsi Export CSV
+  // --- LOGIKA FILTER PENCARIAN (Client-Side) ---
+  const filteredIncomes = incomes.filter((item) => {
+    const matchPlat = (item.nomor_plat || "").toLowerCase().includes(searchPlat.toLowerCase());
+    const matchUnit = (item.jenis_unit || "").toLowerCase().includes(searchUnit.toLowerCase());
+    return matchPlat && matchUnit;
+  });
+
+  // --- LOGIKA PAGINATION ---
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredIncomes.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredIncomes.length / itemsPerPage);
+
+  // --- FUNGSI BANTUAN ---
+  const formatRupiah = (angka) => {
+    return new Intl.NumberFormat("id-ID").format(angka || 0);
+  };
+
   const exportToCSV = () => {
+    if (filteredIncomes.length === 0) {
+      alert("Tidak ada data untuk di-export!");
+      return;
+    }
+
+    const fileName = filterMonth 
+      ? `Laporan_Pendapatan_${filterMonth}.csv` 
+      : "Laporan_Pendapatan_Semua_Waktu.csv";
+
     const headers = [
       "No",
       "Jenis Unit",
       "Nomor Plat",
       "Total Penghasilan (Rp)",
-      "Total Jalan (Kali)",
+      "Total Jalan (Kali)"
     ];
 
-    const rows = incomes.map((item, index) => [
+    const rows = filteredIncomes.map((item, index) => [
       index + 1,
-      `"${item.jenis_unit}"`,
-      `"${item.nomor_plat}"`,
-      `"${item.total_penghasilan}"`,
-      item.total_jalan,
+      `"${item.jenis_unit || "-"}"`,
+      `"${item.nomor_plat || "-"}"`,
+      item.total_penghasilan || 0,
+      item.total_jalan || 0,
     ]);
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n");
-
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", "Laporan_Pendapatan.csv");
+    link.setAttribute("download", fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  const resetFilters = () => {
+    setSearchPlat("");
+    setSearchUnit("");
+    setFilterMonth(""); 
+    setCurrentPage(1);
+  };
+
   return (
-    <div className="d-flex flex-column h-100 bg-light overflow-hidden">
-      <div className="p-4 flex-grow-1 d-flex flex-column overflow-hidden">
-        {/* Top Bar: Pencarian & Tombol Aksi */}
-        <div className="d-flex justify-content-between align-items-center mb-4 flex-shrink-0">
-          <div className="d-flex gap-3">
-            <input
-              type="text"
-              className="form-control shadow-sm border-0"
-              placeholder="Cari Plat Nomor..."
-              style={{ minWidth: "200px", borderRadius: "8px" }}
-            />
-            <input
-              type="text"
-              className="form-control shadow-sm border-0"
-              placeholder="Cari Jenis Mobil..."
-              style={{ minWidth: "200px", borderRadius: "8px" }}
-            />
+    <div className="h-100 bg-light d-flex flex-column">
+      
+      <div className="flex-grow-1 overflow-auto p-4 d-flex flex-column">
+        
+        {/* Header Halaman */}
+        <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+          <div>
+            <h4 className="fw-bold text-dark mb-1">Laporan Pendapatan</h4>
+            <p className="text-muted small mb-0">Rekapitulasi pemasukan dan total jalan armada Mitra Jalan</p>
           </div>
 
           <div className="d-flex gap-2">
-            <button
-              onClick={exportToCSV}
-              className="btn btn-outline-success px-4 py-2 shadow-sm bg-white d-flex align-items-center"
-              title="Export data ke Excel/CSV"
-              style={{ borderRadius: "8px" }}
-            >
+            <button onClick={exportToCSV} className="btn btn-success shadow-sm px-3" title="Export data ke Excel/CSV">
               <i className="fas fa-file-excel me-2"></i>Export CSV
             </button>
-            <Link
-              to="/income/create"
-              className="btn text-white px-4 py-2 shadow-sm d-flex align-items-center"
-              style={{ backgroundColor: "#0cc2aa", borderRadius: "8px" }}
-            >
-              <i className="fas fa-plus me-2"></i>Tambah
-            </Link>
           </div>
         </div>
 
-        {/* Card Tabel Pendapatan */}
-        <div
-          className="card border-0 shadow-sm flex-grow-1 d-flex flex-column overflow-hidden"
-          style={{ borderRadius: "15px" }}
-        >
+        {/* Card Utama */}
+        <div className="card border-0 shadow-sm d-flex flex-column flex-grow-1">
+          
+          {/* Toolbar Pencarian / Filter */}
+          <div className="card-header bg-white py-3 border-bottom-0 flex-shrink-0">
+            <div className="row g-2 align-items-center">
+              
+              <div className="col-md-3">
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text bg-light border-end-0">
+                    <i className="fas fa-car text-muted"></i>
+                  </span>
+                  <input 
+                    type="text" 
+                    className="form-control bg-light border-start-0 shadow-none" 
+                    placeholder="Cari Jenis Mobil..." 
+                    value={searchUnit}
+                    onChange={(e) => {
+                      setSearchUnit(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <div className="col-md-3">
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text bg-light border-end-0">
+                    <i className="fas fa-barcode text-muted"></i>
+                  </span>
+                  <input 
+                    type="text" 
+                    className="form-control bg-light border-start-0 shadow-none" 
+                    placeholder="Cari Plat Nomor..." 
+                    value={searchPlat}
+                    onChange={(e) => {
+                      setSearchPlat(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* FILTER: BULAN & TAHUN DENGAN TRIK PLACEHOLDER */}
+              <div className="col-md-3">
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text bg-light border-end-0">
+                    <i className="fas fa-calendar-alt text-muted"></i>
+                  </span>
+                  <input 
+                    type={filterMonth ? "month" : "text"} 
+                    onFocus={(e) => (e.target.type = "month")}
+                    onBlur={(e) => {
+                      if (!filterMonth) e.target.type = "text";
+                    }}
+                    className="form-control bg-light border-start-0 shadow-none text-muted" 
+                    placeholder="Pilih Bulan & Tahun..."
+                    value={filterMonth}
+                    onChange={(e) => {
+                      setFilterMonth(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* TOMBOL RESET */}
+              <div className="col-md-2">
+                {(searchUnit || searchPlat || filterMonth) && (
+                  <button 
+                    className="btn btn-sm btn-light border w-100 shadow-sm" 
+                    onClick={resetFilters}
+                  >
+                    <i className="fas fa-times me-1"></i>Reset
+                  </button>
+                )}
+              </div>
+
+            </div>
+          </div>
+
+          {/* Area Tabel */}
           <div className="card-body p-0 flex-grow-1 overflow-auto">
-            <table
-              className="table table-hover align-middle mb-0 text-center text-nowrap"
-              style={{ fontSize: "0.9rem" }}
-            >
-              <thead className="sticky-top" style={{ zIndex: 10 }}>
-                <tr style={{ backgroundColor: "#e2e2e2" }}>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">
-                    No. ⇅
-                  </th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">
-                    Jenis Mobil ⇅
-                  </th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">
-                    Nomor Plat ⇅
-                  </th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">
-                    Total Pemasukan ⇅
-                  </th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">
-                    Total Jalan ⇅
-                  </th>
-                  <th className="py-3 text-secondary fw-bold border-bottom-0">
-                    Aksi
-                  </th>
+            <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.85rem" }}>
+              <thead className="sticky-top bg-white shadow-sm" style={{ zIndex: 10 }}>
+                <tr style={{ backgroundColor: "#f8f9fa" }}>
+                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "5%" }}>No</th>
+                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "20%" }}>Jenis Mobil</th>
+                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "15%" }}>Nomor Plat</th>
+                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "15%" }}>Total Jalan</th>
+                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-end" style={{ width: "35%" }}>Total Pemasukan</th>
+                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "10%" }}>Aksi</th>
                 </tr>
               </thead>
-              <tbody className="bg-white">
-                {incomes.map((item, index) => (
-                  <tr key={item.id} className="border-bottom">
-                    <td className="text-dark fw-bold py-3">{index + 1}</td>
-                    <td className="text-dark">{item.jenis_unit}</td>
-                    <td className="fw-bold" style={{ color: "#0cc2aa" }}>
-                      {item.nomor_plat}
-                    </td>
-                    <td className="text-dark fw-bold">
-                      Rp {item.total_penghasilan}
-                    </td>
-                    <td className="text-dark">{item.total_jalan} Kali</td>
-                    <td>
-                      <div className="d-flex justify-content-center gap-2">
-                        {/* Tombol Edit (Kuning) */}
-                        <button
-                          className="btn btn-sm p-1 shadow-sm d-flex align-items-center justify-content-center"
-                          title="Edit Data"
-                          style={{
-                            backgroundColor: "#ffb366",
-                            color: "white",
-                            borderRadius: "4px",
-                            width: "28px",
-                            height: "28px",
-                          }}
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        {/* Tombol Hapus (Merah) */}
-                        <button
-                          onClick={() => handleDelete(item.nomor_plat)}
-                          className="btn btn-sm p-1 shadow-sm d-flex align-items-center justify-content-center"
-                          title="Hapus Data"
-                          style={{
-                            backgroundColor: "#ff4d4d",
-                            color: "white",
-                            borderRadius: "4px",
-                            width: "28px",
-                            height: "28px",
-                          }}
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                        <Link
-                          to="/income/show"
-                          className="btn btn-sm p-1 shadow-sm d-flex align-items-center justify-content-center"
-                          title="Detail Rekap"
-                          style={{
-                            backgroundColor: "#0cc2aa",
-                            color: "white",
-                            borderRadius: "4px",
-                            width: "28px",
-                            height: "28px",
-                          }}
-                        >
-                          <i className="fas fa-file-alt"></i>
-                        </Link>
-                      </div>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-5 text-muted">
+                      <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                      Memuat data laporan...
                     </td>
                   </tr>
-                ))}
+                ) : currentItems.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-5 text-muted">
+                      <i className="fas fa-box-open fs-2 mb-3 d-block opacity-50"></i>
+                      Tidak ada data pendapatan yang ditemukan.
+                    </td>
+                  </tr>
+                ) : (
+                  currentItems.map((item, index) => {
+                    return (
+                      <tr key={item.car_id || index}>
+                        <td className="px-4 text-muted text-center">{indexOfFirstItem + index + 1}</td>
+                        
+                        <td className="px-4 text-start">
+                          <div className="fw-bold text-dark text-uppercase">{item.jenis_unit || "-"}</div>
+                        </td>
+
+                        <td className="px-4 text-center">
+                          <span className="badge border text-dark bg-white px-2 py-1 shadow-sm text-nowrap" style={{ letterSpacing: "1px" }}>
+                            {item.nomor_plat || "-"}
+                          </span>
+                        </td>
+
+                        <td className="px-4 text-center">
+                          <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fs-6">
+                            {item.total_jalan || 0} Kali
+                          </span>
+                        </td>
+
+                        <td className="px-4 text-end fw-bold text-success text-nowrap fs-6">
+                          Rp {formatRupiah(item.total_penghasilan)}
+                        </td>
+                        
+                        {/* TOMBOL NAVIGASI KE SHOW INCOME */}
+                        <td className="px-4 text-center">
+                          <Link
+                            to={`/income/show/${item.car_id}?month=${filterMonth}`}
+                            className="btn btn-sm shadow-sm d-inline-flex align-items-center justify-content-center"
+                            title="Lihat Detail Pemasukan"
+                            style={{ backgroundColor: "#0cc2aa", color: "white", borderRadius: "6px", width: "32px", height: "32px" }}
+                          >
+                            <i className="fas fa-file-alt"></i>
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
 
-          {/* Footer Pagination */}
+          {/* Footer & Pagination */}
           <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
             <div className="d-flex justify-content-between align-items-center">
               <span className="text-muted small">
-                Showing 1 to {incomes.length} of 50 entries
+                Showing {filteredIncomes.length > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, filteredIncomes.length)} of {filteredIncomes.length} entries
               </span>
-              <nav>
-                <ul className="pagination pagination-sm mb-0">
-                  <li className="page-item disabled">
-                    <span className="page-link border-0 text-muted">
-                      Previous
-                    </span>
-                  </li>
-                  <li className="page-item active">
-                    <span
-                      className="page-link border-0 shadow-sm mx-1 rounded"
-                      style={{ backgroundColor: "#5493ff" }}
-                    >
-                      1
-                    </span>
-                  </li>
-                  <li className="page-item">
-                    <span className="page-link border-0 text-primary mx-1">
-                      2
-                    </span>
-                  </li>
-                  <li className="page-item">
-                    <span className="page-link border-0 text-primary mx-1">
-                      3
-                    </span>
-                  </li>
-                  <li className="page-item">
-                    <span className="page-link border-0 text-primary">
-                      Next
-                    </span>
-                  </li>
-                </ul>
-              </nav>
+              
+              {totalPages > 1 && (
+                <nav>
+                  <ul className="pagination pagination-sm mb-0">
+                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                      <button 
+                        className="page-link border-0 text-muted bg-transparent" 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      >
+                        Prev
+                      </button>
+                    </li>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => (
+                      <li key={i + 1} className={`page-item ${currentPage === i + 1 ? 'active' : ''}`}>
+                        <button
+                          className={`page-link border-0 rounded mx-1 shadow-sm px-3 ${currentPage === i + 1 ? 'text-white' : 'text-dark'}`}
+                          style={{ backgroundColor: currentPage === i + 1 ? "#0061f2" : "transparent" }}
+                          onClick={() => setCurrentPage(i + 1)}
+                        >
+                          {i + 1}
+                        </button>
+                      </li>
+                    ))}
+
+                    <li className={`page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`}>
+                      <button 
+                        className="page-link border-0 text-primary bg-transparent"
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      >
+                        Next
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
+              )}
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

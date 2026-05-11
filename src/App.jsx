@@ -17,7 +17,6 @@ import EditTransaction from "./component/pages/Transaction/EditTransaction";
 import CreateTransaction from "./component/pages/Transaction/CreateTransaction";
 
 import Income from "./component/pages/Profit/Income";
-import CreateIncome from "./component/pages/Profit/CreateIncome";
 import ShowIncome from "./component/pages/Profit/Showincome";
 
 import Outcome from "./component/pages/Profit/Outcome";
@@ -51,8 +50,7 @@ function App() {
 
             {/* profit routes  */}
             <Route path="/income" element={<Income />} />
-            <Route path="/income/create" element={<CreateIncome />} />
-            <Route path="/income/show" element={<ShowIncome />} />
+            <Route path="/income/show/:id" element={<ShowIncome />} />
 
             <Route path="/outcome" element={<Outcome />} />
             <Route path="/outcome/create" element={<CreateOutcome />} />
