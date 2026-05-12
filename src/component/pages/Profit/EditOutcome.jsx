@@ -1,20 +1,58 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
 
-export default function CreateOutcome() {
+export default function EditOutcome() {
+  const { id } = useParams(); // Ambil expense_id dari URL
   const navigate = useNavigate();
 
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // State untuk menampung input form sesuai kolom tabel expenses
+  // State untuk menampung input form
   const [formData, setFormData] = useState({
     tanggal_pengeluaran: "",
     jenis_pengeluaran: "",
     keterangan: "",
     total_pengeluaran: "",
   });
+
+  // --- AMBIL DATA EXISTING SAAT HALAMAN DIBUKA ---
+  useEffect(() => {
+    if (id) {
+      fetchExpenseData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const fetchExpenseData = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("expense_id", id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setFormData({
+          tanggal_pengeluaran: data.tanggal_pengeluaran || "",
+          jenis_pengeluaran: data.jenis_pengeluaran || "",
+          keterangan: data.keterangan || "",
+          total_pengeluaran: data.total_pengeluaran || "",
+        });
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data pengeluaran:", error.message);
+      alert("Data tidak ditemukan atau terjadi kesalahan.");
+      navigate("/outcome");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,15 +74,17 @@ export default function CreateOutcome() {
     setIsSubmitting(true);
 
     try {
-      // Insert ke tabel expenses di Supabase
-      const { error } = await supabase.from("expenses").insert([
-        {
+      // Update ke tabel expenses di Supabase
+      const { error } = await supabase
+        .from("expenses")
+        .update({
           tanggal_pengeluaran: formData.tanggal_pengeluaran,
           jenis_pengeluaran: formData.jenis_pengeluaran,
           keterangan: formData.keterangan || null,
           total_pengeluaran: parseInt(formData.total_pengeluaran),
-        },
-      ]);
+          updated_at: new Date().toISOString(), // Update timestamp jika ada
+        })
+        .eq("expense_id", id);
 
       if (error) throw error;
 
@@ -59,11 +99,22 @@ export default function CreateOutcome() {
       }, 2000);
 
     } catch (error) {
-      console.error("Error inserting expense:", error.message);
-      alert("Gagal menyimpan data pengeluaran: " + error.message);
+      console.error("Error updating expense:", error.message);
+      alert("Gagal memperbarui data pengeluaran: " + error.message);
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-100 d-flex justify-content-center align-items-center bg-light">
+        <div className="text-center">
+          <div className="spinner-border text-primary mb-2" role="status"></div>
+          <p className="text-muted">Memuat data pengeluaran...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-100 bg-light d-flex flex-column">
@@ -71,8 +122,8 @@ export default function CreateOutcome() {
         
         <div className="d-flex justify-content-between align-items-center mb-4 mx-auto" style={{ maxWidth: "1000px" }}>
           <div>
-            <h4 className="fw-bold text-dark mb-1">Tambah Pengeluaran</h4>
-            <p className="text-muted small mb-0">Catat biaya operasional dan perawatan armada.</p>
+            <h4 className="fw-bold text-dark mb-1">Edit Pengeluaran</h4>
+            <p className="text-muted small mb-0">Perbarui rincian biaya operasional atau perawatan.</p>
           </div>
           <Link to="/outcome" className="btn btn-outline-secondary shadow-sm px-3">
             <i className="fas fa-arrow-left me-2"></i>Kembali
@@ -83,8 +134,8 @@ export default function CreateOutcome() {
           <div className="card-body p-4 p-lg-5">
             <form onSubmit={handleSubmit}>
               
-              <h6 className="fw-bold text-danger mb-4 border-bottom pb-2">
-                <i className="fas fa-receipt me-2"></i>Rincian Biaya
+              <h6 className="fw-bold text-warning mb-4 border-bottom pb-2">
+                <i className="fas fa-edit me-2"></i>Edit Rincian Biaya
               </h6>
               
               <div className="row g-4 mb-4">
@@ -171,7 +222,7 @@ export default function CreateOutcome() {
                       Menyimpan...
                     </>
                   ) : (
-                    "Simpan Pengeluaran"
+                    "Simpan Perubahan"
                   )}
                 </button>
               </div>
@@ -191,9 +242,9 @@ export default function CreateOutcome() {
                 <div className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success" style={{ width: "64px", height: "64px", borderRadius: "50%" }}>
                   <i className="fas fa-check fs-2"></i>
                 </div>
-                <h5 className="fw-bold text-dark mb-2">Berhasil Disimpan!</h5>
+                <h5 className="fw-bold text-dark mb-2">Pembaruan Berhasil!</h5>
                 <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
-                  Data pengeluaran baru berhasil ditambahkan.
+                  Data pengeluaran berhasil diperbarui.
                 </p>
                 <div className="d-flex align-items-center justify-content-center text-muted small">
                   <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: "12px", height: "12px" }}></div>

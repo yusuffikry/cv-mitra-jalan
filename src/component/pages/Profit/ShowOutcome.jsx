@@ -1,183 +1,197 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "../../../supabaseClient";
+import { useReactToPrint } from "react-to-print";
 
 export default function ShowOutcome() {
-  // Data dummy - Ini nantinya akan diisi dari database (Supabase/API)
-  const [reportInfo] = useState({
-    nomor_referensi: "OUT-2026-001",
-    tanggal_laporan: "08 Mei 2026",
-    admin: "Muhammad Fahri",
-    periode: "April 2026",
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(true);
+  const [expenseData, setExpenseData] = useState(null);
+
+  // --- INISIALISASI REACT-TO-PRINT ---
+  const componentRef = useRef(null);
+  const handlePrint = useReactToPrint({
+    contentRef: componentRef,
+    documentTitle: `Bukti_Kas_Keluar_BKK-${id?.substring(0, 6).toUpperCase() || '001'}`,
+    removeAfterPrint: true,
   });
 
-  const [outcomes] = useState([
-    {
-      id: 1,
-      tanggal: "02 April 2026",
-      jenis: "BBM",
-      keterangan: "Pertamax Turbo - Pajero CR001",
-      total: "500.000",
-    },
-    {
-      id: 2,
-      tanggal: "10 April 2026",
-      jenis: "Service",
-      keterangan: "Ganti Oli & Filter - Avanza DD 2020 RR",
-      total: "1.200.000",
-    },
-    {
-      id: 3,
-      tanggal: "15 April 2026",
-      jenis: "Lain-lain",
-      keterangan: "Cuci Mobil All Unit",
-      total: "350.000",
-    },
-  ]);
+  useEffect(() => {
+    if (id) {
+      fetchExpenseDetail();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
-  const handlePrint = () => {
-    window.print();
+  const fetchExpenseDetail = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("expense_id", id)
+        .single();
+
+      if (error) throw error;
+      setExpenseData(data);
+    } catch (error) {
+      console.error("Gagal mengambil detail pengeluaran:", error.message);
+      alert("Data tidak ditemukan!");
+      navigate("/outcome");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const calculateTotal = () => {
-    return outcomes.reduce(
-      (acc, item) => acc + parseInt(item.total.replace(/\./g, "")),
-      0,
-    );
+  const formatRupiah = (angka) => {
+    return new Intl.NumberFormat("id-ID").format(angka || 0);
   };
 
-  return (
-    <div className="container-fluid bg-light min-vh-100 p-4">
-      <div className="d-flex justify-content-between align-items-center mb-4 d-print-none">
-        <h4 className="fw-bold text-dark m-0">Detail Laporan Pengeluaran</h4>
-        <div className="d-flex gap-2">
-          <button
-            className="btn btn-outline-secondary bg-white shadow-sm"
-            onClick={() => window.history.back()}
-          >
-            <i className="fas fa-arrow-left me-2"></i>Kembali
-          </button>
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="h-100 d-flex justify-content-center align-items-center bg-light">
+        <div className="text-center">
+          <div className="spinner-border text-primary mb-2" role="status"></div>
+          <p className="text-muted">Menyiapkan dokumen...</p>
         </div>
       </div>
+    );
+  }
 
-      {/* KERTAS DOKUMEN */}
+  return (
+    <div className="h-100 bg-light d-flex flex-column overflow-auto w-100 p-4">
+      
+      {/* CSS KHUSUS PRINT */}
+      <style>
+        {`
+          @media print {
+            /* Margin diperkecil jadi 10mm agar muat 1 halaman A5 */
+            @page { size: A5 landscape; margin: 10mm; } 
+            body { background-color: white !important; -webkit-print-color-adjust: exact; color: #000 !important; }
+            .card { border: 1px solid #000 !important; box-shadow: none !important; border-top: 6px solid #000 !important; }
+            .bg-light { background-color: #fff !important; }
+            .text-muted, .text-secondary { color: #333 !important; }
+            .d-print-none { display: none !important; }
+            /* Memaksa elemen di dalam card body agar tidak terpotong */
+            .card-body { page-break-inside: avoid; padding: 1.5rem !important; }
+          }
+        `}
+      </style>
+
+      {/* HEADER AKSI */}
+      <div className="d-flex justify-content-between align-items-center mb-4 mx-auto w-100 d-print-none" style={{ maxWidth: "800px" }}>
+        <div>
+          <h4 className="fw-bold text-dark m-0">Detail Bukti Pengeluaran</h4>
+          <p className="text-muted small mb-0">Cetak lembar ini untuk diarsipkan bersama nota asli.</p>
+        </div>
+        <button className="btn btn-outline-secondary shadow-sm px-3" onClick={() => navigate(-1)}>
+          <i className="fas fa-arrow-left me-2"></i>Kembali
+        </button>
+      </div>
+
+      {/* AREA DOKUMEN BKK (BUKTI KAS KELUAR) */}
       <div
-        className="card border-0 shadow-sm mx-auto"
-        style={{ maxWidth: "1000px", borderRadius: "0px" }}
+        ref={componentRef}
+        className="card border-0 shadow-sm mx-auto bg-white mb-4 w-100"
+        style={{
+          maxWidth: "800px",
+          borderRadius: "0px",
+          borderTop: "6px solid #ff4d4d",
+        }}
       >
-        <div className="card-body p-5">
-          {/* KOP LAPORAN */}
-          <div className="row mb-5 align-items-center">
-            <div className="col-7">
-              <h2 className="fw-bold text-uppercase m-0">Rekap Pengeluaran</h2>
-              <p className="text-muted m-0">
-                CV MITRA JALAN - Operasional Kendaraan
-              </p>
+        {/* Padding diperkecil (p-4 saja) agar tidak terlalu boros ruang vertikal */}
+        <div className="card-body p-4">
+          
+          {/* KOP & JUDUL DOKUMEN */}
+          <div className="d-flex justify-content-between align-items-start border-bottom pb-3 mb-4">
+            <div>
+              <h3 className="fw-bold text-dark mb-1">CV. MITRA JALAN</h3>
+              <p className="text-muted small mb-0">Divisi Operasional & Perawatan Kendaraan</p>
             </div>
-            <div className="col-5 text-end">
-              <div className="p-3 bg-light border-start border-4 border-info">
-                <p className="small mb-1 text-secondary text-uppercase fw-bold">
-                  Nomor Referensi
-                </p>
-                <p className="fw-bold m-0 text-primary">
-                  {reportInfo.nomor_referensi}
-                </p>
+            <div className="text-end">
+              <h4 className="fw-bold text-danger text-uppercase mb-1" style={{ letterSpacing: "2px" }}>Bukti Kas Keluar</h4>
+              <p className="fw-bold text-secondary mb-0">NO: BKK-{expenseData?.expense_id?.substring(0, 8).toUpperCase()}</p>
+            </div>
+          </div>
+
+          {/* ISI DOKUMEN (FORM STYLE) */}
+          <div className="px-2 mb-4">
+            <div className="row mb-2">
+              <div className="col-3 text-secondary fw-bold">Tanggal</div>
+              <div className="col-9 fw-bold text-dark">: {formatDate(expenseData?.tanggal_pengeluaran)}</div>
+            </div>
+            <div className="row mb-2">
+              <div className="col-3 text-secondary fw-bold">Dibayarkan Untuk</div>
+              <div className="col-9 fw-bold text-dark">: <span className="text-uppercase border-bottom border-dark pb-1">{expenseData?.jenis_pengeluaran}</span></div>
+            </div>
+            <div className="row mb-3">
+              <div className="col-3 text-secondary fw-bold">Keterangan / Uraian</div>
+              <div className="col-9 text-dark">: {expenseData?.keterangan || "Tidak ada keterangan tambahan."}</div>
+            </div>
+            
+            <div className="row mt-3">
+              <div className="col-3 align-self-center text-secondary fw-bold">Jumlah Uang</div>
+              <div className="col-9">
+                {/* Padding box Jumlah Uang diperkecil jadi p-2 */}
+                <div className="p-2 bg-light border border-2 border-danger d-inline-block rounded-3">
+                  <h4 className="text-danger fw-bold m-0">Rp {formatRupiah(expenseData?.total_pengeluaran)}</h4>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* DETAIL INFO */}
-          <div className="row mb-4">
-            <div className="col-4">
-              <label className="text-secondary small fw-bold">PERIODE</label>
-              <p className="fw-bold">{reportInfo.periode}</p>
-            </div>
-            <div className="col-4 text-center">
-              <label className="text-secondary small fw-bold">
-                TANGGAL CETAK
-              </label>
-              <p className="fw-bold">{reportInfo.tanggal_laporan}</p>
-            </div>
-            <div className="col-4 text-end">
-              <label className="text-secondary small fw-bold">
-                DICATAT OLEH
-              </label>
-              <p className="fw-bold">{reportInfo.admin}</p>
-            </div>
-          </div>
-
-          {/* TABEL DATA (Field Sesuai Request) */}
-          <div className="table-responsive">
-            <table className="table table-bordered align-middle">
-              <thead style={{ backgroundColor: "#e2e2e2" }}>
-                <tr className="text-center text-secondary">
-                  <th className="py-3 fw-bold" style={{ width: "50px" }}>
-                    No.
-                  </th>
-                  <th className="py-3 fw-bold">Tanggal Pengeluaran</th>
-                  <th className="py-3 fw-bold">Jenis Pengeluaran</th>
-                  <th className="py-3 fw-bold">Keterangan</th>
-                  <th className="py-3 fw-bold">Total Pengeluaran</th>
-                </tr>
-              </thead>
-              <tbody>
-                {outcomes.map((item, index) => (
-                  <tr key={item.id}>
-                    <td className="text-center">{index + 1}</td>
-                    <td className="text-center">{item.tanggal}</td>
-                    <td className="fw-bold">{item.jenis}</td>
-                    <td className="text-muted">{item.keterangan}</td>
-                    <td className="text-end fw-bold">Rp {item.total}</td>
-                  </tr>
-                ))}
-                {/* FOOTER TOTAL */}
-                <tr style={{ backgroundColor: "#f8f9fa" }}>
-                  <td colSpan="4" className="text-end py-3 fw-bold uppercase">
-                    Grand Total Pengeluaran
-                  </td>
-                  <td
-                    className="text-end py-3 fw-bold text-danger"
-                    style={{ fontSize: "1.2rem" }}
-                  >
-                    Rp {calculateTotal().toLocaleString("id-ID")}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
           {/* AREA TANDA TANGAN */}
-          <div className="row mt-5 pt-5">
+          <div className="row mt-4 pt-2">
             <div className="col-4 text-center">
-              <p className="mb-5">Disetujui Oleh,</p>
-              <div style={{ height: "60px" }}></div>
-              <p className="fw-bold border-top d-inline-block px-4">
-                Manager Operasional
+              <p className="mb-2 small fw-bold text-muted">Penerima Dana,</p>
+              {/* Jarak tanda tangan dikurangi dari 70px jadi 50px */}
+              <div style={{ height: "50px" }}></div>
+              <p className="fw-bold border-top border-dark d-inline-block px-4 pt-1 mb-0 small">
+                ( .................................... )
               </p>
             </div>
-            <div className="col-4"></div>
             <div className="col-4 text-center">
-              <p className="mb-5">Makassar, {reportInfo.tanggal_laporan}</p>
-              <div style={{ height: "60px" }}></div>
-              <p className="fw-bold border-top d-inline-block px-4">
-                Administrasi
+              <p className="mb-2 small fw-bold text-muted">Dibayarkan Oleh,</p>
+              <div style={{ height: "50px" }}></div>
+              <p className="fw-bold border-top border-dark d-inline-block px-4 pt-1 mb-0 small">
+                Admin Operasional
+              </p>
+            </div>
+            <div className="col-4 text-center">
+              <p className="mb-2 small fw-bold text-muted">Disetujui Oleh,</p>
+              <div style={{ height: "50px" }}></div>
+              <p className="fw-bold border-top border-dark d-inline-block px-4 pt-1 mb-0 small">
+                Manager / Pimpinan
               </p>
             </div>
           </div>
+
         </div>
       </div>
 
-      {/* CSS PRINT */}
-      <style>
-        {`
-          @media print {
-            @page { size: A4; margin: 20mm; }
-            body { background-color: white !important; }
-            .container-fluid { padding: 0 !important; }
-            .card { border: none !important; }
-            .d-print-none { display: none !important; }
-            .table thead { background-color: #e2e2e2 !important; -webkit-print-color-adjust: exact; }
-          }
-        `}
-      </style>
+      {/* Tombol Cetak */}
+      <div className="d-flex justify-content-end gap-3 mx-auto w-100 pb-5 d-print-none" style={{ maxWidth: "800px" }}>
+        <button
+          className="btn px-4 py-2 fw-bold text-white shadow-sm d-flex align-items-center"
+          style={{ backgroundColor: "#ff4d4d", borderRadius: "10px" }}
+          onClick={handlePrint}
+        >
+          <i className="fas fa-print me-2"></i>Cetak Bukti Kas
+        </button>
+      </div>
+
     </div>
   );
 }

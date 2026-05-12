@@ -21,6 +21,7 @@ import ShowIncome from "./component/pages/Profit/Showincome";
 
 import Outcome from "./component/pages/Profit/Outcome";
 import CreateOutcome from "./component/pages/Profit/CreateOutcome";
+import EditOutcome from "./component/pages/Profit/EditOutcome";
 import ShowOutcome from "./component/pages/Profit/ShowOutcome";
 
 function App() {
@@ -54,7 +55,8 @@ function App() {
 
             <Route path="/outcome" element={<Outcome />} />
             <Route path="/outcome/create" element={<CreateOutcome />} />
-            <Route path="/outcome/show" element={<ShowOutcome />} />
+            <Route path="/outcome/edit/:id" element={<EditOutcome />} />
+            <Route path="/outcome/show/:id" element={<ShowOutcome />} />
           </Route>
         </Routes>
       </Router>
