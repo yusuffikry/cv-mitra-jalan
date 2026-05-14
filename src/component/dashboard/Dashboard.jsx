@@ -135,9 +135,23 @@ function Dashboard() {
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
-      {/* Main Content */}
+      {/* ============================================================= */}
+      {/* hapus ini jika tidak butuh */}
+      <div className="row">
+        <div className="col">
+          <img
+            src="/Image/2300eb83c15e0926c126d851c4948ad4.jpg"
+            className="w-50 h-50 img-thumbnail rounded-circle shadow-lg"
+            alt="pemanis untuk mayko bviarsemangat bang"
+          />
+          <h5>
+            Pemanis untuk <strong className="text-uppercase">mayko</strong> biar
+            semangat bang
+          </h5>
+        </div>
+      </div>
+      {/* ========================================================= */}
       <main className="flex-1 flex flex-col overflow-y-auto">
-        {/* Dashboard Body */}
         <div className="p-6 space-y-6">
           {/* Stats Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
