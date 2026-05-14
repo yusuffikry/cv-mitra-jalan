@@ -5,7 +5,7 @@ import { supabase } from "../../../supabaseClient";
 
 export default function MainTransaction() {
   const [selectedData, setSelectedData] = useState(null);
-  
+
   // State untuk Supabase
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,11 +33,13 @@ export default function MainTransaction() {
       setLoading(true);
       const { data, error } = await supabase
         .from("transactions")
-        .select(`
+        .select(
+          `
           *,
           cars (nomor_plat, jenis_unit, transmisi),
           customers (nama_pelanggan, nik)
-        `)
+        `,
+        )
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -50,17 +52,24 @@ export default function MainTransaction() {
   };
 
   const filteredTransactions = transactions.filter((trx) => {
-    const matchPlat = (trx.cars?.nomor_plat || "").toLowerCase().includes(searchPlat.toLowerCase());
-    const matchCustomer = (trx.customers?.nama_pelanggan || "").toLowerCase().includes(searchCustomer.toLowerCase());
+    const matchPlat = (trx.cars?.nomor_plat || "")
+      .toLowerCase()
+      .includes(searchPlat.toLowerCase());
+    const matchCustomer = (trx.customers?.nama_pelanggan || "")
+      .toLowerCase()
+      .includes(searchCustomer.toLowerCase());
     const matchDate = searchDate === "" || trx.tanggal_sewa === searchDate;
-    
+
     return matchPlat && matchCustomer && matchDate;
   });
 
   // Logika Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = filteredTransactions.slice(
+    indexOfFirstItem,
+    indexOfLastItem,
+  );
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
   const handleViewDetails = (trx) => {
@@ -69,7 +78,7 @@ export default function MainTransaction() {
       waktu: `${trx.tanggal_sewa || "-"} ${trx.jam_sewa || ""}`,
       waktu_pengembalian: `${trx.tanggal_pengembalian || "-"} ${trx.jam_pengembalian || ""}`,
       mobil: trx.cars?.nomor_plat || "-",
-      merek: trx.cars?.jenis_unit?.split(" ")[0] || "-", 
+      merek: trx.cars?.jenis_unit?.split(" ")[0] || "-",
       tipe_unit: trx.cars?.jenis_unit || "-",
       transmisi: trx.cars?.transmisi || "-",
       nama_customer: trx.customers?.nama_pelanggan || "-",
@@ -79,7 +88,11 @@ export default function MainTransaction() {
       sisa_pembayaran: formatRupiah(trx.sisa_pembayaran || 0),
       total_pembayaran: formatRupiah(trx.total_pembayaran || 0),
       keterangan: trx.keterangan || "Tidak ada keterangan.",
-      dibuat: new Date(trx.created_at).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' }),
+      dibuat: new Date(trx.created_at).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
       foto_mobil: trx.foto_mobil || "",
       video_mobil: trx.video_mobil || "",
     };
@@ -102,8 +115,8 @@ export default function MainTransaction() {
       if (error) throw error;
 
       setShowDeleteModal(false);
-      fetchTransactions(); 
-      setShowSuccessModal(true); 
+      fetchTransactions();
+      setShowSuccessModal(true);
 
       setTimeout(() => {
         setShowSuccessModal(false);
@@ -126,9 +139,21 @@ export default function MainTransaction() {
 
   const exportToCSV = () => {
     const headers = [
-      "No", "ID Transaksi", "Dibuat Pada", "Waktu Peminjaman", "Nama Customer",
-      "Merek Mobil", "Tipe Unit", "Plat Nomor", "Transmisi", "Rute",
-      "Jumlah Hari", "DP (Rp)", "Sisa Pembayaran (Rp)", "Total Pembayaran (Rp)", "Keterangan"
+      "No",
+      "ID Transaksi",
+      "Dibuat Pada",
+      "Waktu Peminjaman",
+      "Nama Customer",
+      "Merek Mobil",
+      "Tipe Unit",
+      "Plat Nomor",
+      "Transmisi",
+      "Rute",
+      "Jumlah Hari",
+      "DP (Rp)",
+      "Sisa Pembayaran (Rp)",
+      "Total Pembayaran (Rp)",
+      "Keterangan",
     ];
 
     const rows = filteredTransactions.map((trx, index) => [
@@ -149,7 +174,10 @@ export default function MainTransaction() {
       `"${trx.keterangan || "-"}"`,
     ]);
 
-    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((e) => e.join(",")),
+    ].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -178,21 +206,28 @@ export default function MainTransaction() {
 
   return (
     <div className="h-100 bg-light d-flex flex-column">
-      
       <div className="flex-grow-1 overflow-auto p-4 d-flex flex-column">
-        
         {/* Header Halaman */}
         <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
           <div>
             <h4 className="fw-bold text-dark mb-1">Manajemen Transaksi</h4>
-            <p className="text-muted small mb-0">Data penyewaan dan pembayaran armada</p>
+            <p className="text-muted small mb-0">
+              Data penyewaan dan pembayaran armada
+            </p>
           </div>
 
           <div className="d-flex gap-2">
-            <button onClick={exportToCSV} className="btn btn-success shadow-sm px-3" title="Export data ke Excel/CSV">
+            <button
+              onClick={exportToCSV}
+              className="btn btn-success shadow-sm px-3"
+              title="Export data ke Excel/CSV"
+            >
               <i className="fas fa-file-excel me-2"></i>Export CSV
             </button>
-            <Link to="/transaction/create" className="btn btn-primary shadow-sm px-3">
+            <Link
+              to="/transaction/create"
+              className="btn btn-primary shadow-sm px-3"
+            >
               <i className="fas fa-plus me-2"></i>Buat Transaksi
             </Link>
           </div>
@@ -200,7 +235,6 @@ export default function MainTransaction() {
 
         {/* Card Utama */}
         <div className="card border-0 shadow-sm d-flex flex-column flex-grow-1">
-          
           {/* Toolbar Pencarian / Filter */}
           <div className="card-header bg-white py-3 border-bottom-0 flex-shrink-0">
             <div className="row g-2 align-items-center">
@@ -209,10 +243,10 @@ export default function MainTransaction() {
                   <span className="input-group-text bg-light border-end-0">
                     <i className="fas fa-user text-muted"></i>
                   </span>
-                  <input 
-                    type="text" 
-                    className="form-control bg-light border-start-0 shadow-none" 
-                    placeholder="Cari Pelanggan..." 
+                  <input
+                    type="text"
+                    className="form-control bg-light border-start-0 shadow-none"
+                    placeholder="Cari Pelanggan..."
                     value={searchCustomer}
                     onChange={(e) => setSearchCustomer(e.target.value)}
                   />
@@ -223,10 +257,10 @@ export default function MainTransaction() {
                   <span className="input-group-text bg-light border-end-0">
                     <i className="fas fa-car text-muted"></i>
                   </span>
-                  <input 
-                    type="text" 
-                    className="form-control bg-light border-start-0 shadow-none" 
-                    placeholder="Cari Plat Mobil..." 
+                  <input
+                    type="text"
+                    className="form-control bg-light border-start-0 shadow-none"
+                    placeholder="Cari Plat Mobil..."
                     value={searchPlat}
                     onChange={(e) => setSearchPlat(e.target.value)}
                   />
@@ -237,9 +271,9 @@ export default function MainTransaction() {
                   <span className="input-group-text bg-light border-end-0">
                     <i className="fas fa-calendar-alt text-muted"></i>
                   </span>
-                  <input 
-                    type="date" 
-                    className="form-control bg-light border-start-0 shadow-none text-muted" 
+                  <input
+                    type="date"
+                    className="form-control bg-light border-start-0 shadow-none text-muted"
                     value={searchDate}
                     onChange={(e) => setSearchDate(e.target.value)}
                   />
@@ -247,8 +281,8 @@ export default function MainTransaction() {
               </div>
               <div className="col-md-2">
                 {(searchCustomer || searchPlat || searchDate) && (
-                  <button 
-                    className="btn btn-sm btn-light border w-100 shadow-sm" 
+                  <button
+                    className="btn btn-sm btn-light border w-100 shadow-sm"
                     onClick={resetFilters}
                   >
                     <i className="fas fa-times me-1"></i>Reset
@@ -261,24 +295,73 @@ export default function MainTransaction() {
           {/* Area Tabel */}
           <div className="card-body p-0 flex-grow-1 overflow-auto">
             {/* PERBAIKAN 1: Hapus text-nowrap agar tabel pas di layar dan teks panjang bisa turun ke bawah */}
-            <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.85rem" }}>
-              <thead className="sticky-top bg-white shadow-sm" style={{ zIndex: 10 }}>
+            <table
+              className="table table-hover align-middle mb-0"
+              style={{ fontSize: "0.85rem" }}
+            >
+              <thead
+                className="sticky-top bg-white shadow-sm"
+                style={{ zIndex: 10 }}
+              >
                 <tr style={{ backgroundColor: "#f8f9fa" }}>
-                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "5%" }}>No</th>
-                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "15%" }}>Waktu Peminjaman</th>
-                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "20%" }}>Mobil/Plat</th>
-                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "15%" }}>Nama Customer</th>
-                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "10%" }}>Rute</th>
-                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "15%" }}>Keterangan</th>
-                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-end text-nowrap" style={{ width: "15%" }}>Total Pembayaran</th>
-                  <th className="px-4 py-3 text-center text-secondary fw-bold text-uppercase border-bottom text-nowrap" style={{ width: "5%" }}>Aksi</th>
+                  <th
+                    className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center"
+                    style={{ width: "5%" }}
+                  >
+                    No
+                  </th>
+                  <th
+                    className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start"
+                    style={{ width: "15%" }}
+                  >
+                    Waktu Peminjaman
+                  </th>
+                  <th
+                    className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start"
+                    style={{ width: "20%" }}
+                  >
+                    Mobil/Plat
+                  </th>
+                  <th
+                    className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start"
+                    style={{ width: "15%" }}
+                  >
+                    Nama Customer
+                  </th>
+                  <th
+                    className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center"
+                    style={{ width: "10%" }}
+                  >
+                    Rute
+                  </th>
+                  <th
+                    className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start"
+                    style={{ width: "15%" }}
+                  >
+                    Keterangan
+                  </th>
+                  <th
+                    className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-end text-nowrap"
+                    style={{ width: "15%" }}
+                  >
+                    Total Pembayaran
+                  </th>
+                  <th
+                    className="px-4 py-3 text-center text-secondary fw-bold text-uppercase border-bottom text-nowrap"
+                    style={{ width: "5%" }}
+                  >
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td colSpan="8" className="text-center py-5 text-muted">
-                      <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                      <div
+                        className="spinner-border spinner-border-sm me-2"
+                        role="status"
+                      ></div>
                       Memuat data transaksi...
                     </td>
                   </tr>
@@ -292,22 +375,38 @@ export default function MainTransaction() {
                   currentItems.map((item, index) => {
                     return (
                       <tr key={item.transaction_id}>
-                        <td className="px-4 text-muted text-center">{indexOfFirstItem + index + 1}</td>
-                        
+                        <td className="px-4 text-muted text-center">
+                          {indexOfFirstItem + index + 1}
+                        </td>
+
                         <td className="px-3 text-start text-nowrap">
-                          <div className="fw-bold text-dark">{item.tanggal_sewa || "-"}</div>
-                          <div className="text-muted small" style={{ fontSize: "0.75rem" }}>{item.jam_sewa || "-"}</div>
+                          <div className="fw-bold text-dark">
+                            {item.tanggal_sewa || "-"}
+                          </div>
+                          <div
+                            className="text-muted small"
+                            style={{ fontSize: "0.75rem" }}
+                          >
+                            {item.jam_sewa || "-"}
+                          </div>
                         </td>
 
                         <td className="px-3 text-start">
-                          <div className="fw-bold text-dark text-uppercase">{item.cars?.jenis_unit || "-"}</div>
-                          <span className="badge border text-dark bg-white px-2 py-1 mt-1 shadow-sm text-nowrap" style={{ letterSpacing: "1px" }}>
+                          <div className="fw-bold text-dark text-uppercase">
+                            {item.cars?.jenis_unit || "-"}
+                          </div>
+                          <span
+                            className="badge border text-dark bg-white px-2 py-1 mt-1 shadow-sm text-nowrap"
+                            style={{ letterSpacing: "1px" }}
+                          >
                             {item.cars?.nomor_plat || "-"}
                           </span>
                         </td>
 
                         <td className="px-3 text-start">
-                          <div className="fw-bold text-primary">{item.customers?.nama_pelanggan || "-"}</div>
+                          <div className="fw-bold text-primary">
+                            {item.customers?.nama_pelanggan || "-"}
+                          </div>
                         </td>
 
                         <td className="px-3 text-center">
@@ -316,7 +415,10 @@ export default function MainTransaction() {
                           </span>
                         </td>
 
-                        <td className="px-3 text-start text-wrap text-muted" style={{ minWidth: "150px" }}>
+                        <td
+                          className="px-3 text-start text-wrap text-muted"
+                          style={{ minWidth: "150px" }}
+                        >
                           {item.keterangan || "-"}
                         </td>
 
@@ -341,7 +443,12 @@ export default function MainTransaction() {
                               <i className="fas fa-edit"></i>
                             </Link>
                             <button
-                              onClick={() => handleDeleteClick(item.transaction_id, item.customers?.nama_pelanggan)}
+                              onClick={() =>
+                                handleDeleteClick(
+                                  item.transaction_id,
+                                  item.customers?.nama_pelanggan,
+                                )
+                              }
                               className="btn btn-sm btn-white border text-danger"
                               title="Hapus Transaksi"
                             >
@@ -362,27 +469,40 @@ export default function MainTransaction() {
             <div className="d-flex justify-content-between align-items-center">
               {/* PERBAIKAN 2: Ubah teks menjadi format "Showing X to Y of Z entries" */}
               <span className="text-muted small">
-                Showing {filteredTransactions.length > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, filteredTransactions.length)} of {filteredTransactions.length} entries
+                Showing{" "}
+                {filteredTransactions.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
+                {Math.min(indexOfLastItem, filteredTransactions.length)} of{" "}
+                {filteredTransactions.length} entries
               </span>
-              
+
               {/* PERBAIKAN 3: Sembunyikan pagination jika data cuma 1 halaman (<= 10 entries) */}
               {totalPages > 1 && (
                 <nav>
                   <ul className="pagination pagination-sm mb-0">
-                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                      <button 
-                        className="page-link border-0 text-muted bg-transparent" 
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    <li
+                      className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
+                    >
+                      <button
+                        className="page-link border-0 text-muted bg-transparent"
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
                       >
                         Prev
                       </button>
                     </li>
-                    
+
                     {Array.from({ length: totalPages }, (_, i) => (
-                      <li key={i + 1} className={`page-item ${currentPage === i + 1 ? 'active' : ''}`}>
+                      <li
+                        key={i + 1}
+                        className={`page-item ${currentPage === i + 1 ? "active" : ""}`}
+                      >
                         <button
-                          className={`page-link border-0 rounded mx-1 shadow-sm px-3 ${currentPage === i + 1 ? 'text-white' : 'text-dark'}`}
-                          style={{ backgroundColor: currentPage === i + 1 ? "#0061f2" : "transparent" }}
+                          className={`page-link border-0 rounded mx-1 shadow-sm px-3 ${currentPage === i + 1 ? "text-white" : "text-dark"}`}
+                          style={{
+                            backgroundColor:
+                              currentPage === i + 1 ? "#0061f2" : "transparent",
+                          }}
                           onClick={() => setCurrentPage(i + 1)}
                         >
                           {i + 1}
@@ -390,10 +510,16 @@ export default function MainTransaction() {
                       </li>
                     ))}
 
-                    <li className={`page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`}>
-                      <button 
+                    <li
+                      className={`page-item ${currentPage === totalPages || totalPages === 0 ? "disabled" : ""}`}
+                    >
+                      <button
                         className="page-link border-0 text-primary bg-transparent"
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(prev + 1, totalPages),
+                          )
+                        }
                       >
                         Next
                       </button>
@@ -404,36 +530,60 @@ export default function MainTransaction() {
             </div>
           </div>
         </div>
-
       </div>
 
       {/* --- MODAL HAPUS KONFIRMASI --- */}
       {showDeleteModal && (
-        <div 
-          className="modal fade show d-block" 
-          tabIndex="-1" 
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', zIndex: 1050 }}
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{
+            backgroundColor: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(5px)",
+            zIndex: 1050,
+          }}
         >
           <div className="modal-dialog modal-dialog-centered modal-sm">
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+            <div
+              className="modal-content border-0 shadow-lg"
+              style={{ borderRadius: "16px" }}
+            >
               <div className="modal-body p-4 text-center">
-                <div className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-danger-subtle text-danger" style={{ width: "64px", height: "64px", borderRadius: "50%" }}>
+                <div
+                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-danger-subtle text-danger"
+                  style={{ width: "64px", height: "64px", borderRadius: "50%" }}
+                >
                   <i className="fas fa-trash-alt fs-3"></i>
                 </div>
                 <h5 className="fw-bold text-dark mb-2">Hapus Transaksi?</h5>
                 <p className="text-muted mb-4" style={{ fontSize: "0.9rem" }}>
                   Anda akan menghapus riwayat transaksi dari <br />
-                  <span className="fw-bold text-dark fs-6">{transactionToDelete?.customer}</span>
+                  <span className="fw-bold text-dark fs-6">
+                    {transactionToDelete?.customer}
+                  </span>
                 </p>
-                <div className="alert alert-warning border-0 bg-warning-subtle text-warning-emphasis p-2 rounded-3 mb-4 text-start d-flex align-items-center" style={{ fontSize: "0.8rem" }}>
+                <div
+                  className="alert alert-warning border-0 bg-warning-subtle text-warning-emphasis p-2 rounded-3 mb-4 text-start d-flex align-items-center"
+                  style={{ fontSize: "0.8rem" }}
+                >
                   <i className="fas fa-exclamation-triangle me-2 fs-6"></i>
                   Data ini tidak dapat dikembalikan.
                 </div>
                 <div className="d-flex gap-2">
-                  <button type="button" className="btn btn-light w-50 fw-bold border shadow-sm" style={{ borderRadius: "10px" }} onClick={cancelDelete}>
+                  <button
+                    type="button"
+                    className="btn btn-light w-50 fw-bold border shadow-sm"
+                    style={{ borderRadius: "10px" }}
+                    onClick={cancelDelete}
+                  >
                     Batal
                   </button>
-                  <button type="button" className="btn btn-danger w-50 fw-bold shadow-sm" style={{ borderRadius: "10px" }} onClick={confirmDelete}>
+                  <button
+                    type="button"
+                    className="btn btn-danger w-50 fw-bold shadow-sm"
+                    style={{ borderRadius: "10px" }}
+                    onClick={confirmDelete}
+                  >
                     Ya, Hapus
                   </button>
                 </div>
@@ -445,15 +595,25 @@ export default function MainTransaction() {
 
       {/* --- MODAL POP UP SUKSES HAPUS (AUTO CLOSE) --- */}
       {showSuccessModal && (
-        <div 
-          className="modal fade show d-block" 
-          tabIndex="-1" 
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', zIndex: 1050 }}
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{
+            backgroundColor: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(5px)",
+            zIndex: 1050,
+          }}
         >
           <div className="modal-dialog modal-dialog-centered modal-sm">
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+            <div
+              className="modal-content border-0 shadow-lg"
+              style={{ borderRadius: "16px" }}
+            >
               <div className="modal-body p-4 text-center">
-                <div className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success" style={{ width: "64px", height: "64px", borderRadius: "50%" }}>
+                <div
+                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success"
+                  style={{ width: "64px", height: "64px", borderRadius: "50%" }}
+                >
                   <i className="fas fa-check fs-2"></i>
                 </div>
                 <h5 className="fw-bold text-dark mb-2">Berhasil Dihapus!</h5>
@@ -461,7 +621,11 @@ export default function MainTransaction() {
                   Data transaksi telah berhasil dihapus dari sistem.
                 </p>
                 <div className="d-flex align-items-center justify-content-center text-muted small">
-                  <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: '12px', height: '12px' }}></div>
+                  <div
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    style={{ width: "12px", height: "12px" }}
+                  ></div>
                   Memperbarui tabel...
                 </div>
               </div>
@@ -469,7 +633,6 @@ export default function MainTransaction() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
