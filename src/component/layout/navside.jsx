@@ -163,10 +163,7 @@ export default function Navside() {
           </a>
         </li>
       </ul>
-
       <hr />
-
-      {/* Logout Button */}
       <div className="px-2">
         <button
           className="btn btn-outline-danger btn-sm w-100"
