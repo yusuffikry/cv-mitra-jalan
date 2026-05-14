@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+VITE_SUPABASE_URL=https://smwxtrgaclvionhmhcqv.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_KfjIigfavfwOo6_JqBVbpg_9xWO1q_S
