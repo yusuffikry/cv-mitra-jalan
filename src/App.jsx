@@ -24,6 +24,8 @@ import CreateOutcome from "./component/pages/Profit/CreateOutcome";
 import EditOutcome from "./component/pages/Profit/EditOutcome";
 import ShowOutcome from "./component/pages/Profit/ShowOutcome";
 
+import Pemantauan from "./component/pages/Kendaraan/Pemantauan";
+
 function App() {
   return (
     <div>
@@ -57,6 +59,9 @@ function App() {
             <Route path="/outcome/create" element={<CreateOutcome />} />
             <Route path="/outcome/edit/:id" element={<EditOutcome />} />
             <Route path="/outcome/show/:id" element={<ShowOutcome />} />
+
+            {/* Kendaraan route */}
+            <Route path="/kendaraan/pemantauan" element={<Pemantauan />} />
           </Route>
         </Routes>
       </Router>

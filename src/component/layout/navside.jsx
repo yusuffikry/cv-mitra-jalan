@@ -148,10 +148,13 @@ export default function Navside() {
           Kendaraan
         </li>
         <li>
-          <a href="#" className="nav-link link-dark">
+          <Link
+            to="/kendaraan/pemantauan"
+            className={`nav-link ${isActive("/kendaraan/pemantauan")}`}
+          >
             <i className="fas fa-map-marked-alt text-primary me-2"></i>{" "}
             Pemantauan
-          </a>
+          </Link>
         </li>
         <li>
           <a href="#" className="nav-link link-dark">
