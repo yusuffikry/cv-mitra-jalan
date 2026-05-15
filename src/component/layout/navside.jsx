@@ -296,7 +296,7 @@ export default function Navside() {
         }
 
         .active-custom { 
-          background-color: #3b82f6 !important; /* Biru solid tanpa glow */
+          background-color: #3b82f6 !important; 
           color: white !important; 
         }
 
