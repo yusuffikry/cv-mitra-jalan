@@ -8,14 +8,12 @@ export default function Navside() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
-
   const sidebarRef = useRef(null);
 
   const isActive = (path) =>
     location.pathname === path ? "active-custom" : "link-light-custom";
-
   useEffect(() => {
-    const checkUser = async () => {
+    const checkInitialSession = async () => {
       try {
         const {
           data: { session },
@@ -29,7 +27,17 @@ export default function Navside() {
         navigate("/");
       }
     };
-    checkUser();
+    checkInitialSession();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        navigate("/");
+      }
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   useEffect(() => {
