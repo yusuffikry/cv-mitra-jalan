@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
+import { gsap } from "gsap";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -10,6 +11,30 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
+  const leftSideRef = useRef(null);
+  const rightSideRef = useRef(null);
+  const formRef = useRef(null);
+
+  useEffect(() => {
+    const tl = gsap.timeline();
+    tl.fromTo(
+      leftSideRef.current,
+      { x: -100, opacity: 0 },
+      { x: 0, opacity: 1, duration: 1, ease: "power4.out" },
+    );
+    tl.fromTo(
+      rightSideRef.current,
+      { opacity: 0 },
+      { opacity: 1, duration: 1, ease: "power2.out" },
+      "-=0.5",
+    );
+    tl.fromTo(
+      formRef.current.children,
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.6, stagger: 0.15, ease: "back.out(1.7)" },
+      "-=0.5",
+    );
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -30,9 +55,10 @@ function Login() {
   };
 
   return (
-    <div className="container-fluid vh-100 p-0 font-sans shadow-lg overflow-hidden">
+    <div className="container-fluid vh-100 p-0 font-sans shadow-lg overflow-hidden bg-white">
       <div className="row no-gutters h-100 mx-0">
         <div
+          ref={leftSideRef} // Ref GSAP
           className="col-lg-6 d-none d-lg-flex flex-column"
           style={{ backgroundColor: "#5493ff", padding: "60px" }}
         >
@@ -68,15 +94,11 @@ function Login() {
               alt="Illustration Mitra Jalan"
               className="img-fluid"
               style={{ maxWidth: "580px", height: "auto" }}
-              onError={(e) => {
-                e.target.src =
-                  "https://illustrations.popsy.co/white/car-rental.svg";
-                e.target.style.maxWidth = "350px";
-              }}
             />
           </div>
         </div>
         <div
+          ref={rightSideRef} // Ref GSAP
           className="col-12 col-lg-6 d-flex align-items-center justify-content-center bg-white"
           style={{ padding: "20px" }}
         >
@@ -89,20 +111,14 @@ function Login() {
               borderColor: "#eaeaea",
             }}
           >
-            <div className="card-body p-4 p-md-5">
+            <div className="card-body p-4 p-md-5" ref={formRef}>
+              {" "}
               <div className="d-flex flex-column align-items-center justify-content-center text-center mb-4 mb-md-5">
                 <img
                   src="/Image/Logo 2.png"
                   alt="Logo Mitra Jalan"
                   className="mb-3 img-fluid"
-                  style={{
-                    width: "80px",
-                    height: "auto",
-                    display: "block",
-                  }}
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                  }}
+                  style={{ width: "80px", height: "auto" }}
                 />
                 <h3
                   className="font-weight-bold mb-1"
@@ -119,16 +135,14 @@ function Login() {
                   Masuk untuk mengakses dashboard
                 </p>
               </div>
-
               {errorMsg && (
                 <div
                   className="alert alert-danger border-0 small py-2 mb-4"
                   role="alert"
                 >
-                  <i className="fas fa-exclamation-circle mr-2"></i> {errorMsg}
+                  {errorMsg}
                 </div>
               )}
-
               <form onSubmit={handleLogin}>
                 <div className="form-group mb-3 mb-md-4">
                   <input
@@ -142,7 +156,6 @@ function Login() {
                       fontSize: "14px",
                       padding: "12px 15px",
                       borderRadius: "8px",
-                      borderColor: "#dcdcdc",
                       backgroundColor: "#fafafa",
                     }}
                   />
@@ -160,7 +173,6 @@ function Login() {
                       fontSize: "14px",
                       padding: "12px 45px 12px 15px",
                       borderRadius: "8px",
-                      borderColor: "#dcdcdc",
                       backgroundColor: "#fafafa",
                     }}
                   />
@@ -172,7 +184,6 @@ function Login() {
                       transform: "translateY(-50%)",
                       cursor: "pointer",
                       color: "#b0b0b0",
-                      zIndex: "5",
                     }}
                     onClick={() => setShowPassword(!showPassword)}
                   >
@@ -192,29 +203,20 @@ function Login() {
                     borderColor: "#5493ff",
                     borderRadius: "8px",
                     padding: "12px",
-                    fontSize: "14px",
                     textTransform: "uppercase",
-                    letterSpacing: "1px",
                     boxShadow: "0 4px 12px rgba(84, 147, 255, 0.25)",
                   }}
                   disabled={loading}
                 >
                   {loading ? (
-                    <span
-                      className="spinner-border spinner-border-sm mr-2"
-                      role="status"
-                    ></span>
+                    <span className="spinner-border spinner-border-sm"></span>
                   ) : (
                     "Login Now"
                   )}
                 </button>
               </form>
-
               <div className="mt-4 text-center d-lg-none">
-                <small
-                  className="text-muted text-uppercase"
-                  style={{ letterSpacing: "1px" }}
-                >
+                <small className="text-muted text-uppercase">
                   &copy; 2026 <strong>CV Mitra Jalan</strong>
                 </small>
               </div>
@@ -225,5 +227,4 @@ function Login() {
     </div>
   );
 }
-
 export default Login;
