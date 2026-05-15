@@ -1,18 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
-  // Install lucide-react jika ingin menggunakan ikon: npm install lucide-react
-import {
-  LayoutDashboard,
-  Package,
-  Truck,
-  FileText,
-  LogOut,
-  Search,
-  Bell,
-  AlertTriangle,
-} from "lucide-react";
+// PERBAIKAN: Import ikon yang benar untuk desain baru
+import { AlertTriangle, Activity, Car, TrendingUp } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -46,7 +36,6 @@ export default function Dashboard() {
   // --- PEMBERSIH ANGKA BRUTAL ---
   const parseNumber = (val) => {
     if (!val) return 0;
-    // Hapus SEMUA karakter selain angka (termasuk titik, koma, huruf, dll)
     const cleanStr = String(val).replace(/\D/g, "");
     return Number(cleanStr) || 0;
   };
@@ -107,7 +96,6 @@ export default function Dashboard() {
           .reduce((sum, e) => sum + parseNumber(e.total_pengeluaran), 0);
 
         const dayName = new Date(date).toLocaleDateString("id-ID", { weekday: 'short' });
-        // DIJAMIN murni number
         return { 
           name: dayName, 
           pemasukan: Number(dailyIncome), 
@@ -238,45 +226,22 @@ export default function Dashboard() {
 
   return (
     <div className="h-full w-full bg-gray-50 font-sans overflow-y-auto">
-      
       <div className="p-6 lg:p-8 pb-32 space-y-6 max-w-7xl mx-auto w-full">
         
-        {/* Header Dashboard */}
         <div className="mb-4">
           <h2 className="text-2xl font-bold text-gray-800">Ringkasan Operasional</h2>
           <p className="text-gray-500 text-sm mt-1">Pantau performa dan keuangan Mitra Jalan hari ini.</p>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-          <StatCard 
-            title="Total Pemasukan" 
-            value={`Rp ${formatRupiah(stats.pemasukan)}`} 
-            color={isIncomeHigher ? "green" : "red"} 
-          />
-          <StatCard 
-            title="Total Pengeluaran" 
-            value={`Rp ${formatRupiah(stats.pengeluaran)}`} 
-            color={!isIncomeHigher ? "green" : "red"} 
-          />
-          <StatCard 
-            title="Mobil Sedang Jalan" 
-            value={`${stats.mobilJalan} Unit`} 
-            color="blue" 
-            detail="Sedang disewa pelanggan"
-          />
-          <StatCard 
-            title="Mobil Standby" 
-            value={`${stats.mobilTotal - stats.mobilJalan} Unit`} 
-            color="yellow" 
-            detail="Tersedia di garasi"
-          />
+          <StatCard title="Total Pemasukan" value={`Rp ${formatRupiah(stats.pemasukan)}`} color={isIncomeHigher ? "green" : "red"} />
+          <StatCard title="Total Pengeluaran" value={`Rp ${formatRupiah(stats.pengeluaran)}`} color={!isIncomeHigher ? "green" : "red"} />
+          <StatCard title="Mobil Sedang Jalan" value={`${stats.mobilJalan} Unit`} color="blue" detail="Sedang disewa pelanggan" />
+          <StatCard title="Mobil Standby" value={`${stats.mobilTotal - stats.mobilJalan} Unit`} color="yellow" detail="Tersedia di garasi" />
         </div>
 
-        {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Line Chart */}
           <div className="lg:col-span-2 bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
@@ -291,12 +256,9 @@ export default function Dashboard() {
             </div>
             <div className="h-64 lg:h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                {/* PERBAIKAN: Margin disesuaikan agar grafik tetap presisi di tengah */}
                 <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#9ca3af" }} dy={10} />
-                  
-                  {/* PERBAIKAN: width={80}, font dikecilkan sedikit, dan "Rp" dikembalikan */}
                   <YAxis 
                     type="number"
                     width={80}
@@ -321,7 +283,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Pie Chart */}
           <div className="bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
             <h3 className="font-bold text-gray-800 w-full text-left mb-1">Rasio Keuangan</h3>
             <p className="text-xs text-gray-400 font-medium w-full text-left mb-4">Pemasukan vs Pengeluaran</p>
@@ -367,10 +328,8 @@ export default function Dashboard() {
 
         </div>
 
-        {/* GRID BAWAH DENGAN FIXED HEIGHT (h-[400px]) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Table Section */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[400px]">
             <div className="p-3 lg:p-4 border-b flex items-center gap-3 flex-shrink-0 bg-white">
               <div className="p-1.5 bg-amber-50 rounded-lg text-amber-600">
@@ -411,7 +370,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Recent Activity Section */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[400px]">
             <div className="p-3 lg:p-4 border-b flex items-center gap-3 flex-shrink-0 bg-white z-10 relative shadow-sm">
               <div className="p-1.5 bg-purple-50 rounded-lg text-purple-600">
@@ -444,68 +402,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-// --- Sub-components (Disesuaikan agar tidak konflik) ---
-
-const StatCard = ({ title, value, color, isAlert = false }) => {
-  const colors = {
-    blue: "border-blue-500",
-    green: "border-green-500",
-    yellow: "border-yellow-500",
-    red: "border-red-500",
-  };
-  return (
-    <div
-      className={`bg-white p-5 rounded-xl shadow-sm border-l-4 ${colors[color]} hover:shadow-md transition-shadow`}
-    >
-      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
-        {title}
-      </p>
-      <div className="flex items-center justify-between mt-1">
-        <p
-          className={`text-2xl font-bold ${isAlert ? "text-red-600" : "text-gray-800"}`}
-        >
-          {value}
-        </p>
-        {isAlert && (
-          <AlertTriangle size={20} className="text-red-500 animate-pulse" />
-        )}
-      </div>
-    </div>
-  );
-};
-
-const TableRow = ({ name, cat, qty, status, color }) => {
-  const badge = {
-    green: "bg-green-100 text-green-700",
-    yellow: "bg-yellow-100 text-yellow-700",
-    red: "bg-red-100 text-red-700",
-  };
-  return (
-    <tr className="hover:bg-gray-50 transition-colors">
-      <td className="p-4 font-medium text-gray-700">{name}</td>
-      <td className="p-4 text-gray-500">{cat}</td>
-      <td className="p-4 font-semibold">{qty}</td>
-      <td className="p-4">
-        <span
-          className={`${badge[color]} px-2.5 py-1 rounded-md text-[10px] font-bold uppercase`}
-        >
-          {status}
-        </span>
-      </td>
-    </tr>
-  );
-};
-
-const ActivityItem = ({ label, desc, time }) => (
-  <div className="relative pl-6 border-l-2 border-gray-100 pb-2">
-    <div className="absolute -left-[7px] top-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
-    <p className="text-sm font-semibold text-gray-800">{label}</p>
-    <p className="text-xs text-gray-500">{desc}</p>
-    <p className="text-[10px] text-gray-400 mt-1 uppercase font-medium">
-      {time}
-    </p>
-  </div>
-);
-
-export default Dashboard;
