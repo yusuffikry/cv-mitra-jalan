@@ -79,8 +79,6 @@ export default function Navside() {
         </button>
         <span className="fw-bold text-white ms-2">MITRA JALAN</span>
       </nav>
-
-      {/* OVERLAY MOBILE */}
       {isOpen && (
         <div
           className="position-fixed vh-100 vw-100 d-lg-none"
