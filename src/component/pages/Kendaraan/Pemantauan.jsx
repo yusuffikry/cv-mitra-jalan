@@ -88,6 +88,32 @@ export default function Pemantauan() {
   return (
     <div className="h-screen w-full relative font-sans">
       {/* Panel Input Pelacakan */}
+      {/* <div className="absolute top-4 left-14 z-[1000] bg-white p-4 rounded-xl shadow-xl border border-gray-200 w-80">
+        <h1 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+          📡 Pelacakan
+        </h1>
+        <div className="space-y-3">
+          <input
+            type="text"
+            placeholder="Masukkan No HP Target..."
+            className="w-full p-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            disabled={isTracking}
+          />
+          <button
+            onClick={() => setIsTracking(!isTracking)}
+            className={`w-full py-2 rounded-lg text-white font-semibold transition-all ${
+              isTracking
+                ? "bg-red-500 hover:bg-red-600"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {isTracking ? "Berhenti Melacak" : "Mulai Lacak HP"}
+          </button>
+        </div>
+      </div> */}
+
       <MapContainer
         center={myLocation || [-5.1476, 119.4327]}
         zoom={15}
