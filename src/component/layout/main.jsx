@@ -18,8 +18,6 @@ export default function Main() {
       yoyo: true,
       ease: "power1.inOut",
     });
-
-    // Teks hilang otomatis setelah 5 detik
     const timer = setTimeout(() => {
       handleHideText();
     }, 5000);
@@ -66,8 +64,6 @@ export default function Main() {
         </main>
         <FooterNav />
       </div>
-
-      {/* FLOATING ASSISTANT (Pop-up Bundar) */}
       <div
         className="position-fixed d-flex align-items-center"
         style={{
@@ -77,7 +73,6 @@ export default function Main() {
           cursor: "pointer",
         }}
       >
-        {/* Pop-up Teks */}
         {showText && (
           <div
             ref={bubbleRef}
@@ -92,8 +87,6 @@ export default function Main() {
             Halo Admin! Siap pantau armada hari ini? 👋
           </div>
         )}
-
-        {/* Tombol Bundar (FAB) */}
         <div
           ref={fabRef}
           onClick={toggleText}
