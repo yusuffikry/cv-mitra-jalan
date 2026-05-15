@@ -1,177 +1,313 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
+import { gsap } from "gsap";
 
 export default function Navside() {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const isActive = (path) =>
-    location.pathname === path ? "active" : "link-dark";
+  const [isOpen, setIsOpen] = useState(false);
+  const sidebarRef = useRef(null);
 
+  const isActive = (path) =>
+    location.pathname === path ? "active-custom" : "link-light-custom";
   useEffect(() => {
-    const checkUser = async () => {
+    const checkInitialSession = async () => {
       try {
-        if (!supabase) {
-          console.error("Supabase client belum diinisialisasi!");
-          navigate("/");
-          return;
-        }
         const {
           data: { session },
-          error,
         } = await supabase.auth.getSession();
-
-        if (error || !session) {
+        if (!session) {
           navigate("/");
         } else {
           setLoading(false);
         }
       } catch (err) {
-        console.error("Kesalahan autentikasi:", err);
         navigate("/");
       }
     };
-    checkUser();
+    checkInitialSession();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        navigate("/");
+      }
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      navigate("/");
-    } catch (err) {
-      console.error("Gagal logout:", err);
+  useEffect(() => {
+    if (!loading) {
+      gsap.fromTo(
+        sidebarRef.current,
+        { x: -280, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.8, ease: "power3.out" },
+      );
+    }
+  }, [loading]);
+
+  const onMouseEnter = (el) => {
+    if (window.innerWidth > 992) {
+      gsap.to(el, {
+        x: 8,
+        duration: 0.3,
+        ease: "power2.out",
+        backgroundColor: "rgba(255,255,255,0.08)",
+      });
     }
   };
 
-  // Tampilan Loading saat memvalidasi sesi
-  if (loading) {
-    return (
-      <div className="d-flex vh-100 align-items-center justify-content-center bg-white">
-        <div className="text-center">
-          <div className="spinner-border text-primary" role="status"></div>
-          <p className="mt-2 text-muted">Memvalidasi Sesi...</p>
-        </div>
-      </div>
-    );
-  }
+  const onMouseLeave = (el) => {
+    gsap.to(el, {
+      x: 0,
+      duration: 0.3,
+      ease: "power2.in",
+      backgroundColor: "transparent",
+    });
+  };
+
+  if (loading) return null;
 
   return (
-    <div
-      className="d-flex flex-column flex-shrink-0 p-3 bg-white border-end"
-      style={{ width: "280px", minHeight: "100vh" }}
-    >
-      <Link
-        to="/dashboard"
-        className="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none"
+    <>
+      <nav
+        className="navbar navbar-dark d-lg-none border-bottom px-3 sticky-top"
+        style={{ backgroundColor: "#1e293b", zIndex: 1030 }}
       >
-        <img
-          src="/Image/logoMjN.jpeg"
-          width="40"
-          height="40"
-          className="rounded-circle me-2"
-          alt="Logo"
+        <button
+          className="navbar-toggler border-0"
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span className="navbar-toggler-icon"></span>
+        </button>
+        <span className="fw-bold text-white ms-2">MITRA JALAN</span>
+      </nav>
+      {isOpen && (
+        <div
+          className="position-fixed vh-100 vw-100 d-lg-none"
+          style={{
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 1040,
+            top: 0,
+            left: 0,
+          }}
+          onClick={() => setIsOpen(false)}
         />
-        <span className="fs-5 fw-bold text-primary">CV. MITRA JALAN</span>
-      </Link>
+      )}
 
-      <hr />
-      <div className="d-flex align-items-center mb-3 px-2">
-        <img
-          src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
-          className="rounded-circle me-2"
-          alt="User"
-          style={{ width: "40px", height: "40px", objectFit: "cover" }}
-        />
-        <div className="lh-sm">
-          <div className="fw-bold d-block" style={{ fontSize: "14px" }}>
-            Pria Also
-          </div>
-          <small className="text-muted" style={{ fontSize: "12px" }}>
-            Administrator
-          </small>
-        </div>
-      </div>
-      <hr />
-      <ul className="nav nav-pills flex-column mb-auto">
-        <li className="nav-item small text-muted text-uppercase fw-bold mb-2 px-2">
-          Main Menu
-        </li>
-        <li className="nav-item">
+      <div
+        ref={sidebarRef}
+        className={`d-flex flex-column flex-shrink-0 p-3 sidebar-wrapper ${isOpen ? "show-sidebar" : ""}`}
+        style={{
+          width: "280px",
+          height: "100vh",
+          position: window.innerWidth < 992 ? "fixed" : "sticky",
+          top: 0,
+          left: 0,
+          zIndex: 1050,
+          backgroundColor: "#1e293b",
+          color: "#cbd5e1",
+          overflowY: "auto",
+          overflowX: "hidden",
+          transition: "transform 0.3s ease-in-out",
+        }}
+      >
+        <div className="d-flex align-items-center justify-content-between mb-3 px-2">
           <Link
             to="/dashboard"
-            className={`nav-link ${isActive("/dashboard")}`}
+            className="d-flex align-items-center text-decoration-none"
           >
-            <i className="fas fa-tachometer-alt me-2"></i> Dashboard
+            <img
+              src="/Image/logoMjN.jpeg"
+              width="35"
+              height="35"
+              className="rounded-circle me-2 border border-secondary"
+              alt="Logo"
+            />
+            <span className="fs-5 fw-bold text-white">MITRA JALAN</span>
           </Link>
-        </li>
-        <li>
-          <Link to="/carlist" className={`nav-link ${isActive("/carlist")}`}>
-            <i className="fas fa-car me-2"></i> Car List
-          </Link>
-        </li>
-        <li>
-          <Link
-            to="/customers"
-            className={`nav-link ${isActive("/customers")}`}
+          <button
+            className="btn text-white d-lg-none"
+            onClick={() => setIsOpen(false)}
           >
-            <i className="fas fa-users me-2"></i> Customer List
-          </Link>
-        </li>
-        <li>
-          <Link
-            to="/transaction"
-            className={`nav-link ${isActive("/transaction")}`}
-          >
-            <i className="fas fa-receipt me-2"></i> Transaction
-          </Link>
-        </li>
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
 
-        {/* Profit Section */}
-        <li className="nav-item small text-muted text-uppercase fw-bold mt-4 mb-2 px-2">
-          Profit
-        </li>
-        <li>
-          <Link to="/income" className={`nav-link ${isActive("/income")}`}>
-            <i className="fas fa-arrow-circle-down text-success me-2"></i>{" "}
-            Pemasukan
-          </Link>
-        </li>
-        <li>
-          <Link to="/outcome" className={`nav-link ${isActive("/outcome")}`}>
-            <i className="fas fa-arrow-circle-up text-danger me-2"></i>{" "}
-            Pengeluaran
-          </Link>
-        </li>
-        {/* Kendaraan Section */}
-        <li className="nav-item small text-muted text-uppercase fw-bold mt-4 mb-2 px-2">
-          Kendaraan
-        </li>
-        <li>
-          <Link
-            to="/kendaraan/pemantauan"
-            className={`nav-link ${isActive("/kendaraan/pemantauan")}`}
-          >
-            <i className="fas fa-map-marked-alt text-primary me-2"></i>{" "}
-            Pemantauan
-          </Link>
-        </li>
-        <li>
-          <a href="#" className="nav-link link-dark">
-            <i className="fas fa-plus-square text-info me-2"></i> Daftar GPS
-            Baru
-          </a>
-        </li>
-      </ul>
-      <hr />
-      <div className="px-2">
-        <button
-          className="btn btn-outline-danger btn-sm w-100"
-          onClick={handleLogout}
+        <hr className="border-secondary opacity-25" />
+
+        <div
+          className="d-flex align-items-center mb-3 p-2 rounded"
+          style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
         >
-          <i className="fas fa-sign-out-alt me-2"></i> Logout
-        </button>
+          <img
+            src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
+            className="rounded-circle me-2 border border-secondary"
+            alt="User"
+            style={{ width: "38px" }}
+          />
+          <div className="lh-1">
+            <small className="fw-bold d-block text-white">Pria Also</small>
+            <small className="text-secondary" style={{ fontSize: "11px" }}>
+              Administrator
+            </small>
+          </div>
+        </div>
+
+        <ul className="nav nav-pills flex-column mb-auto">
+          <li
+            className="nav-item small text-secondary text-uppercase fw-bold mb-2 px-2"
+            style={{ fontSize: "10px", letterSpacing: "1.2px", opacity: 0.6 }}
+          >
+            Main Menu
+          </li>
+          {[
+            {
+              to: "/dashboard",
+              icon: "fas fa-tachometer-alt",
+              label: "Dashboard",
+            },
+            { to: "/carlist", icon: "fas fa-car", label: "Car List" },
+            { to: "/customers", icon: "fas fa-users", label: "Customer List" },
+            {
+              to: "/transaction",
+              icon: "fas fa-receipt",
+              label: "Transaction",
+            },
+          ].map((item, idx) => (
+            <li key={idx} className="nav-item">
+              <Link
+                to={item.to}
+                className={`nav-link mb-1 d-flex align-items-center ${isActive(item.to)}`}
+                onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+                onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+                onClick={() => setIsOpen(false)}
+              >
+                <i
+                  className={`${item.icon} me-3`}
+                  style={{ width: "20px" }}
+                ></i>
+                <span>{item.label}</span>
+              </Link>
+            </li>
+          ))}
+
+          <li
+            className="nav-item small text-secondary text-uppercase fw-bold mt-4 mb-2 px-2"
+            style={{ fontSize: "10px", letterSpacing: "1.2px", opacity: 0.6 }}
+          >
+            Profit
+          </li>
+          <li>
+            <Link
+              to="/income"
+              className={`nav-link mb-1 d-flex align-items-center ${isActive("/income")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i
+                className="fas fa-arrow-circle-down text-success me-3"
+                style={{ width: "20px" }}
+              ></i>{" "}
+              Pemasukan
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/outcome"
+              className={`nav-link mb-1 d-flex align-items-center ${isActive("/outcome")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i
+                className="fas fa-arrow-circle-up text-danger me-3"
+                style={{ width: "20px" }}
+              ></i>{" "}
+              Pengeluaran
+            </Link>
+          </li>
+
+          <li
+            className="nav-item small text-secondary text-uppercase fw-bold mt-4 mb-2 px-2"
+            style={{ fontSize: "10px", letterSpacing: "1.2px", opacity: 0.6 }}
+          >
+            Kendaraan
+          </li>
+          <li>
+            <Link
+              to="/kendaraan/pemantauan"
+              className={`nav-link mb-1 d-flex align-items-center ${isActive("/kendaraan/pemantauan")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i
+                className="fas fa-map-marked-alt text-info me-3"
+                style={{ width: "20px" }}
+              ></i>{" "}
+              Pemantauan
+            </Link>
+          </li>
+          <li>
+            <a
+              href="#"
+              className="nav-link link-light-custom mb-1 d-flex align-items-center"
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i
+                className="fas fa-plus-square text-warning me-3"
+                style={{ width: "20px" }}
+              ></i>{" "}
+              Daftar GPS Baru
+            </a>
+          </li>
+        </ul>
+
+        <hr className="border-secondary opacity-25" />
+        <div className="px-2 pb-3">
+          <button
+            className="btn btn-outline-light btn-sm w-100 d-flex align-items-center justify-content-center"
+            onClick={() => supabase.auth.signOut()}
+            style={{ opacity: 0.7, fontSize: "13px" }}
+          >
+            <i className="fas fa-sign-out-alt me-2"></i> Logout
+          </button>
+        </div>
       </div>
-    </div>
+
+      <style>{`
+        @media (max-width: 991.98px) {
+          .sidebar-wrapper { transform: translateX(-100%); }
+          .show-sidebar { transform: translateX(0); }
+        }
+        
+        .nav-link { 
+          border-radius: 8px; 
+          padding: 12px 15px; 
+          font-size: 14px;
+          transition: color 0.3s ease;
+        }
+
+        .link-light-custom {
+          color: #94a3b8 !important;
+        }
+
+        .link-light-custom:hover {
+          color: #ffffff !important;
+        }
+
+        .active-custom { 
+          background-color: #3b82f6 !important; 
+          color: white !important; 
+        }
+
+        .sidebar-wrapper::-webkit-scrollbar { width: 0px; }
+      `}</style>
+    </>
   );
 }

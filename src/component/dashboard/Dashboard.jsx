@@ -1,7 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
-import { AlertTriangle, Activity, Car, TrendingUp } from "lucide-react";
+  // Install lucide-react jika ingin menggunakan ikon: npm install lucide-react
+import {
+  LayoutDashboard,
+  Package,
+  Truck,
+  FileText,
+  LogOut,
+  Search,
+  Bell,
+  AlertTriangle,
+} from "lucide-react";
 import {
   LineChart,
   Line,
@@ -433,3 +444,68 @@ export default function Dashboard() {
     </div>
   );
 }
+
+// --- Sub-components (Disesuaikan agar tidak konflik) ---
+
+const StatCard = ({ title, value, color, isAlert = false }) => {
+  const colors = {
+    blue: "border-blue-500",
+    green: "border-green-500",
+    yellow: "border-yellow-500",
+    red: "border-red-500",
+  };
+  return (
+    <div
+      className={`bg-white p-5 rounded-xl shadow-sm border-l-4 ${colors[color]} hover:shadow-md transition-shadow`}
+    >
+      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
+        {title}
+      </p>
+      <div className="flex items-center justify-between mt-1">
+        <p
+          className={`text-2xl font-bold ${isAlert ? "text-red-600" : "text-gray-800"}`}
+        >
+          {value}
+        </p>
+        {isAlert && (
+          <AlertTriangle size={20} className="text-red-500 animate-pulse" />
+        )}
+      </div>
+    </div>
+  );
+};
+
+const TableRow = ({ name, cat, qty, status, color }) => {
+  const badge = {
+    green: "bg-green-100 text-green-700",
+    yellow: "bg-yellow-100 text-yellow-700",
+    red: "bg-red-100 text-red-700",
+  };
+  return (
+    <tr className="hover:bg-gray-50 transition-colors">
+      <td className="p-4 font-medium text-gray-700">{name}</td>
+      <td className="p-4 text-gray-500">{cat}</td>
+      <td className="p-4 font-semibold">{qty}</td>
+      <td className="p-4">
+        <span
+          className={`${badge[color]} px-2.5 py-1 rounded-md text-[10px] font-bold uppercase`}
+        >
+          {status}
+        </span>
+      </td>
+    </tr>
+  );
+};
+
+const ActivityItem = ({ label, desc, time }) => (
+  <div className="relative pl-6 border-l-2 border-gray-100 pb-2">
+    <div className="absolute -left-[7px] top-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
+    <p className="text-sm font-semibold text-gray-800">{label}</p>
+    <p className="text-xs text-gray-500">{desc}</p>
+    <p className="text-[10px] text-gray-400 mt-1 uppercase font-medium">
+      {time}
+    </p>
+  </div>
+);
+
+export default Dashboard;
