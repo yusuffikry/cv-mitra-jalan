@@ -1,177 +1,258 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
+import { gsap } from "gsap";
 
 export default function Navside() {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const sidebarRef = useRef(null);
+  const menuItemsRef = useRef([]);
+
   const isActive = (path) =>
     location.pathname === path ? "active" : "link-dark";
 
   useEffect(() => {
     const checkUser = async () => {
       try {
-        if (!supabase) {
-          console.error("Supabase client belum diinisialisasi!");
-          navigate("/");
-          return;
-        }
         const {
           data: { session },
-          error,
         } = await supabase.auth.getSession();
-
-        if (error || !session) {
+        if (!session) {
           navigate("/");
         } else {
           setLoading(false);
         }
       } catch (err) {
-        console.error("Kesalahan autentikasi:", err);
         navigate("/");
       }
     };
     checkUser();
   }, [navigate]);
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      navigate("/");
-    } catch (err) {
-      console.error("Gagal logout:", err);
+  useEffect(() => {
+    if (!loading) {
+      gsap.fromTo(
+        sidebarRef.current,
+        { x: -280, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.8, ease: "power3.out" },
+      );
+    }
+  }, [loading]);
+
+  const onMouseEnter = (el) => {
+    if (window.innerWidth > 992) {
+      gsap.to(el, { x: 10, duration: 0.3, ease: "power2.out" });
     }
   };
 
-  // Tampilan Loading saat memvalidasi sesi
-  if (loading) {
-    return (
-      <div className="d-flex vh-100 align-items-center justify-content-center bg-white">
-        <div className="text-center">
-          <div className="spinner-border text-primary" role="status"></div>
-          <p className="mt-2 text-muted">Memvalidasi Sesi...</p>
-        </div>
-      </div>
-    );
-  }
+  const onMouseLeave = (el) => {
+    gsap.to(el, { x: 0, duration: 0.3, ease: "power2.in" });
+  };
+
+  if (loading) return null;
 
   return (
-    <div
-      className="d-flex flex-column flex-shrink-0 p-3 bg-white border-end"
-      style={{ width: "280px", minHeight: "100vh" }}
-    >
-      <Link
-        to="/dashboard"
-        className="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none"
-      >
-        <img
-          src="/Image/logoMjN.jpeg"
-          width="40"
-          height="40"
-          className="rounded-circle me-2"
-          alt="Logo"
-        />
-        <span className="fs-5 fw-bold text-primary">CV. MITRA JALAN</span>
-      </Link>
+    <>
+      {/* NAVBAR MOBILE */}
+      <nav className="navbar navbar-light bg-white d-lg-none border-bottom px-3 sticky-top">
+        <button
+          className="navbar-toggler"
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span className="navbar-toggler-icon"></span>
+        </button>
+        <span className="fw-bold text-primary">MITRA JALAN</span>
+      </nav>
 
-      <hr />
-      <div className="d-flex align-items-center mb-3 px-2">
-        <img
-          src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
-          className="rounded-circle me-2"
-          alt="User"
-          style={{ width: "40px", height: "40px", objectFit: "cover" }}
+      {/* OVERLAY MOBILE */}
+      {isOpen && (
+        <div
+          className="position-fixed vh-100 vw-100 d-lg-none"
+          style={{
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 1040,
+            top: 0,
+            left: 0,
+          }}
+          onClick={() => setIsOpen(false)}
         />
-        <div className="lh-sm">
-          <div className="fw-bold d-block" style={{ fontSize: "14px" }}>
-            Pria Also
-          </div>
-          <small className="text-muted" style={{ fontSize: "12px" }}>
-            Administrator
-          </small>
-        </div>
-      </div>
-      <hr />
-      <ul className="nav nav-pills flex-column mb-auto">
-        <li className="nav-item small text-muted text-uppercase fw-bold mb-2 px-2">
-          Main Menu
-        </li>
-        <li className="nav-item">
+      )}
+
+      {/* SIDEBAR */}
+      <div
+        ref={sidebarRef}
+        className={`d-flex flex-column flex-shrink-0 p-3 bg-white border-end shadow-sm sidebar-wrapper ${
+          isOpen ? "show-sidebar" : ""
+        }`}
+        style={{
+          width: "280px",
+          height: "100vh",
+          position: window.innerWidth < 992 ? "fixed" : "sticky",
+          top: 0,
+          left: 0,
+          zIndex: 1050,
+          overflowY: "auto",
+          overflowX: "hidden", // Hapus scroll horizontal
+          transition: "transform 0.3s ease-in-out",
+        }}
+      >
+        <div className="d-flex align-items-center justify-content-between mb-3 mb-md-0 me-md-auto">
           <Link
             to="/dashboard"
-            className={`nav-link ${isActive("/dashboard")}`}
+            className="d-flex align-items-center link-dark text-decoration-none"
           >
-            <i className="fas fa-tachometer-alt me-2"></i> Dashboard
+            <img
+              src="/Image/logoMjN.jpeg"
+              width="35"
+              height="35"
+              className="rounded-circle me-2 shadow-sm"
+              alt="Logo"
+            />
+            <span className="fs-5 fw-bold text-primary">CV. MITRA JALAN</span>
           </Link>
-        </li>
-        <li>
-          <Link to="/carlist" className={`nav-link ${isActive("/carlist")}`}>
-            <i className="fas fa-car me-2"></i> Car List
-          </Link>
-        </li>
-        <li>
-          <Link
-            to="/customers"
-            className={`nav-link ${isActive("/customers")}`}
-          >
-            <i className="fas fa-users me-2"></i> Customer List
-          </Link>
-        </li>
-        <li>
-          <Link
-            to="/transaction"
-            className={`nav-link ${isActive("/transaction")}`}
-          >
-            <i className="fas fa-receipt me-2"></i> Transaction
-          </Link>
-        </li>
+          <button className="btn d-lg-none" onClick={() => setIsOpen(false)}>
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
 
-        {/* Profit Section */}
-        <li className="nav-item small text-muted text-uppercase fw-bold mt-4 mb-2 px-2">
-          Profit
-        </li>
-        <li>
-          <Link to="/income" className={`nav-link ${isActive("/income")}`}>
-            <i className="fas fa-arrow-circle-down text-success me-2"></i>{" "}
-            Pemasukan
-          </Link>
-        </li>
-        <li>
-          <Link to="/outcome" className={`nav-link ${isActive("/outcome")}`}>
-            <i className="fas fa-arrow-circle-up text-danger me-2"></i>{" "}
-            Pengeluaran
-          </Link>
-        </li>
-        {/* Kendaraan Section */}
-        <li className="nav-item small text-muted text-uppercase fw-bold mt-4 mb-2 px-2">
-          Kendaraan
-        </li>
-        <li>
-          <Link
-            to="/kendaraan/pemantauan"
-            className={`nav-link ${isActive("/kendaraan/pemantauan")}`}
+        <hr />
+
+        <div className="d-flex align-items-center mb-3 px-2">
+          <img
+            src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
+            className="rounded-circle me-2 border"
+            alt="User"
+            style={{ width: "35px" }}
+          />
+          <div className="lh-1">
+            <small className="fw-bold d-block">Pria Also</small>
+            <small className="text-muted" style={{ fontSize: "11px" }}>
+              Administrator
+            </small>
+          </div>
+        </div>
+
+        <ul className="nav nav-pills flex-column mb-auto">
+          <li
+            className="nav-item small text-muted text-uppercase fw-bold mb-2 px-2"
+            style={{ fontSize: "10px", letterSpacing: "1px" }}
           >
-            <i className="fas fa-map-marked-alt text-primary me-2"></i>{" "}
-            Pemantauan
-          </Link>
-        </li>
-        <li>
-          <a href="#" className="nav-link link-dark">
-            <i className="fas fa-plus-square text-info me-2"></i> Daftar GPS
-            Baru
-          </a>
-        </li>
-      </ul>
-      <hr />
-      <div className="px-2">
-        <button
-          className="btn btn-outline-danger btn-sm w-100"
-          onClick={handleLogout}
-        >
-          <i className="fas fa-sign-out-alt me-2"></i> Logout
-        </button>
+            Main Menu
+          </li>
+          {[
+            {
+              to: "/dashboard",
+              icon: "fas fa-tachometer-alt",
+              label: "Dashboard",
+            },
+            { to: "/carlist", icon: "fas fa-car", label: "Car List" },
+            { to: "/customers", icon: "fas fa-users", label: "Customer List" },
+            {
+              to: "/transaction",
+              icon: "fas fa-receipt",
+              label: "Transaction",
+            },
+          ].map((item, idx) => (
+            <li key={idx} className="nav-item">
+              <Link
+                to={item.to}
+                className={`nav-link mb-1 ${isActive(item.to)}`}
+                onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+                onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+                onClick={() => setIsOpen(false)}
+              >
+                <i className={`${item.icon} me-2`}></i> {item.label}
+              </Link>
+            </li>
+          ))}
+
+          {/* PROFIT SECTION */}
+          <li
+            className="nav-item small text-muted text-uppercase fw-bold mt-4 mb-2 px-2"
+            style={{ fontSize: "10px", letterSpacing: "1px" }}
+          >
+            Profit
+          </li>
+          <li>
+            <Link
+              to="/income"
+              className={`nav-link mb-1 ${isActive("/income")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i className="fas fa-arrow-circle-down text-success me-2"></i>{" "}
+              Pemasukan
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/outcome"
+              className={`nav-link mb-1 ${isActive("/outcome")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i className="fas fa-arrow-circle-up text-danger me-2"></i>{" "}
+              Pengeluaran
+            </Link>
+          </li>
+
+          {/* KENDARAAN SECTION (SUDAH KEMBALI) */}
+          <li
+            className="nav-item small text-muted text-uppercase fw-bold mt-4 mb-2 px-2"
+            style={{ fontSize: "10px", letterSpacing: "1px" }}
+          >
+            Kendaraan
+          </li>
+          <li>
+            <Link
+              to="/kendaraan/pemantauan"
+              className={`nav-link mb-1 ${isActive("/kendaraan/pemantauan")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i className="fas fa-map-marked-alt text-primary me-2"></i>{" "}
+              Pemantauan
+            </Link>
+          </li>
+          <li>
+            <a
+              href="#"
+              className="nav-link link-dark mb-1"
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i className="fas fa-plus-square text-info me-2"></i> Daftar GPS
+              Baru
+            </a>
+          </li>
+        </ul>
+
+        <hr />
+        <div className="px-2 pb-3">
+          <button
+            className="btn btn-outline-danger btn-sm w-100 shadow-sm"
+            onClick={() => supabase.auth.signOut()}
+          >
+            <i className="fas fa-sign-out-alt me-2"></i> Logout
+          </button>
+        </div>
       </div>
-    </div>
+
+      <style>{`
+        @media (max-width: 991.98px) {
+          .sidebar-wrapper { transform: translateX(-100%); }
+          .show-sidebar { transform: translateX(0); }
+        }
+        .nav-link { border-radius: 8px; transition: background 0.3s; padding: 10px 15px; }
+        .nav-link.active { background-color: #5493ff !important; color: white !important; }
+        /* Hilangkan scrollbar untuk tampilan lebih bersih tapi tetap bisa di-scroll */
+        .sidebar-wrapper::-webkit-scrollbar { width: 0px; }
+      `}</style>
+    </>
   );
 }
