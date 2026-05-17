@@ -10,8 +10,6 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "../../../supabaseClient";
-
-// Ambil icon langsung dari CDN agar tidak bermasalah saat build Vite
 let DefaultIcon = L.icon({
   iconUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
@@ -38,8 +36,6 @@ export default function Pemantauan() {
   const [myLocation, setMyLocation] = useState(null);
   const [carsList, setCarsList] = useState([]);
   const [selectedCar, setSelectedCar] = useState("");
-
-  // 1. Ambil data daftar armada untuk dropdown saat pertama kali load
   useEffect(() => {
     const fetchCars = async () => {
       try {
@@ -57,8 +53,6 @@ export default function Pemantauan() {
 
     fetchCars();
   }, []);
-
-  // 2. LOGIKA REAL-TIME: Berlangganan data koordinat langsung dari Supabase
   useEffect(() => {
     let channel = null;
 
@@ -68,8 +62,7 @@ export default function Pemantauan() {
           .from("cars")
           .select("latitude, longitude")
           .eq("no_gps", selectedCar)
-          .maybeSingle(); // Menggunakan maybeSingle agar tidak throw error jika data kosong
-
+          .maybeSingle();
         if (error) throw error;
         if (data && data.latitude && data.longitude) {
           setMyLocation({
@@ -86,8 +79,6 @@ export default function Pemantauan() {
 
     if (isTracking && selectedCar) {
       fetchLastLocation();
-
-      // Menjalankan fitur real-time subscription database
       channel = supabase
         .channel(`track-car-${selectedCar}`)
         .on(
