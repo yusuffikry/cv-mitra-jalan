@@ -39,7 +39,6 @@ export default function Main() {
   const toggleText = () => {
     if (!showText) {
       setShowText(true);
-      // Animasi muncul kembali
       setTimeout(() => {
         gsap.fromTo(
           bubbleRef.current,
@@ -57,11 +56,7 @@ export default function Main() {
       <Navside />
       <div className="flex-1 flex flex-col min-w-0">
         <Nav />
-        <main className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <div className="max-w-7xl mx-auto h-full">
-            <Outlet />
-          </div>
-        </main>
+    
         <FooterNav />
       </div>
       <div
