@@ -25,11 +25,11 @@ export default function CreateTransaction() {
   const DRIVE_PHOTO_FOLDER_ID = "1BBNYFg2TWx_-OOWUdL4HtmmMmILInWqI";
   const DRIVE_VIDEO_FOLDER_ID = "1hG4Vsh9C-bl8dWKVcgY7OkmnrgWr3aLM";
 
-  // State form utama (sisa_pembayaran dihapus dari state karena dihitung otomatis)
+  // State form utama (Nilai uang disimpan dalam format string bertitik, misal: "1.000.000")
   const [formData, setFormData] = useState({
     waktu: "",
     waktu_pengembalian: "",
-    customer_id: "", // Kita simpan ID-nya langsung
+    customer_id: "", 
     nama_customer: "",
     rute: "",
     car_id: "",
@@ -38,24 +38,33 @@ export default function CreateTransaction() {
     keterangan: "",
   });
 
+  // --- FUNGSI FORMAT INPUT UANG ---
+  // Menghapus semua karakter selain angka, lalu menyisipkan titik ribuan
+  const formatRupiahInput = (value) => {
+    if (!value) return "";
+    const numberString = value.replace(/\D/g, ""); // Buang semua huruf dan simbol (termasuk minus)
+    return new Intl.NumberFormat("id-ID").format(numberString); // Format ke gaya Indonesia (titik)
+  };
+
   // --- LOGIKA MENGHITUNG SISA PEMBAYARAN OTOMATIS ---
-  // Jika DP kosong ("") atau diisi 0, Sisa = 0 (Anggap lunas). Jika ada nominal DP, Sisa = Total - DP
-  const currentTotalPay = parseInt(formData.total_pembayaran) || 0;
-  let currentDp = parseInt(formData.dp);
+  // Parsing dari string berformat "1.000.000" kembali ke angka asli 1000000
+  const currentTotalPay = parseInt(formData.total_pembayaran.replace(/\./g, "")) || 0;
+  let currentDp = parseInt(formData.dp.replace(/\./g, ""));
   if (isNaN(currentDp)) currentDp = 0;
 
   let currentSisaPay;
   if (formData.dp === "" || currentDp === 0) {
-    currentSisaPay = 0;
+    currentSisaPay = 0; // (Anggap lunas jika DP 0, sesuai kodemu)
   } else {
     currentSisaPay = currentTotalPay - currentDp;
+    // PENGAMAN TAMBAHAN: Cegah hasil kalkulasi minus
+    if (currentSisaPay < 0) currentSisaPay = 0;
   }
 
   // --- AMBIL DATA DARI SUPABASE ---
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        // 1. Ambil data pelanggan (Pakai select * agar aman dari beda nama kolom id)
         const { data: customerData, error: customerError } = await supabase
           .from("customers")
           .select("*")
@@ -67,7 +76,6 @@ export default function CreateTransaction() {
           setCustomers(customerData || []);
         }
 
-        // 2. Ambil data mobil
         const { data: carData, error: carError } = await supabase
           .from("cars")
           .select("*");
@@ -92,18 +100,14 @@ export default function CreateTransaction() {
 
   // handle drive
   const handleGoogleLogin = () => {
-    // Cek apakah library google sudah ada di window
     if (!window.google || !window.google.accounts) {
-      alert(
-        "Library Google belum dimuat. Silakan refresh halaman atau tunggu sebentar.",
-      );
+      alert("Library Google belum dimuat. Silakan refresh halaman atau tunggu sebentar.");
       return;
     }
 
     try {
       const client = window.google.accounts.oauth2.initTokenClient({
-        client_id:
-          "792749158806-1len8ms3h3cq3v16h58qcj9befc8log9.apps.googleusercontent.com",
+        client_id: "792749158806-1len8ms3h3cq3v16h58qcj9befc8log9.apps.googleusercontent.com",
         scope: "https://www.googleapis.com/auth/drive.file",
         callback: (response) => {
           if (response.access_token) {
@@ -123,13 +127,36 @@ export default function CreateTransaction() {
     const { name, value } = e.target;
 
     setFormData((prev) => {
-      const newData = { ...prev, [name]: value };
+      let newValue = value;
+
+      // LOGIKA KUNCI: Mencegah DP melebihi Total Pembayaran
+      if (name === "total_pembayaran") {
+        newValue = formatRupiahInput(value);
+        
+        // Jika Total Pembayaran diubah lebih kecil dari DP yang sudah diketik, otomatis turunkan DP
+        const newTotalRaw = parseInt(newValue.replace(/\./g, "")) || 0;
+        const currentDpRaw = parseInt(prev.dp.replace(/\./g, "")) || 0;
+        if (currentDpRaw > newTotalRaw) {
+          prev.dp = formatRupiahInput(newTotalRaw.toString());
+        }
+
+      } else if (name === "dp") {
+        const rawDp = parseInt(value.replace(/\D/g, "")) || 0;
+        const currentTotalRaw = parseInt(prev.total_pembayaran.replace(/\./g, "")) || 0;
+        
+        // Jika admin ngetik DP lebih besar dari Total Pembayaran, kunci mentok di angka Total Pembayaran
+        if (rawDp > currentTotalRaw) {
+          newValue = formatRupiahInput(currentTotalRaw.toString());
+        } else {
+          newValue = formatRupiahInput(value);
+        }
+      }
+
+      const newData = { ...prev, [name]: newValue };
+      
       if (name === "waktu") {
-        const minReturn = getMinReturnDate();
-        if (
-          newData.waktu_pengembalian &&
-          newData.waktu_pengembalian < minReturn
-        ) {
+        const minReturn = getMinReturnDate(newValue);
+        if (newData.waktu_pengembalian && newData.waktu_pengembalian < minReturn) {
           newData.waktu_pengembalian = "";
         }
       }
@@ -137,7 +164,6 @@ export default function CreateTransaction() {
     });
   };
 
-  // REVISI: upload to drive dengan pemisahan Direct Link untuk Foto
   const uploadToDrive = async (file, folderId, accessToken) => {
     if (!file) return null;
 
@@ -174,13 +200,9 @@ export default function CreateTransaction() {
 
       const result = await response.json();
       
-      // LOGIKA FINAL & PALING AMPUH:
       if (file.type.startsWith("image/")) {
-        // Format lh3.googleusercontent.com ini adalah direct link asli Google
-        // Dijamin 100% langsung muncul jika dipakai di dalam tag <img src="...">
         return `https://drive.google.com/thumbnail?id=${result.id}&sz=w1000`;
       } else {
-        // Untuk video biarkan pakai preview agar bisa diputar stabil di iframe
         return `https://drive.google.com/file/d/${result.id}/preview`; 
       }
       
@@ -218,26 +240,17 @@ export default function CreateTransaction() {
       const tglKembali = formData.waktu_pengembalian.split("T")[0];
       const jamKembali = formData.waktu_pengembalian.split("T")[1] + ":00";
 
-      // REVISI: Upload file ke folder masing-masing
       let linkFoto = null;
       let linkVideo = null;
 
       if (fotoFile && googleToken) {
-        linkFoto = await uploadToDrive(
-          fotoFile,
-          DRIVE_PHOTO_FOLDER_ID,
-          googleToken
-        );
+        linkFoto = await uploadToDrive(fotoFile, DRIVE_PHOTO_FOLDER_ID, googleToken);
       }
       if (videoFile && googleToken) {
-        linkVideo = await uploadToDrive(
-          videoFile,
-          DRIVE_VIDEO_FOLDER_ID,
-          googleToken
-        );
+        linkVideo = await uploadToDrive(videoFile, DRIVE_VIDEO_FOLDER_ID, googleToken);
       }
 
-      // REVISI: Masukkan nilai sisa pembayaran yang sudah terhitung otomatis
+      // Pastikan yang disimpan ke database adalah angka asli yang bebas dari titik
       const { error } = await supabase.from("transactions").insert([
         {
           customer_id: formData.customer_id,
@@ -272,9 +285,9 @@ export default function CreateTransaction() {
     }
   };
 
-  const getMinReturnDate = () => {
-    if (!formData.waktu) return "";
-    const pickupDate = new Date(formData.waktu);
+  const getMinReturnDate = (pickupDateString = formData.waktu) => {
+    if (!pickupDateString) return "";
+    const pickupDate = new Date(pickupDateString);
     pickupDate.setDate(pickupDate.getDate() + 1);
     const year = pickupDate.getFullYear();
     const month = String(pickupDate.getMonth() + 1).padStart(2, "0");
@@ -320,17 +333,15 @@ export default function CreateTransaction() {
                       Nama Customer (Cari / Pilih)
                     </label>
 
-                    {/* Bungkus input dan tombol X dalam div relative */}
                     <div className="position-relative">
                       <input
                         type="text"
-                        className="form-control bg-light border-0 py-2 pe-5" // pe-5 memberi ruang di kanan agar teks tidak tertimpa tombol X
+                        className="form-control bg-light border-0 py-2 pe-5"
                         placeholder="Ketik nama customer..."
                         value={searchTerm}
                         onChange={(e) => {
                           setSearchTerm(e.target.value);
                           setShowDropdown(true);
-                          // Reset ID jika user mengubah ketikan
                           setFormData((prev) => ({
                             ...prev,
                             customer_id: "",
@@ -342,21 +353,20 @@ export default function CreateTransaction() {
                         required={!formData.customer_id}
                       />
 
-                      {/* Tombol X (Clear Input) yang muncul hanya jika ada isinya */}
                       {searchTerm && (
                         <button
                           type="button"
                           className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
                           style={{ zIndex: 10 }}
                           onMouseDown={(e) => {
-                            e.preventDefault(); // Mencegah input kehilangan fokus
+                            e.preventDefault();
                             setSearchTerm("");
                             setFormData((prev) => ({
                               ...prev,
                               customer_id: "",
                               nama_customer: "",
                             }));
-                            setShowDropdown(true); // Langsung buka dropdown lagi setelah dihapus
+                            setShowDropdown(true);
                           }}
                         >
                           <i className="fas fa-times"></i>
@@ -364,7 +374,6 @@ export default function CreateTransaction() {
                       )}
                     </div>
 
-                    {/* Menu Dropdown yang melayang */}
                     {showDropdown && (
                       <ul
                         className="dropdown-menu show w-100 shadow border-0 mt-1"
@@ -449,9 +458,7 @@ export default function CreateTransaction() {
                       name="waktu_pengembalian"
                       value={formData.waktu_pengembalian}
                       onChange={handleChange}
-                      // Batasi minimal H+1 dari waktu ambil
                       min={getMinReturnDate()}
-                      // Kunci input jika jadwal ambil belum diisi
                       disabled={!formData.waktu}
                       className="form-control bg-light border-0 py-2"
                       required
@@ -513,8 +520,9 @@ export default function CreateTransaction() {
                         Rp
                       </span>
                       <input
-                        type="number"
+                        type="text"
                         name="total_pembayaran"
+                        value={formData.total_pembayaran}
                         onChange={handleChange}
                         className="form-control bg-light border-0 py-2"
                         placeholder="0"
@@ -533,8 +541,9 @@ export default function CreateTransaction() {
                         Rp
                       </span>
                       <input
-                        type="number"
+                        type="text"
                         name="dp"
+                        value={formData.dp}
                         onChange={handleChange}
                         className="form-control bg-light border-0 py-2"
                         placeholder="0"
@@ -551,11 +560,11 @@ export default function CreateTransaction() {
                       <span className="input-group-text bg-light border-0 text-muted">
                         Rp
                       </span>
-                      {/* INPUT INI SEKARANG READONLY DAN MENGHITUNG OTOMATIS */}
+                      {/* Diformat juga khusus untuk tampilan layar */}
                       <input
-                        type="number"
+                        type="text"
                         className="form-control bg-light border-0 py-2"
-                        value={currentSisaPay}
+                        value={new Intl.NumberFormat("id-ID").format(currentSisaPay)}
                         readOnly
                       />
                     </div>
@@ -567,7 +576,6 @@ export default function CreateTransaction() {
               </h6>
               <div className="row g-4 mb-4">
                 <div className="col-md-6">
-                  {/* Tombol Login Google jika belum ada token */}
                   {!googleToken && (
                     <button
                       type="button"

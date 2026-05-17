@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom"; // Tambahkan import Link
+import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
+import * as XLSX from "xlsx"; // TAMBAHAN: Import library Excel
 
 export default function Income() {
   // State untuk Supabase
@@ -68,15 +69,16 @@ export default function Income() {
     return new Intl.NumberFormat("id-ID").format(angka || 0);
   };
 
-  const exportToCSV = () => {
+  // --- FUNGSI EXPORT KE EXCEL ---
+  const exportToExcel = () => {
     if (filteredIncomes.length === 0) {
       alert("Tidak ada data untuk di-export!");
       return;
     }
 
     const fileName = filterMonth 
-      ? `Laporan_Pendapatan_${filterMonth}.csv` 
-      : "Laporan_Pendapatan_Semua_Waktu.csv";
+      ? `Laporan_Pendapatan_${filterMonth}.xlsx` 
+      : "Laporan_Pendapatan_Semua_Waktu.xlsx";
 
     const headers = [
       "No",
@@ -88,21 +90,31 @@ export default function Income() {
 
     const rows = filteredIncomes.map((item, index) => [
       index + 1,
-      `"${item.jenis_unit || "-"}"`,
-      `"${item.nomor_plat || "-"}"`,
+      item.jenis_unit || "-",
+      item.nomor_plat || "-",
       item.total_penghasilan || 0,
       item.total_jalan || 0,
     ]);
 
-    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const dataToExport = [headers, ...rows];
+
+    // Membuat Worksheet dan Workbook Excel
+    const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Pendapatan");
+
+    // Mengatur lebar kolom agar langsung rapi saat dibuka di Excel
+    const wscols = [
+      { wch: 5 },  // No
+      { wch: 30 }, // Jenis Unit
+      { wch: 15 }, // Nomor Plat
+      { wch: 25 }, // Total Penghasilan
+      { wch: 20 }, // Total Jalan
+    ];
+    worksheet["!cols"] = wscols;
+
+    // Trigger Download File Excel
+    XLSX.writeFile(workbook, fileName);
   };
 
   const resetFilters = () => {
@@ -125,8 +137,8 @@ export default function Income() {
           </div>
 
           <div className="d-flex gap-2">
-            <button onClick={exportToCSV} className="btn btn-success shadow-sm px-3" title="Export data ke Excel/CSV">
-              <i className="fas fa-file-excel me-2"></i>Export CSV
+            <button onClick={exportToExcel} className="btn btn-success shadow-sm px-3" title="Export data ke Excel">
+              <i className="fas fa-file-excel me-2"></i>Export Excel
             </button>
           </div>
         </div>

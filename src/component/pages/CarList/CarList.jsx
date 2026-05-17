@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
+import * as XLSX from "xlsx"; // TAMBAHAN: Import library Excel
 
 export default function CarList() {
   const [cars, setCars] = useState([]);
@@ -21,7 +22,6 @@ export default function CarList() {
     fetchCars();
   }, []);
 
-  // PERBAIKAN: Dikembalikan ke versi simpel, hanya menarik data dari tabel cars
   const fetchCars = async () => {
     try {
       setLoading(true);
@@ -90,7 +90,8 @@ export default function CarList() {
     return matchName || matchPlate;
   });
 
-  const exportToCSV = () => {
+  // PERBAIKAN: Fungsi Export diubah menjadi Excel
+  const exportToExcel = () => {
     const headers = [
       "No", "Nama Kendaraan", "Tipe", "Tahun", "Plat Nomor", "Transmisi",
       "Jatuh Tempo", "Tanggal Servis", "Tanggal Pajak", "No GPS",
@@ -99,7 +100,10 @@ export default function CarList() {
 
     const rows = filteredCars.map((car, index) => {
       const isGpsActive = checkGpsStatus(car.masa_aktif_gps) && car.status_gps === "Aktif" ? "Aktif" : "Tidak Aktif";
-      const keluhanClean = (car.keluhan_unit || "").replace(/,/g, " ").replace(/\n/g, " ");
+      
+      // Catatan: Tidak perlu lagi me-replace koma secara manual (keluhanClean)
+      // Karena library XLSX sudah pintar membedakan koma di dalam teks vs pemisah sel
+      const keluhan = car.keluhan_unit || "-";
 
       return [
         index + 1,
@@ -114,21 +118,40 @@ export default function CarList() {
         car.no_gps || "-",
         car.masa_aktif_gps || "-",
         isGpsActive,
-        `"${keluhanClean}"`,
+        keluhan,
         car.status_mobil || "-",
       ];
     });
 
-    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+    // Menggabungkan Header dan Data
+    const dataToExport = [headers, ...rows];
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Data_Armada_Rental_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Membuat Worksheet dan Workbook Excel
+    const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Armada");
+
+    // Mengatur lebar kolom secara otomatis (opsional biar rapi saat dibuka)
+    const wscols = [
+      { wch: 5 },  // No
+      { wch: 25 }, // Nama Kendaraan
+      { wch: 15 }, // Tipe
+      { wch: 10 }, // Tahun
+      { wch: 15 }, // Plat Nomor
+      { wch: 15 }, // Transmisi
+      { wch: 15 }, // Jatuh Tempo
+      { wch: 15 }, // Tgl Servis
+      { wch: 15 }, // Tgl Pajak
+      { wch: 20 }, // No GPS
+      { wch: 15 }, // Masa Aktif GPS
+      { wch: 15 }, // Status GPS
+      { wch: 40 }, // Keluhan (Lebih lebar)
+      { wch: 15 }, // Status
+    ];
+    worksheet["!cols"] = wscols;
+
+    // Trigger Download File Excel
+    XLSX.writeFile(workbook, `Data_Armada_Rental_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   // --- LOGIKA PAGINATION ---
@@ -148,8 +171,9 @@ export default function CarList() {
         </div>
 
         <div className="d-flex gap-2">
-          <button onClick={exportToCSV} className="btn btn-success shadow-sm px-3" title="Export data ke Excel/CSV">
-            <i className="fas fa-file-excel me-2"></i>Export CSV
+          {/* PERBAIKAN: Tombol dipanggil ke exportToExcel */}
+          <button onClick={exportToExcel} className="btn btn-success shadow-sm px-3" title="Export data ke Excel">
+            <i className="fas fa-file-excel me-2"></i>Export Excel
           </button>
           <Link to="/carlist/create" className="btn btn-primary shadow-sm px-3">
             <i className="fas fa-plus me-2"></i>Tambah Mobil
@@ -282,7 +306,6 @@ export default function CarList() {
                         {car.keluhan_unit || "-"}
                       </td>
 
-                      {/* PERBAIKAN: Rendering warna status dikembalikan ke setelan awal (Tersedia / Pemeliharaan) */}
                       <td className="text-center">
                         <span
                           className={`badge rounded-pill px-3 py-2 border ${

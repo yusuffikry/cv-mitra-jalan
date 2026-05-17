@@ -11,12 +11,21 @@ export default function EditOutcome() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // State untuk menampung input form
+  // Nilai total_pengeluaran akan disimpan dalam format string bertitik
   const [formData, setFormData] = useState({
     tanggal_pengeluaran: "",
     jenis_pengeluaran: "",
     keterangan: "",
     total_pengeluaran: "",
   });
+
+  // --- FUNGSI FORMAT INPUT UANG ---
+  // Menghapus karakter non-angka dan menyisipkan titik ribuan
+  const formatRupiahInput = (value) => {
+    if (!value) return "";
+    const numberString = value.toString().replace(/\D/g, ""); // Hapus huruf/simbol/minus
+    return new Intl.NumberFormat("id-ID").format(numberString);
+  };
 
   // --- AMBIL DATA EXISTING SAAT HALAMAN DIBUKA ---
   useEffect(() => {
@@ -42,7 +51,8 @@ export default function EditOutcome() {
           tanggal_pengeluaran: data.tanggal_pengeluaran || "",
           jenis_pengeluaran: data.jenis_pengeluaran || "",
           keterangan: data.keterangan || "",
-          total_pengeluaran: data.total_pengeluaran || "",
+          // Format angkanya langsung saat ditarik dari database
+          total_pengeluaran: data.total_pengeluaran ? formatRupiahInput(data.total_pengeluaran) : "",
         });
       }
     } catch (error) {
@@ -56,10 +66,20 @@ export default function EditOutcome() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    setFormData((prev) => {
+      let newValue = value;
+
+      // Auto-format jika yang diketik adalah total_pengeluaran
+      if (name === "total_pengeluaran") {
+        newValue = formatRupiahInput(value);
+      }
+
+      return {
+        ...prev,
+        [name]: newValue,
+      };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -74,6 +94,9 @@ export default function EditOutcome() {
     setIsSubmitting(true);
 
     try {
+      // Hapus titik sebelum disimpan kembali ke Supabase sebagai Integer murni
+      const rawTotalPengeluaran = parseInt(formData.total_pengeluaran.replace(/\./g, "")) || 0;
+
       // Update ke tabel expenses di Supabase
       const { error } = await supabase
         .from("expenses")
@@ -81,7 +104,7 @@ export default function EditOutcome() {
           tanggal_pengeluaran: formData.tanggal_pengeluaran,
           jenis_pengeluaran: formData.jenis_pengeluaran,
           keterangan: formData.keterangan || null,
-          total_pengeluaran: parseInt(formData.total_pengeluaran),
+          total_pengeluaran: rawTotalPengeluaran,
           updated_at: new Date().toISOString(), // Update timestamp jika ada
         })
         .eq("expense_id", id);
@@ -174,14 +197,14 @@ export default function EditOutcome() {
                     <label className="form-label text-secondary small fw-bold">Total Pengeluaran (Rp) <span className="text-danger">*</span></label>
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      {/* UBAH KE text AGAR FORMAT TITIK BISA MUNCUL */}
                       <input
-                        type="number"
+                        type="text"
                         name="total_pengeluaran"
                         value={formData.total_pengeluaran}
                         onChange={handleChange}
                         className="form-control bg-light border-0 py-2 shadow-none"
                         placeholder="0"
-                        min="0"
                         required
                       />
                     </div>

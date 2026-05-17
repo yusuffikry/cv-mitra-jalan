@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
+import * as XLSX from "xlsx"; // TAMBAHAN: Import library Excel
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -73,50 +74,60 @@ export default function Customers() {
     setCustomerToDelete(null);
   };
 
-  const exportToCSV = () => {
-    const headers = [
-      "No", "Nama Pelanggan", "NIK", "Kontak", 
-      "Alamat (Domisili)", "Kota Rental", "Total Rental", "Status",
-    ];
-
-    const rows = customers.map((cust, index) => {
-      const displayStatus = cust.status === 'active' ? 'Aktif' : cust.status === 'blacklist' ? 'Blacklist' : cust.status;
-      
-      return [
-        index + 1,
-        `"${cust.nama_pelanggan || "-"}"`, 
-        `'${cust.nik || "-"}`, 
-        `'${cust.kontak || "-"}`, 
-        `"${cust.alamat || "-"}"`,
-        `"${cust.kota || "-"}"`,
-        cust.total_rental || 0,
-        displayStatus,
-      ];
-    });
-
-    const csvContent = [
-      headers.join(","), 
-      ...rows.map((row) => row.join(",")), 
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "Data_Pelanggan.csv"); 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // --- LOGIKA PENCARIAN ---
+  // --- LOGIKA PENCARIAN (Dipindah ke atas agar bisa dipakai oleh fungsi Excel) ---
   const filteredCustomers = customers.filter((cust) => {
     const searchLower = searchTerm.toLowerCase();
     const matchName = (cust.nama_pelanggan || "").toLowerCase().includes(searchLower);
     const matchNik = (cust.nik || "").toLowerCase().includes(searchLower);
     return matchName || matchNik;
   });
+
+  // --- FUNGSI EXPORT KE EXCEL ---
+  const exportToExcel = () => {
+    const headers = [
+      "No", "Nama Pelanggan", "NIK", "Kontak", 
+      "Alamat (Domisili)", "Kota Rental", "Total Rental", "Status",
+    ];
+
+    const rows = filteredCustomers.map((cust, index) => {
+      const displayStatus = cust.status === 'active' ? 'Aktif' : cust.status === 'blacklist' ? 'Blacklist' : (cust.status || "-");
+      
+      // Bersih dari karakter ekstra karena Excel sudah menanganinya otomatis
+      return [
+        index + 1,
+        cust.nama_pelanggan || "-", 
+        cust.nik || "-", 
+        cust.kontak || "-", 
+        cust.alamat || "-",
+        cust.kota || "-",
+        cust.total_rental || 0,
+        displayStatus,
+      ];
+    });
+
+    const dataToExport = [headers, ...rows];
+
+    // Membuat Worksheet dan Workbook Excel
+    const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Pelanggan");
+
+    // Mengatur lebar kolom agar langsung rapi saat dibuka di Excel
+    const wscols = [
+      { wch: 5 },  // No
+      { wch: 30 }, // Nama Pelanggan
+      { wch: 20 }, // NIK
+      { wch: 15 }, // Kontak
+      { wch: 40 }, // Alamat
+      { wch: 15 }, // Kota Rental
+      { wch: 15 }, // Total Rental
+      { wch: 15 }, // Status
+    ];
+    worksheet["!cols"] = wscols;
+
+    // Trigger Download File Excel
+    XLSX.writeFile(workbook, `Data_Pelanggan_${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
 
   // --- LOGIKA PAGINATION ---
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -134,8 +145,9 @@ export default function Customers() {
         </div>
 
         <div className="d-flex gap-2">
-          <button onClick={exportToCSV} className="btn btn-success shadow-sm px-3" title="Export data ke Excel/CSV">
-            <i className="fas fa-file-excel me-2"></i>Export CSV
+          {/* PERBAIKAN: Tombol dipanggil ke exportToExcel */}
+          <button onClick={exportToExcel} className="btn btn-success shadow-sm px-3" title="Export data ke Excel">
+            <i className="fas fa-file-excel me-2"></i>Export Excel
           </button>
           <Link to="/customers/create" className="btn btn-primary shadow-sm px-3">
             <i className="fas fa-plus me-2"></i>Tambah Pelanggan
@@ -219,7 +231,6 @@ export default function Customers() {
 
                   return (
                     <tr key={cust.customer_id}>
-                      {/* Nomor urut disesuaikan dengan halaman */}
                       <td className="px-4 text-muted">{indexOfFirstItem + index + 1}</td>
                       <td>
                         <div className="fw-bold text-dark">{cust.nama_pelanggan || "-"}</div>

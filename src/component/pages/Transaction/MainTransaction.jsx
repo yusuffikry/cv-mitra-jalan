@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import ShowTransaction from "./ShowTransaction";
 import { supabase } from "../../../supabaseClient";
+import * as XLSX from "xlsx"; // TAMBAHAN: Import library Excel
 
 export default function MainTransaction() {
   const [selectedData, setSelectedData] = useState(null);
@@ -137,7 +138,8 @@ export default function MainTransaction() {
     return new Intl.NumberFormat("id-ID").format(angka);
   };
 
-  const exportToCSV = () => {
+  // --- FUNGSI EXPORT KE EXCEL ---
+  const exportToExcel = () => {
     const headers = [
       "No",
       "ID Transaksi",
@@ -158,34 +160,51 @@ export default function MainTransaction() {
 
     const rows = filteredTransactions.map((trx, index) => [
       index + 1,
-      `"TRX-${trx.transaction_id?.substring(0, 8).toUpperCase()}"`,
-      `"${new Date(trx.created_at).toLocaleDateString("id-ID")}"`,
-      `"${trx.tanggal_sewa} ${trx.jam_sewa || ""}"`,
-      `"${trx.customers?.nama_pelanggan || "-"}"`,
-      `"${trx.cars?.jenis_unit?.split(" ")[0] || "-"}"`,
-      `"${trx.cars?.jenis_unit || "-"}"`,
-      `"${trx.cars?.nomor_plat || "-"}"`,
-      `"${trx.cars?.transmisi || "-"}"`,
-      `"${trx.rute || "-"}"`,
+      `TRX-${trx.transaction_id?.substring(0, 8).toUpperCase()}`,
+      new Date(trx.created_at).toLocaleDateString("id-ID"),
+      `${trx.tanggal_sewa} ${trx.jam_sewa || ""}`,
+      trx.customers?.nama_pelanggan || "-",
+      trx.cars?.jenis_unit?.split(" ")[0] || "-",
+      trx.cars?.jenis_unit || "-",
+      trx.cars?.nomor_plat || "-",
+      trx.cars?.transmisi || "-",
+      trx.rute || "-",
       trx.jumlah_hari || 0,
       trx.dp || 0,
       trx.sisa_pembayaran || 0,
       trx.total_pembayaran || 0,
-      `"${trx.keterangan || "-"}"`,
+      trx.keterangan || "-",
     ]);
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((e) => e.join(",")),
-    ].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "Data_Transaksi_Rental.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const dataToExport = [headers, ...rows];
+
+    // Membuat Worksheet dan Workbook Excel
+    const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Transaksi");
+
+    // Mengatur lebar kolom agar langsung rapi saat dibuka di Excel
+    const wscols = [
+      { wch: 5 },  // No
+      { wch: 15 }, // ID Transaksi
+      { wch: 15 }, // Dibuat Pada
+      { wch: 20 }, // Waktu Peminjaman
+      { wch: 25 }, // Nama Customer
+      { wch: 15 }, // Merek Mobil
+      { wch: 25 }, // Tipe Unit
+      { wch: 15 }, // Plat Nomor
+      { wch: 15 }, // Transmisi
+      { wch: 15 }, // Rute
+      { wch: 15 }, // Jumlah Hari
+      { wch: 15 }, // DP
+      { wch: 20 }, // Sisa Pembayaran
+      { wch: 20 }, // Total Pembayaran
+      { wch: 30 }, // Keterangan
+    ];
+    worksheet["!cols"] = wscols;
+
+    // Trigger Download File Excel
+    XLSX.writeFile(workbook, `Data_Transaksi_Rental_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   const resetFilters = () => {
@@ -217,12 +236,13 @@ export default function MainTransaction() {
           </div>
 
           <div className="d-flex gap-2">
+            {/* PERBAIKAN: Tombol dipanggil ke exportToExcel */}
             <button
-              onClick={exportToCSV}
+              onClick={exportToExcel}
               className="btn btn-success shadow-sm px-3"
-              title="Export data ke Excel/CSV"
+              title="Export data ke Excel"
             >
-              <i className="fas fa-file-excel me-2"></i>Export CSV
+              <i className="fas fa-file-excel me-2"></i>Export Excel
             </button>
             <Link
               to="/transaction/create"
@@ -294,7 +314,6 @@ export default function MainTransaction() {
 
           {/* Area Tabel */}
           <div className="card-body p-0 flex-grow-1 overflow-auto">
-            {/* PERBAIKAN 1: Hapus text-nowrap agar tabel pas di layar dan teks panjang bisa turun ke bawah */}
             <table
               className="table table-hover align-middle mb-0"
               style={{ fontSize: "0.85rem" }}
@@ -467,7 +486,6 @@ export default function MainTransaction() {
           {/* Footer & Pagination */}
           <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
             <div className="d-flex justify-content-between align-items-center">
-              {/* PERBAIKAN 2: Ubah teks menjadi format "Showing X to Y of Z entries" */}
               <span className="text-muted small">
                 Showing{" "}
                 {filteredTransactions.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
@@ -475,7 +493,6 @@ export default function MainTransaction() {
                 {filteredTransactions.length} entries
               </span>
 
-              {/* PERBAIKAN 3: Sembunyikan pagination jika data cuma 1 halaman (<= 10 entries) */}
               {totalPages > 1 && (
                 <nav>
                   <ul className="pagination pagination-sm mb-0">
