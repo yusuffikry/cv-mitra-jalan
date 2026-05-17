@@ -79,7 +79,6 @@ export default function Pemantauan() {
         alert("Browser tidak mendukung GPS");
       }
     }
-
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
     };
