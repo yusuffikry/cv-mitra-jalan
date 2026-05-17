@@ -7,6 +7,10 @@ import { gsap } from "gsap";
 
 export default function Main() {
   const [showText, setShowText] = useState(true);
+  
+  // PERBAIKAN: Memindahkan state collapsed ke induk (Main.jsx)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
   const fabRef = useRef(null);
   const bubbleRef = useRef(null);
 
@@ -52,13 +56,33 @@ export default function Main() {
   };
 
   return (
-    <div className="flex h-screen bg-neutral-100 overflow-hidden position-relative">
-      <Navside />
-      <div className="flex-1 flex flex-col min-w-0">
+    <div className="d-flex vh-100 bg-light overflow-hidden position-relative">
+      
+      {/* Melempar state ke Navside */}
+      <Navside 
+        isCollapsed={isSidebarCollapsed} 
+        setIsCollapsed={setIsSidebarCollapsed} 
+      />
+      
+      {/* PERBAIKAN: Lebar margin menyesuaikan ukuran Navside. 
+        Jika collapse = 85px, jika tidak = 280px. Diberi transisi agar smooth!
+      */}
+      <div 
+        className="d-flex flex-column flex-grow-1 w-100"
+        style={{ 
+          marginLeft: isSidebarCollapsed ? "85px" : "280px", 
+          transition: "margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)" 
+        }}
+      >
         <Nav />
-    
+        <main className="flex-grow-1 overflow-auto p-4 custom-scrollbar">
+          <div className="container-fluid h-100 px-0 max-w-7xl mx-auto">
+            <Outlet />
+          </div>
+        </main>
         <FooterNav />
       </div>
+
       <div
         className="position-fixed d-flex align-items-center"
         style={{

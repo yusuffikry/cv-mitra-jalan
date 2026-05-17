@@ -1,16 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
-// Install lucide-react jika ingin menggunakan ikon: npm install lucide-react
 import {
-  LayoutDashboard,
-  Package,
-  Truck,
-  FileText,
   TrendingUp,
-  LogOut,
-  Search,
-  Bell,
   Car,
   Activity,
   AlertTriangle,
@@ -37,13 +29,15 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     pemasukan: 0,
     pengeluaran: 0,
-    mobilTotal: 0,
-    mobilJalan: 0,
+    mobilTersedia: 0,
+    mobilPemeliharaan: 0,
   });
+  
   const [chartData, setChartData] = useState([]);
   const [pieData, setPieData] = useState([]);
   const [topCars, setTopCars] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
+  
   const parseNumber = (val) => {
     if (!val) return 0;
     const cleanStr = String(val).replace(/\D/g, "");
@@ -87,16 +81,14 @@ export default function Dashboard() {
         0,
       );
 
-      const today = new Date().toISOString().split("T")[0];
-      const mobilJalan = transactions.filter(
-        (t) => t.tanggal_sewa <= today && t.tanggal_pengembalian >= today,
-      ).length;
+      const totalTersedia = cars.filter(c => c.status_mobil === "Tersedia").length;
+      const totalPemeliharaan = cars.filter(c => c.status_mobil === "Pemeliharaan").length;
 
       setStats({
         pemasukan: totalPemasukan,
         pengeluaran: totalPengeluaran,
-        mobilTotal: cars.length,
-        mobilJalan: mobilJalan,
+        mobilTersedia: totalTersedia,
+        mobilPemeliharaan: totalPemeliharaan,
       });
 
       setPieData([
@@ -181,6 +173,7 @@ export default function Dashboard() {
     return new Intl.NumberFormat("id-ID").format(angka);
   };
 
+  // --- KOMPONEN DALAM ---
   const StatCard = ({ title, value, color, isAlert = false, detail }) => {
     const colors = {
       blue: "border-blue-500",
@@ -198,7 +191,7 @@ export default function Dashboard() {
         <div className="flex items-end justify-between">
           <div>
             <p
-              className={`text-xl font-bold ${isAlert ? "text-rose-600" : "text-gray-800"}`}
+              className={`text-xl font-bold ${isAlert ? "text-amber-600" : "text-gray-800"}`}
             >
               {value}
             </p>
@@ -209,7 +202,7 @@ export default function Dashboard() {
           {isAlert && (
             <AlertTriangle
               size={20}
-              className="text-rose-500 animate-pulse mb-1"
+              className="text-amber-500 animate-pulse mb-1"
             />
           )}
         </div>
@@ -274,8 +267,6 @@ export default function Dashboard() {
     );
   }
 
-  const isIncomeHigher = stats.pemasukan >= stats.pengeluaran;
-
   return (
     <div className="h-full w-full bg-gray-50 font-sans">
       <div className="p-6 lg:p-8 pb-32 space-y-6 max-w-7xl mx-auto w-full">
@@ -294,24 +285,25 @@ export default function Dashboard() {
           <StatCard
             title="Total Pemasukan"
             value={`Rp ${formatRupiah(stats.pemasukan)}`}
-            color={isIncomeHigher ? "green" : "red"}
+            color="green"
           />
           <StatCard
             title="Total Pengeluaran"
             value={`Rp ${formatRupiah(stats.pengeluaran)}`}
-            color={!isIncomeHigher ? "green" : "red"}
+            color="red"
           />
           <StatCard
-            title="Mobil Sedang Jalan"
-            value={`${stats.mobilJalan} Unit`}
+            title="Mobil Tersedia"
+            value={`${stats.mobilTersedia} Unit`}
             color="blue"
-            detail="Sedang disewa pelanggan"
+            detail="Tersedia di garasi"
           />
           <StatCard
-            title="Mobil Standby"
-            value={`${stats.mobilTotal - stats.mobilJalan} Unit`}
+            title="Mobil Pemeliharaan"
+            value={`${stats.mobilPemeliharaan} Unit`}
             color="yellow"
-            detail="Tersedia di garasi"
+            detail="Sedang dalam perbaikan"
+            isAlert={stats.mobilPemeliharaan > 0} 
           />
         </div>
 
@@ -334,7 +326,6 @@ export default function Dashboard() {
             </div>
             <div className="h-64 lg:h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                {/* PERBAIKAN: Margin disesuaikan agar grafik tetap presisi di tengah */}
                 <LineChart
                   data={chartData}
                   margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
@@ -352,7 +343,6 @@ export default function Dashboard() {
                     dy={10}
                   />
 
-                  {/* PERBAIKAN: width={80}, font dikecilkan sedikit, dan "Rp" dikembalikan */}
                   <YAxis
                     type="number"
                     width={80}
@@ -581,66 +571,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-// --- Sub-components (Disesuaikan agar tidak konflik) ---
-
-const StatCard = ({ title, value, color, isAlert = false }) => {
-  const colors = {
-    blue: "border-blue-500",
-    green: "border-green-500",
-    yellow: "border-yellow-500",
-    red: "border-red-500",
-  };
-  return (
-    <div
-      className={`bg-white p-5 rounded-xl shadow-sm border-l-4 ${colors[color]} hover:shadow-md transition-shadow`}
-    >
-      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
-        {title}
-      </p>
-      <div className="flex items-center justify-between mt-1">
-        <p
-          className={`text-2xl font-bold ${isAlert ? "text-red-600" : "text-gray-800"}`}
-        >
-          {value}
-        </p>
-        {isAlert && (
-          <AlertTriangle size={20} className="text-red-500 animate-pulse" />
-        )}
-      </div>
-    </div>
-  );
-};
-
-const TableRow = ({ name, cat, qty, status, color }) => {
-  const badge = {
-    green: "bg-green-100 text-green-700",
-    yellow: "bg-yellow-100 text-yellow-700",
-    red: "bg-red-100 text-red-700",
-  };
-  return (
-    <tr className="hover:bg-gray-50 transition-colors">
-      <td className="p-4 font-medium text-gray-700">{name}</td>
-      <td className="p-4 text-gray-500">{cat}</td>
-      <td className="p-4 font-semibold">{qty}</td>
-      <td className="p-4">
-        <span
-          className={`${badge[color]} px-2.5 py-1 rounded-md text-[10px] font-bold uppercase`}
-        >
-          {status}
-        </span>
-      </td>
-    </tr>
-  );
-};
-
-const ActivityItem = ({ label, desc, time }) => (
-  <div className="relative pl-6 border-l-2 border-gray-100 pb-2">
-    <div className="absolute -left-[7px] top-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
-    <p className="text-sm font-semibold text-gray-800">{label}</p>
-    <p className="text-xs text-gray-500">{desc}</p>
-    <p className="text-[10px] text-gray-400 mt-1 uppercase font-medium">
-      {time}
-    </p>
-  </div>
-);

@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { gsap } from "gsap";
 
-export default function Navside() {
+// PERBAIKAN: Menerima props isCollapsed dan setIsCollapsed dari Main.jsx
+export default function Navside({ isCollapsed, setIsCollapsed }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const sidebarRef = useRef(null);
 
   const isActive = (path) =>
@@ -56,6 +56,12 @@ export default function Navside() {
       ease: "power2.in",
       backgroundColor: "transparent",
     });
+  };
+
+  // PERBAIKAN: Tambahkan navigasi setelah logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
   };
 
   if (loading) return null;
@@ -295,7 +301,7 @@ export default function Navside() {
         <div className="px-2 pb-3">
           <button
             className="btn btn-outline-light btn-sm w-100 d-flex align-items-center justify-content-center"
-            onClick={() => supabase.auth.signOut()}
+            onClick={handleLogout}
           >
             <i className="fas fa-sign-out-alt"></i>
             {!isCollapsed && <span className="ms-2 nav-text">Logout</span>}
