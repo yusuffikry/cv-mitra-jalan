@@ -182,6 +182,7 @@ export default function EditTransaction() {
 
       const result = await response.json();
       
+      // REVISI: Samakan format link dengan Create (Direct Link untuk Foto)
       if (file.type.startsWith("image/")) {
         return `https://drive.google.com/thumbnail?id=${result.id}&sz=w1000`;
       } else {
@@ -194,7 +195,6 @@ export default function EditTransaction() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
     setFormData((prev) => {
       let newValue = value;
 
@@ -241,6 +241,7 @@ export default function EditTransaction() {
       return;
     }
 
+    // Jika admin mau ganti file tapi belum login google
     if ((fotoFile || videoFile) && !googleToken) {
       alert("Silahkan login google dulu untuk upload file baru");
       return;
@@ -256,6 +257,7 @@ export default function EditTransaction() {
         jumlah_hari = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
       }
 
+      // Handle Upload (Gunakan link lama jika tidak ada file baru yang dipilih)
       let linkFoto = formData.foto_mobil;
       let linkVideo = formData.video_mobil;
 
@@ -266,7 +268,10 @@ export default function EditTransaction() {
         linkVideo = await uploadToDrive(videoFile, DRIVE_VIDEO_FOLDER_ID, googleToken);
       }
 
-      // Pastikan kirim data ke Supabase tanpa titik
+      // --- LOGIKA STATUS PEMBAYARAN OTOMATIS ---
+      const statusOtomatis = currentDp > 0 ? "Belum Lunas" : "Lunas";
+
+      // Proses UPDATE
       const { error } = await supabase
         .from("transactions")
         .update({
@@ -278,9 +283,10 @@ export default function EditTransaction() {
           jam_pengembalian: formData.waktu_pengembalian.split("T")[1] + ":00",
           rute: formData.rute,
           jumlah_hari: jumlah_hari,
-          dp: currentDp, // Udah berupa integer
-          total_pembayaran: currentTotalPay, // Udah berupa integer
-          sisa_pembayaran: currentSisaPay, // Udah berupa integer
+          dp: currentDp,
+          total_pembayaran: currentTotalPay,
+          sisa_pembayaran: currentSisaPay,
+          status_pembayaran: statusOtomatis, // Terkirim otomatis saat update
           keterangan: formData.keterangan || null,
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
@@ -519,7 +525,6 @@ export default function EditTransaction() {
                     <label className="form-label text-secondary small fw-bold">Sisa Pembayaran (Otomatis)</label>
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">Rp</span>
-                      {/* Diformat jadi string dengan titik */}
                       <input
                         type="text"
                         className="form-control bg-light border-0 py-2"

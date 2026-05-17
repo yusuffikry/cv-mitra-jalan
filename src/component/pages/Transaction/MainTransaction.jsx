@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import ShowTransaction from "./ShowTransaction";
 import { supabase } from "../../../supabaseClient";
-import * as XLSX from "xlsx"; // TAMBAHAN: Import library Excel
+import * as XLSX from "xlsx"; 
 
 export default function MainTransaction() {
   const [selectedData, setSelectedData] = useState(null);
@@ -88,6 +88,7 @@ export default function MainTransaction() {
       dp: formatRupiah(trx.dp || 0),
       sisa_pembayaran: formatRupiah(trx.sisa_pembayaran || 0),
       total_pembayaran: formatRupiah(trx.total_pembayaran || 0),
+      status_pembayaran: trx.status_pembayaran || "Belum Lunas", // TAMBAHAN STATUS
       keterangan: trx.keterangan || "Tidak ada keterangan.",
       dibuat: new Date(trx.created_at).toLocaleDateString("id-ID", {
         day: "numeric",
@@ -155,6 +156,7 @@ export default function MainTransaction() {
       "DP (Rp)",
       "Sisa Pembayaran (Rp)",
       "Total Pembayaran (Rp)",
+      "Status Pembayaran", // TAMBAHAN HEADER STATUS
       "Keterangan",
     ];
 
@@ -173,6 +175,7 @@ export default function MainTransaction() {
       trx.dp || 0,
       trx.sisa_pembayaran || 0,
       trx.total_pembayaran || 0,
+      trx.status_pembayaran || "-", // TAMBAHAN DATA STATUS
       trx.keterangan || "-",
     ]);
 
@@ -199,6 +202,7 @@ export default function MainTransaction() {
       { wch: 15 }, // DP
       { wch: 20 }, // Sisa Pembayaran
       { wch: 20 }, // Total Pembayaran
+      { wch: 18 }, // Status Pembayaran
       { wch: 30 }, // Keterangan
     ];
     worksheet["!cols"] = wscols;
@@ -236,7 +240,6 @@ export default function MainTransaction() {
           </div>
 
           <div className="d-flex gap-2">
-            {/* PERBAIKAN: Tombol dipanggil ke exportToExcel */}
             <button
               onClick={exportToExcel}
               className="btn btn-success shadow-sm px-3"
@@ -355,15 +358,22 @@ export default function MainTransaction() {
                   </th>
                   <th
                     className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start"
-                    style={{ width: "15%" }}
+                    style={{ width: "10%" }}
                   >
                     Keterangan
                   </th>
                   <th
                     className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-end text-nowrap"
-                    style={{ width: "15%" }}
+                    style={{ width: "10%" }}
                   >
                     Total Pembayaran
+                  </th>
+                  {/* TAMBAHAN KOLOM STATUS */}
+                  <th
+                    className="px-3 py-3 text-center text-secondary fw-bold text-uppercase border-bottom text-nowrap"
+                    style={{ width: "10%" }}
+                  >
+                    Status
                   </th>
                   <th
                     className="px-4 py-3 text-center text-secondary fw-bold text-uppercase border-bottom text-nowrap"
@@ -376,7 +386,7 @@ export default function MainTransaction() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-5 text-muted">
+                    <td colSpan="9" className="text-center py-5 text-muted">
                       <div
                         className="spinner-border spinner-border-sm me-2"
                         role="status"
@@ -386,12 +396,14 @@ export default function MainTransaction() {
                   </tr>
                 ) : currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-5 text-muted">
+                    <td colSpan="9" className="text-center py-5 text-muted">
                       Tidak ada transaksi yang ditemukan.
                     </td>
                   </tr>
                 ) : (
                   currentItems.map((item, index) => {
+                    const isLunas = item.status_pembayaran === "Lunas";
+
                     return (
                       <tr key={item.transaction_id}>
                         <td className="px-4 text-muted text-center">
@@ -436,13 +448,26 @@ export default function MainTransaction() {
 
                         <td
                           className="px-3 text-start text-wrap text-muted"
-                          style={{ minWidth: "150px" }}
+                          style={{ minWidth: "120px" }}
                         >
                           {item.keterangan || "-"}
                         </td>
 
                         <td className="px-4 text-end fw-bold text-success text-nowrap">
                           Rp {formatRupiah(item.total_pembayaran || 0)}
+                        </td>
+
+                        {/* TAMPILAN STATUS */}
+                        <td className="px-3 text-center">
+                          <span
+                            className={`badge border rounded-pill px-2 py-1 ${
+                              isLunas
+                                ? "bg-success-subtle text-success border-success-subtle"
+                                : "bg-danger-subtle text-danger border-danger-subtle"
+                            }`}
+                          >
+                            {item.status_pembayaran || "Belum Lunas"}
+                          </span>
                         </td>
 
                         <td className="px-4 text-center text-nowrap">

@@ -250,6 +250,9 @@ export default function CreateTransaction() {
         linkVideo = await uploadToDrive(videoFile, DRIVE_VIDEO_FOLDER_ID, googleToken);
       }
 
+      // --- LOGIKA STATUS PEMBAYARAN OTOMATIS ---
+      const statusOtomatis = currentDp > 0 ? "Belum Lunas" : "Lunas";
+
       // Pastikan yang disimpan ke database adalah angka asli yang bebas dari titik
       const { error } = await supabase.from("transactions").insert([
         {
@@ -264,6 +267,7 @@ export default function CreateTransaction() {
           dp: currentDp,
           total_pembayaran: currentTotalPay,
           sisa_pembayaran: currentSisaPay,
+          status_pembayaran: statusOtomatis, // Terkirim otomatis tanpa input manual admin
           keterangan: formData.keterangan || null,
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
@@ -560,7 +564,6 @@ export default function CreateTransaction() {
                       <span className="input-group-text bg-light border-0 text-muted">
                         Rp
                       </span>
-                      {/* Diformat juga khusus untuk tampilan layar */}
                       <input
                         type="text"
                         className="form-control bg-light border-0 py-2"
