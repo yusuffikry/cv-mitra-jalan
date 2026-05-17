@@ -44,11 +44,8 @@ export default function Dashboard() {
   const [pieData, setPieData] = useState([]);
   const [topCars, setTopCars] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
-
-  // --- PEMBERSIH ANGKA BRUTAL ---
   const parseNumber = (val) => {
     if (!val) return 0;
-    // Hapus SEMUA karakter selain angka (termasuk titik, koma, huruf, dll)
     const cleanStr = String(val).replace(/\D/g, "");
     return Number(cleanStr) || 0;
   };
@@ -127,7 +124,6 @@ export default function Dashboard() {
         const dayName = new Date(date).toLocaleDateString("id-ID", {
           weekday: "short",
         });
-        // DIJAMIN murni number
         return {
           name: dayName,
           pemasukan: Number(dailyIncome),

@@ -7,37 +7,25 @@ export default function Navside() {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const sidebarRef = useRef(null);
 
   const isActive = (path) =>
     location.pathname === path ? "active-custom" : "link-light-custom";
+
   useEffect(() => {
     const checkInitialSession = async () => {
       try {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        if (!session) {
-          navigate("/");
-        } else {
-          setLoading(false);
-        }
+        if (!session) navigate("/");
+        else setLoading(false);
       } catch (err) {
         navigate("/");
       }
     };
     checkInitialSession();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" || !session) {
-        navigate("/");
-      }
-    });
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [navigate]);
 
   useEffect(() => {
@@ -53,7 +41,7 @@ export default function Navside() {
   const onMouseEnter = (el) => {
     if (window.innerWidth > 992) {
       gsap.to(el, {
-        x: 8,
+        x: isCollapsed ? 4 : 8,
         duration: 0.3,
         ease: "power2.out",
         backgroundColor: "rgba(255,255,255,0.08)",
@@ -74,39 +62,13 @@ export default function Navside() {
 
   return (
     <>
-      <nav
-        className="navbar navbar-dark d-lg-none border-bottom px-3 sticky-top"
-        style={{ backgroundColor: "#1e293b", zIndex: 1030 }}
-      >
-        <button
-          className="navbar-toggler border-0"
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-        <span className="fw-bold text-white ms-2">MITRA JALAN</span>
-      </nav>
-      {isOpen && (
-        <div
-          className="position-fixed vh-100 vw-100 d-lg-none"
-          style={{
-            background: "rgba(0,0,0,0.6)",
-            zIndex: 1040,
-            top: 0,
-            left: 0,
-          }}
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
       <div
         ref={sidebarRef}
-        className={`d-flex flex-column flex-shrink-0 p-3 sidebar-wrapper ${isOpen ? "show-sidebar" : ""}`}
+        className={`d-flex flex-column flex-shrink-0 p-3 sidebar-wrapper ${isCollapsed ? "collapsed-mode" : ""}`}
         style={{
-          width: "280px",
+          width: isCollapsed ? "85px" : "280px",
           height: "100vh",
-          position: window.innerWidth < 992 ? "fixed" : "sticky",
+          position: "fixed",
           top: 0,
           left: 0,
           zIndex: 1050,
@@ -114,96 +76,144 @@ export default function Navside() {
           color: "#cbd5e1",
           overflowY: "auto",
           overflowX: "hidden",
-          transition: "transform 0.3s ease-in-out",
+          transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <div className="d-flex align-items-center justify-content-between mb-3 px-2">
+        <div
+          className={`d-flex align-items-center mb-3 px-2 ${isCollapsed ? "flex-column gap-3" : "justify-content-between"}`}
+        >
           <Link
             to="/dashboard"
-            className="d-flex align-items-center text-decoration-none"
+            className={`d-flex align-items-center text-decoration-none overflow-hidden ${isCollapsed ? "justify-content-center" : ""}`}
           >
             <img
               src="/Image/logoMjN.jpeg"
-              width="35"
-              height="35"
-              className="rounded-circle me-2 border border-secondary"
+              width={isCollapsed ? "50" : "35"}
+              height={isCollapsed ? "50" : "35"}
+              className="rounded-circle border border-secondary flex-shrink-0 transition-all"
+              style={{ transition: "all 0.3s ease" }}
               alt="Logo"
             />
-            <span className="fs-5 fw-bold text-white">MITRA JALAN</span>
+            {!isCollapsed && (
+              <span className="fs-5 fw-bold text-white nav-text ms-2">
+                MITRA JALAN
+              </span>
+            )}
           </Link>
           <button
-            className="btn text-white d-lg-none"
-            onClick={() => setIsOpen(false)}
+            className="btn text-white p-1"
+            onClick={() => setIsCollapsed(!isCollapsed)}
           >
-            <i className="fas fa-times"></i>
+            <i
+              className={`fas ${isCollapsed ? "fa-bars" : "fa-outdent"}`}
+              style={{ fontSize: isCollapsed ? "20px" : "inherit" }}
+            ></i>
           </button>
         </div>
 
         <hr className="border-secondary opacity-25" />
-
         <div
           className="d-flex align-items-center mb-3 p-2 rounded"
           style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
         >
           <img
             src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
-            className="rounded-circle me-2 border border-secondary"
+            className="rounded-circle me-2 border border-secondary flex-shrink-0"
             alt="User"
             style={{ width: "38px" }}
           />
-          <div className="lh-1">
-            <small className="fw-bold d-block text-white">Pria Also</small>
-            <small className="text-secondary" style={{ fontSize: "11px" }}>
-              Administrator
-            </small>
-          </div>
+          {!isCollapsed && (
+            <div className="lh-1 nav-text">
+              <small className="fw-bold d-block text-white">Pria Also</small>
+              <small className="text-secondary" style={{ fontSize: "11px" }}>
+                Administrator
+              </small>
+            </div>
+          )}
         </div>
-
         <ul className="nav nav-pills flex-column mb-auto">
-          <li
-            className="nav-item small text-secondary text-uppercase fw-bold mb-2 px-2"
-            style={{ fontSize: "10px", letterSpacing: "1.2px", opacity: 0.6 }}
-          >
-            Main Menu
-          </li>
-          {[
-            {
-              to: "/dashboard",
-              icon: "fas fa-tachometer-alt",
-              label: "Dashboard",
-            },
-            { to: "/carlist", icon: "fas fa-car", label: "Car List" },
-            { to: "/customers", icon: "fas fa-users", label: "Customer List" },
-            {
-              to: "/transaction",
-              icon: "fas fa-receipt",
-              label: "Transaction",
-            },
-          ].map((item, idx) => (
-            <li key={idx} className="nav-item">
-              <Link
-                to={item.to}
-                className={`nav-link mb-1 d-flex align-items-center ${isActive(item.to)}`}
-                onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
-                onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
-                onClick={() => setIsOpen(false)}
-              >
-                <i
-                  className={`${item.icon} me-3`}
-                  style={{ width: "20px" }}
-                ></i>
-                <span>{item.label}</span>
-              </Link>
+          {!isCollapsed && (
+            <li className="nav-item small text-secondary text-uppercase fw-bold mb-2 px-2 section-title">
+              Main Menu
             </li>
-          ))}
+          )}
 
-          <li
-            className="nav-item small text-secondary text-uppercase fw-bold mt-4 mb-2 px-2"
-            style={{ fontSize: "10px", letterSpacing: "1.2px", opacity: 0.6 }}
-          >
-            Profit
+          <li className="nav-item position-relative menu-item">
+            <Link
+              to="/dashboard"
+              className={`nav-link mb-1 d-flex align-items-center ${isActive("/dashboard")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i
+                className="fas fa-tachometer-alt nav-icon text-center"
+                style={{ width: "25px" }}
+              ></i>
+              {!isCollapsed && <span className="ms-3 nav-text">Dashboard</span>}
+              {isCollapsed && <div className="custom-tooltip">Dashboard</div>}
+            </Link>
           </li>
-          <li>
+
+          <li className="nav-item position-relative menu-item">
+            <Link
+              to="/carlist"
+              className={`nav-link mb-1 d-flex align-items-center ${isActive("/carlist")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i
+                className="fas fa-car nav-icon text-center"
+                style={{ width: "25px" }}
+              ></i>
+              {!isCollapsed && <span className="ms-3 nav-text">Car List</span>}
+              {isCollapsed && <div className="custom-tooltip">Car List</div>}
+            </Link>
+          </li>
+
+          <li className="nav-item position-relative menu-item">
+            <Link
+              to="/customers"
+              className={`nav-link mb-1 d-flex align-items-center ${isActive("/customers")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i
+                className="fas fa-users nav-icon text-center"
+                style={{ width: "25px" }}
+              ></i>
+              {!isCollapsed && (
+                <span className="ms-3 nav-text">Customer List</span>
+              )}
+              {isCollapsed && (
+                <div className="custom-tooltip">Customer List</div>
+              )}
+            </Link>
+          </li>
+
+          <li className="nav-item position-relative menu-item">
+            <Link
+              to="/transaction"
+              className={`nav-link mb-1 d-flex align-items-center ${isActive("/transaction")}`}
+              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
+            >
+              <i
+                className="fas fa-receipt nav-icon text-center"
+                style={{ width: "25px" }}
+              ></i>
+              {!isCollapsed && (
+                <span className="ms-3 nav-text">Transaction</span>
+              )}
+              {isCollapsed && <div className="custom-tooltip">Transaction</div>}
+            </Link>
+          </li>
+          {!isCollapsed && (
+            <li className="nav-item small text-secondary text-uppercase fw-bold mt-4 mb-2 px-2 section-title">
+              Profit
+            </li>
+          )}
+
+          <li className="nav-item position-relative menu-item">
             <Link
               to="/income"
               className={`nav-link mb-1 d-flex align-items-center ${isActive("/income")}`}
@@ -211,13 +221,15 @@ export default function Navside() {
               onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
             >
               <i
-                className="fas fa-arrow-circle-down text-success me-3"
-                style={{ width: "20px" }}
-              ></i>{" "}
-              Pemasukan
+                className="fas fa-arrow-circle-down text-success nav-icon text-center"
+                style={{ width: "25px" }}
+              ></i>
+              {!isCollapsed && <span className="ms-3 nav-text">Pemasukan</span>}
+              {isCollapsed && <div className="custom-tooltip">Pemasukan</div>}
             </Link>
           </li>
-          <li>
+
+          <li className="nav-item position-relative menu-item">
             <Link
               to="/outcome"
               className={`nav-link mb-1 d-flex align-items-center ${isActive("/outcome")}`}
@@ -225,20 +237,22 @@ export default function Navside() {
               onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
             >
               <i
-                className="fas fa-arrow-circle-up text-danger me-3"
-                style={{ width: "20px" }}
-              ></i>{" "}
-              Pengeluaran
+                className="fas fa-arrow-circle-up text-danger nav-icon text-center"
+                style={{ width: "25px" }}
+              ></i>
+              {!isCollapsed && (
+                <span className="ms-3 nav-text">Pengeluaran</span>
+              )}
+              {isCollapsed && <div className="custom-tooltip">Pengeluaran</div>}
             </Link>
           </li>
+          {!isCollapsed && (
+            <li className="nav-item small text-secondary text-uppercase fw-bold mt-4 mb-2 px-2 section-title">
+              Kendaraan
+            </li>
+          )}
 
-          <li
-            className="nav-item small text-secondary text-uppercase fw-bold mt-4 mb-2 px-2"
-            style={{ fontSize: "10px", letterSpacing: "1.2px", opacity: 0.6 }}
-          >
-            Kendaraan
-          </li>
-          <li>
+          <li className="nav-item position-relative menu-item">
             <Link
               to="/kendaraan/pemantauan"
               className={`nav-link mb-1 d-flex align-items-center ${isActive("/kendaraan/pemantauan")}`}
@@ -246,13 +260,17 @@ export default function Navside() {
               onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
             >
               <i
-                className="fas fa-map-marked-alt text-info me-3"
-                style={{ width: "20px" }}
-              ></i>{" "}
-              Pemantauan
+                className="fas fa-map-marked-alt text-info nav-icon text-center"
+                style={{ width: "25px" }}
+              ></i>
+              {!isCollapsed && (
+                <span className="ms-3 nav-text">Pemantauan</span>
+              )}
+              {isCollapsed && <div className="custom-tooltip">Pemantauan</div>}
             </Link>
           </li>
-          <li>
+
+          <li className="nav-item position-relative menu-item">
             <a
               href="#"
               className="nav-link link-light-custom mb-1 d-flex align-items-center"
@@ -260,10 +278,15 @@ export default function Navside() {
               onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
             >
               <i
-                className="fas fa-plus-square text-warning me-3"
-                style={{ width: "20px" }}
-              ></i>{" "}
-              Daftar GPS Baru
+                className="fas fa-plus-square text-warning nav-icon text-center"
+                style={{ width: "25px" }}
+              ></i>
+              {!isCollapsed && (
+                <span className="ms-3 nav-text">Daftar GPS Baru</span>
+              )}
+              {isCollapsed && (
+                <div className="custom-tooltip">Daftar GPS Baru</div>
+              )}
             </a>
           </li>
         </ul>
@@ -273,40 +296,38 @@ export default function Navside() {
           <button
             className="btn btn-outline-light btn-sm w-100 d-flex align-items-center justify-content-center"
             onClick={() => supabase.auth.signOut()}
-            style={{ opacity: 0.7, fontSize: "13px" }}
           >
-            <i className="fas fa-sign-out-alt me-2"></i> Logout
+            <i className="fas fa-sign-out-alt"></i>
+            {!isCollapsed && <span className="ms-2 nav-text">Logout</span>}
           </button>
         </div>
       </div>
 
       <style>{`
-        @media (max-width: 991.98px) {
-          .sidebar-wrapper { transform: translateX(-100%); }
-          .show-sidebar { transform: translateX(0); }
-        }
-        
-        .nav-link { 
-          border-radius: 8px; 
-          padding: 12px 15px; 
-          font-size: 14px;
-          transition: color 0.3s ease;
-        }
-
-        .link-light-custom {
-          color: #94a3b8 !important;
-        }
-
-        .link-light-custom:hover {
-          color: #ffffff !important;
-        }
-
-        .active-custom { 
-          background-color: #3b82f6 !important; 
-          color: white !important; 
-        }
-
+        /* Menghilangkan scrollbar tapi tetap bisa scroll */
         .sidebar-wrapper::-webkit-scrollbar { width: 0px; }
+        
+        .nav-link { border-radius: 8px; transition: background 0.3s; }
+        .collapsed-mode .nav-link { justify-content: center; padding: 12px 0; }
+        
+        /* Tooltip tetap muncul saat hover meski collapse */
+        .menu-item:hover .custom-tooltip { display: block; }
+        .custom-tooltip {
+          display: none; position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
+          background: #3b82f6; color: white; padding: 5px 12px; border-radius: 4px;
+          font-size: 12px; margin-left: 15px; z-index: 1060; white-space: nowrap;
+        }
+
+        .section-title { font-size: 10px; letter-spacing: 1.2px; opacity: 0.6; }
+        .link-light-custom { color: #94a3b8 !important; }
+        .active-custom { background-color: #3b82f6 !important; color: white !important; }
+
+        /* Responsif Mobile: Sidebar tetap nempel, hanya lebar yang berubah */
+        @media (max-width: 991.98px) {
+           .sidebar-wrapper {
+             box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+           }
+        }
       `}</style>
     </>
   );
