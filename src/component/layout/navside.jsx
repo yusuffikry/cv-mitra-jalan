@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { gsap } from "gsap";
 
-// PERBAIKAN: Menerima props isCollapsed dan setIsCollapsed dari Main.jsx
 export default function Navside({ isCollapsed, setIsCollapsed }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -274,26 +273,6 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
               )}
               {isCollapsed && <div className="custom-tooltip">Pemantauan</div>}
             </Link>
-          </li>
-
-          <li className="nav-item position-relative menu-item">
-            <a
-              href="#"
-              className="nav-link link-light-custom mb-1 d-flex align-items-center"
-              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
-              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
-            >
-              <i
-                className="fas fa-plus-square text-warning nav-icon text-center"
-                style={{ width: "25px" }}
-              ></i>
-              {!isCollapsed && (
-                <span className="ms-3 nav-text">Daftar GPS Baru</span>
-              )}
-              {isCollapsed && (
-                <div className="custom-tooltip">Daftar GPS Baru</div>
-              )}
-            </a>
           </li>
         </ul>
 
