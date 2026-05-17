@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../../../supabaseClient"; // Pastikan path ini benar
+import { supabase } from "../../../supabaseClient";
 
 export default function CarListCreate() {
   const navigate = useNavigate();
 
   // State untuk indikator loading saat submit
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State untuk menampilkan modal sukses
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // State untuk menyimpan data form pendaftaran mobil baru
   const [formData, setFormData] = useState({
@@ -61,19 +64,25 @@ export default function CarListCreate() {
 
       if (error) throw error; // Lempar error jika gagal insert
 
-      alert("Data kendaraan berhasil ditambahkan!");
-      navigate("/carlist"); // Kembali ke halaman utama armada
+      // Tampilkan modal sukses alih-alih menggunakan alert bawaan
+      setShowSuccessModal(true);
+
+      // Tunggu 2 detik sebelum redirect ke halaman armada
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        navigate("/carlist");
+      }, 2000);
 
     } catch (error) {
       console.error("Error inserting car:", error.message);
       alert("Gagal menambahkan kendaraan: " + error.message);
     } finally {
-      setIsSubmitting(false); // Matikan loading
+      setIsSubmitting(false); // Matikan loading tombol submit
     }
   };
 
   return (
-    <div className="container-fluid py-4 bg-light min-vh-100">
+    <div className="container-fluid py-4 bg-light min-vh-100 position-relative">
       {/* Header Halaman */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -169,7 +178,7 @@ export default function CarListCreate() {
                 </div>
 
                 <div className="mb-3">
-                  <label className="form-label text-secondary small fw-bold">Status Ketersediaan</label>
+                  <label className="form-label text-secondary small fw-bold">Status Ketersediaan Awal</label>
                   <select
                     name="status"
                     value={formData.status}
@@ -177,9 +186,9 @@ export default function CarListCreate() {
                     className="form-select bg-light border-0 py-2"
                     required
                   >
+                    {/* PERBAIKAN: Opsi 'Disewa' dihapus karena status harus otomatis berdasarkan transaksi */}
                     <option value="Tersedia">Tersedia</option>
-                    <option value="Disewa">Disewa</option>
-                    <option value="Pemeliharaan">Pemeliharaan</option> {/* Disesuaikan dengan CHECK constraint di DB */}
+                    <option value="Pemeliharaan">Pemeliharaan</option>
                   </select>
                 </div>
 
@@ -300,6 +309,43 @@ export default function CarListCreate() {
           </form>
         </div>
       </div>
+
+      {/* --- MODAL POP UP SUKSES TAMBAH (AUTO CLOSE) --- */}
+      {showSuccessModal && (
+        <div 
+          className="modal fade show d-block" 
+          tabIndex="-1" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', zIndex: 1050 }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+              <div className="modal-body p-4 text-center">
+                
+                {/* Ikon Centang Hijau */}
+                <div 
+                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success" 
+                  style={{ width: "64px", height: "64px", borderRadius: "50%" }}
+                >
+                  <i className="fas fa-check fs-2"></i>
+                </div>
+
+                <h5 className="fw-bold text-dark mb-2">Berhasil Ditambahkan!</h5>
+                <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
+                  Data kendaraan <span className="fw-bold text-dark">{formData.name}</span> telah berhasil disimpan ke sistem.
+                </p>
+
+                {/* Indikator Redirect */}
+                <div className="d-flex align-items-center justify-content-center text-muted small">
+                  <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: '12px', height: '12px' }}></div>
+                  Mengalihkan halaman...
+                </div>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

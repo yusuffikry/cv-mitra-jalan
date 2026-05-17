@@ -10,8 +10,11 @@ export default function Customers() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState(null);
   
-  // State baru untuk Modal Sukses
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // --- STATE UNTUK PAGINATION ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchCustomers();
@@ -50,19 +53,13 @@ export default function Customers() {
 
       if (error) throw error;
 
-      // 1. Tutup modal konfirmasi hapus
       setShowDeleteModal(false);
-      
-      // 2. Refresh data di tabel
       fetchCustomers();
-
-      // 3. Tampilkan Modal Sukses
       setShowSuccessModal(true);
 
-      // 4. Set Timer 2 detik untuk menutup Modal Sukses
       setTimeout(() => {
         setShowSuccessModal(false);
-        setCustomerToDelete(null); // Bersihkan state setelah animasi selesai
+        setCustomerToDelete(null); 
       }, 2000);
 
     } catch (error) {
@@ -113,13 +110,19 @@ export default function Customers() {
     document.body.removeChild(link);
   };
 
+  // --- LOGIKA PENCARIAN ---
   const filteredCustomers = customers.filter((cust) => {
     const searchLower = searchTerm.toLowerCase();
     const matchName = (cust.nama_pelanggan || "").toLowerCase().includes(searchLower);
     const matchNik = (cust.nik || "").toLowerCase().includes(searchLower);
-    
     return matchName || matchNik;
   });
+
+  // --- LOGIKA PAGINATION ---
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredCustomers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
 
   return (
     <div className="d-flex flex-column vh-100 bg-light p-4 overflow-hidden">
@@ -156,13 +159,19 @@ export default function Customers() {
                   className={`form-control bg-light ${searchTerm ? 'border-end-0' : ''} border-start-0`} 
                   placeholder="Cari nama atau NIK pelanggan..." 
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1); // Reset ke halaman 1 saat mencari
+                  }}
                 />
                 {searchTerm && (
                   <button 
                     className="btn btn-light border border-start-0" 
                     type="button" 
-                    onClick={() => setSearchTerm("")}
+                    onClick={() => {
+                      setSearchTerm("");
+                      setCurrentPage(1);
+                    }}
                     title="Hapus pencarian"
                   >
                     <i className="fas fa-times text-muted"></i>
@@ -197,26 +206,21 @@ export default function Customers() {
                     Memuat data pelanggan...
                   </td>
                 </tr>
-              ) : customers.length === 0 ? (
+              ) : currentItems.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="text-center py-5 text-muted">
-                    Belum ada data pelanggan yang didaftarkan.
-                  </td>
-                </tr>
-              ) : filteredCustomers.length === 0 ? (
-                <tr>
-                  <td colSpan="9" className="text-center py-5 text-muted">
-                    Pelanggan dengan kata kunci "{searchTerm}" tidak ditemukan.
+                    {searchTerm ? `Pelanggan dengan kata kunci "${searchTerm}" tidak ditemukan.` : "Belum ada data pelanggan yang didaftarkan."}
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map((cust, index) => {
+                currentItems.map((cust, index) => {
                   const isActive = cust.status === "active";
                   const isBlacklist = cust.status === "blacklist";
 
                   return (
                     <tr key={cust.customer_id}>
-                      <td className="px-4 text-muted">{index + 1}</td>
+                      {/* Nomor urut disesuaikan dengan halaman */}
+                      <td className="px-4 text-muted">{indexOfFirstItem + index + 1}</td>
                       <td>
                         <div className="fw-bold text-dark">{cust.nama_pelanggan || "-"}</div>
                       </td>
@@ -280,30 +284,48 @@ export default function Customers() {
           </table>
         </div>
 
-        {/* Footer */}
+        {/* Footer Dinamis */}
         <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
           <div className="d-flex justify-content-between align-items-center">
             <span className="text-muted small">
-              Total: <strong>{filteredCustomers.length}</strong> pelanggan
+              Showing {filteredCustomers.length > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, filteredCustomers.length)} of {filteredCustomers.length} entries
             </span>
-            <nav>
-              <ul className="pagination pagination-sm mb-0">
-                <li className="page-item disabled">
-                  <span className="page-link border-0 bg-transparent">Prev</span>
-                </li>
-                <li className="page-item active">
-                  <span className="page-link border-0 rounded mx-1 shadow-sm px-3" style={{ backgroundColor: "#0061f2" }}>
-                    1
-                  </span>
-                </li>
-                <li className="page-item">
-                  <span className="page-link border-0 text-dark mx-1">2</span>
-                </li>
-                <li className="page-item">
-                  <span className="page-link border-0 bg-transparent text-primary">Next</span>
-                </li>
-              </ul>
-            </nav>
+            
+            {totalPages > 1 && (
+              <nav>
+                <ul className="pagination pagination-sm mb-0">
+                  <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                    <button 
+                      className="page-link border-0 bg-transparent text-muted" 
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    >
+                      Prev
+                    </button>
+                  </li>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <li key={i + 1} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
+                      <button
+                        className={`page-link border-0 rounded mx-1 shadow-sm px-3 ${currentPage === i + 1 ? "text-white" : "text-dark"}`}
+                        style={{ backgroundColor: currentPage === i + 1 ? "#0061f2" : "transparent" }}
+                        onClick={() => setCurrentPage(i + 1)}
+                      >
+                        {i + 1}
+                      </button>
+                    </li>
+                  ))}
+                  
+                  <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                    <button 
+                      className="page-link border-0 bg-transparent text-primary" 
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    >
+                      Next
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            )}
           </div>
         </div>
       </div>
@@ -376,7 +398,6 @@ export default function Customers() {
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
               <div className="modal-body p-4 text-center">
                 
-                {/* Ikon Centang Hijau Soft */}
                 <div 
                   className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success" 
                   style={{ width: "64px", height: "64px", borderRadius: "50%" }}
@@ -389,7 +410,6 @@ export default function Customers() {
                   Data pelanggan <span className="fw-bold text-dark">{customerToDelete?.name}</span> telah berhasil dihapus dari sistem.
                 </p>
 
-                {/* Indikator Loading Kecil */}
                 <div className="d-flex align-items-center justify-content-center text-muted small">
                   <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: '12px', height: '12px' }}></div>
                   Memperbarui tabel...
