@@ -9,20 +9,20 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { supabase } from "../../../supabaseClient";
 
-// Fix icon Leaflet
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-
+// Ambil icon langsung dari CDN agar tidak bermasalah saat build Vite
 let DefaultIcon = L.icon({
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Komponen untuk otomatis menggerakkan kamera ke lokasi baru
 function RecenterMap({ coords }) {
   const map = useMap();
   useEffect(() => {
@@ -34,58 +34,135 @@ function RecenterMap({ coords }) {
 }
 
 export default function Pemantauan() {
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [isTracking, setIsTracking] = useState(false);
   const [myLocation, setMyLocation] = useState(null);
+  const [carsList, setCarsList] = useState([]);
+  const [selectedCar, setSelectedCar] = useState("");
 
-  // Ambil data tracking terakhir dari LocalStorage laptop saat pertama kali load
+  // 1. Ambil data daftar armada untuk dropdown saat pertama kali load
   useEffect(() => {
-    const savedData = localStorage.getItem("last_tracking");
-    if (savedData) {
-      const parsed = JSON.parse(savedData);
-      setMyLocation(parsed.coords);
-      setPhoneNumber(parsed.phone);
-    }
+    const fetchCars = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("cars")
+          .select("no_gps, jenis_unit, nomor_plat")
+          .not("no_gps", "is", null);
+
+        if (error) throw error;
+        setCarsList(data);
+      } catch (error) {
+        console.error("Gagal mengambil data armada:", error.message);
+      }
+    };
+
+    fetchCars();
   }, []);
 
-  // Logika Tracking Real-time
+  // 2. LOGIKA REAL-TIME: Berlangganan data koordinat langsung dari Supabase
   useEffect(() => {
-    let watchId = null;
+    let channel = null;
 
-    if (isTracking) {
-      if ("geolocation" in navigator) {
-        watchId = navigator.geolocation.watchPosition(
-          (position) => {
-            const newCoords = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            };
-            setMyLocation(newCoords);
+    const fetchLastLocation = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("cars")
+          .select("latitude, longitude")
+          .eq("no_gps", selectedCar)
+          .maybeSingle(); // Menggunakan maybeSingle agar tidak throw error jika data kosong
 
-            // Simpan data ke LocalStorage laptop
-            localStorage.setItem(
-              "last_tracking",
-              JSON.stringify({
-                phone: phoneNumber,
-                coords: newCoords,
-                timestamp: new Date().toISOString(),
-              }),
-            );
-          },
-          (error) => console.error("Error tracking:", error),
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
-        );
-      } else {
-        alert("Browser tidak mendukung GPS");
+        if (error) throw error;
+        if (data && data.latitude && data.longitude) {
+          setMyLocation({
+            lat: parseFloat(data.latitude),
+            lng: parseFloat(data.longitude),
+          });
+        } else {
+          setMyLocation(null);
+        }
+      } catch (err) {
+        console.error("Lokasi awal tidak ditemukan:", err.message);
       }
-    }
-    return () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isTracking, phoneNumber]);
+
+    if (isTracking && selectedCar) {
+      fetchLastLocation();
+
+      // Menjalankan fitur real-time subscription database
+      channel = supabase
+        .channel(`track-car-${selectedCar}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "cars",
+            filter: `no_gps=eq.${selectedCar}`,
+          },
+          (payload) => {
+            console.log(
+              "Ada perubahan lokasi baru secara real-time:",
+              payload.new,
+            );
+            if (payload.new.latitude && payload.new.longitude) {
+              setMyLocation({
+                lat: parseFloat(payload.new.latitude),
+                lng: parseFloat(payload.new.longitude),
+              });
+            }
+          },
+        )
+        .subscribe();
+    }
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [isTracking, selectedCar]);
+
+  const handleCarChange = (e) => {
+    const gpsNumber = e.target.value;
+    setSelectedCar(gpsNumber);
+
+    if (gpsNumber) {
+      setIsTracking(true);
+    } else {
+      setIsTracking(false);
+      setMyLocation(null);
+    }
+  };
+
+  const activeCarInfo = carsList.find((car) => car.no_gps === selectedCar);
 
   return (
     <div className="h-screen w-full relative font-sans">
+      {/* Floating Control Panel */}
+      <div className="absolute top-4 left-4 z-[1000] bg-white p-4 rounded-xl shadow-lg w-80 border border-gray-100">
+        <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
+          Pilih Armada Kendaraan
+        </label>
+        <select
+          value={selectedCar}
+          onChange={handleCarChange}
+          className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+        >
+          <option value="">-- Berhenti Melacak --</option>
+          {carsList.map((car, index) => (
+            <option key={index} value={car.no_gps}>
+              {car.jenis_unit} - {car.nomor_plat}
+            </option>
+          ))}
+        </select>
+
+        {isTracking && selectedCar && (
+          <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-green-600 bg-green-50 p-2 rounded-md animate-pulse">
+            <span className="h-2 w-2 bg-green-500 rounded-full"></span>
+            Melacak No. GPS Real-time: {selectedCar}
+          </div>
+        )}
+      </div>
+
       <MapContainer
         center={myLocation || [-5.1476, 119.4327]}
         zoom={15}
@@ -102,9 +179,17 @@ export default function Pemantauan() {
           <>
             <Marker position={[myLocation.lat, myLocation.lng]}>
               <Popup>
-                <div className="text-center">
-                  <p className="font-bold text-blue-600">📍 Lokasi HP Aktif</p>
-                  <p className="text-xs font-mono">{phoneNumber}</p>
+                <div className="text-center p-1">
+                  <p className="font-bold text-blue-600 text-sm">
+                    📍{" "}
+                    {activeCarInfo ? activeCarInfo.jenis_unit : "Unit Terpilih"}
+                  </p>
+                  <p className="text-xs font-semibold text-gray-700">
+                    {activeCarInfo ? activeCarInfo.nomor_plat : ""}
+                  </p>
+                  <span className="inline-block mt-1 text-[10px] bg-gray-100 px-2 py-0.5 rounded font-mono text-gray-500">
+                    GPS: {selectedCar}
+                  </span>
                 </div>
               </Popup>
             </Marker>
