@@ -9,6 +9,7 @@ export default function CreateOutcome() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // State untuk menampung input form sesuai kolom tabel expenses
+  // Nilai total_pengeluaran disimpan dalam format string bertitik, misal: "1.500.000"
   const [formData, setFormData] = useState({
     tanggal_pengeluaran: "",
     jenis_pengeluaran: "",
@@ -16,12 +17,30 @@ export default function CreateOutcome() {
     total_pengeluaran: "",
   });
 
+  // --- FUNGSI FORMAT INPUT UANG ---
+  // Menghapus semua karakter selain angka (otomatis memblokir tanda minus "-"), lalu menyisipkan titik
+  const formatRupiahInput = (value) => {
+    if (!value) return "";
+    const numberString = value.toString().replace(/\D/g, ""); // Buang semua huruf/simbol/titik lama
+    return new Intl.NumberFormat("id-ID").format(numberString); // Format ke gaya Indonesia (titik)
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    setFormData((prev) => {
+      let newValue = value;
+
+      // Jika yang diketik adalah total_pengeluaran, otomatis format angkanya
+      if (name === "total_pengeluaran") {
+        newValue = formatRupiahInput(value);
+      }
+
+      return {
+        ...prev,
+        [name]: newValue,
+      };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -36,13 +55,16 @@ export default function CreateOutcome() {
     setIsSubmitting(true);
 
     try {
+      // Kembalikan format "1.000.000" menjadi angka murni 1000000 sebelum masuk Supabase
+      const rawTotalPengeluaran = parseInt(formData.total_pengeluaran.replace(/\./g, "")) || 0;
+
       // Insert ke tabel expenses di Supabase
       const { error } = await supabase.from("expenses").insert([
         {
           tanggal_pengeluaran: formData.tanggal_pengeluaran,
           jenis_pengeluaran: formData.jenis_pengeluaran,
           keterangan: formData.keterangan || null,
-          total_pengeluaran: parseInt(formData.total_pengeluaran),
+          total_pengeluaran: rawTotalPengeluaran,
         },
       ]);
 
@@ -123,14 +145,14 @@ export default function CreateOutcome() {
                     <label className="form-label text-secondary small fw-bold">Total Pengeluaran (Rp) <span className="text-danger">*</span></label>
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      {/* UBAH DARI type="number" KE type="text" AGAR FORMAT TITIK BISA MUNCUL */}
                       <input
-                        type="number"
+                        type="text"
                         name="total_pengeluaran"
                         value={formData.total_pengeluaran}
                         onChange={handleChange}
                         className="form-control bg-light border-0 py-2 shadow-none"
                         placeholder="0"
-                        min="0"
                         required
                       />
                     </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import ShowTransaction from "./ShowTransaction";
 import { supabase } from "../../../supabaseClient";
+import * as XLSX from "xlsx"; 
 
 export default function MainTransaction() {
   const [selectedData, setSelectedData] = useState(null);
@@ -87,6 +88,7 @@ export default function MainTransaction() {
       dp: formatRupiah(trx.dp || 0),
       sisa_pembayaran: formatRupiah(trx.sisa_pembayaran || 0),
       total_pembayaran: formatRupiah(trx.total_pembayaran || 0),
+      status_pembayaran: trx.status_pembayaran || "Belum Lunas", // TAMBAHAN STATUS
       keterangan: trx.keterangan || "Tidak ada keterangan.",
       dibuat: new Date(trx.created_at).toLocaleDateString("id-ID", {
         day: "numeric",
@@ -137,7 +139,8 @@ export default function MainTransaction() {
     return new Intl.NumberFormat("id-ID").format(angka);
   };
 
-  const exportToCSV = () => {
+  // --- FUNGSI EXPORT KE EXCEL ---
+  const exportToExcel = () => {
     const headers = [
       "No",
       "ID Transaksi",
@@ -153,39 +156,59 @@ export default function MainTransaction() {
       "DP (Rp)",
       "Sisa Pembayaran (Rp)",
       "Total Pembayaran (Rp)",
+      "Status Pembayaran", // TAMBAHAN HEADER STATUS
       "Keterangan",
     ];
 
     const rows = filteredTransactions.map((trx, index) => [
       index + 1,
-      `"TRX-${trx.transaction_id?.substring(0, 8).toUpperCase()}"`,
-      `"${new Date(trx.created_at).toLocaleDateString("id-ID")}"`,
-      `"${trx.tanggal_sewa} ${trx.jam_sewa || ""}"`,
-      `"${trx.customers?.nama_pelanggan || "-"}"`,
-      `"${trx.cars?.jenis_unit?.split(" ")[0] || "-"}"`,
-      `"${trx.cars?.jenis_unit || "-"}"`,
-      `"${trx.cars?.nomor_plat || "-"}"`,
-      `"${trx.cars?.transmisi || "-"}"`,
-      `"${trx.rute || "-"}"`,
+      `TRX-${trx.transaction_id?.substring(0, 8).toUpperCase()}`,
+      new Date(trx.created_at).toLocaleDateString("id-ID"),
+      `${trx.tanggal_sewa} ${trx.jam_sewa || ""}`,
+      trx.customers?.nama_pelanggan || "-",
+      trx.cars?.jenis_unit?.split(" ")[0] || "-",
+      trx.cars?.jenis_unit || "-",
+      trx.cars?.nomor_plat || "-",
+      trx.cars?.transmisi || "-",
+      trx.rute || "-",
       trx.jumlah_hari || 0,
       trx.dp || 0,
       trx.sisa_pembayaran || 0,
       trx.total_pembayaran || 0,
-      `"${trx.keterangan || "-"}"`,
+      trx.status_pembayaran || "-", // TAMBAHAN DATA STATUS
+      trx.keterangan || "-",
     ]);
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((e) => e.join(",")),
-    ].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "Data_Transaksi_Rental.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const dataToExport = [headers, ...rows];
+
+    // Membuat Worksheet dan Workbook Excel
+    const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Transaksi");
+
+    // Mengatur lebar kolom agar langsung rapi saat dibuka di Excel
+    const wscols = [
+      { wch: 5 },  // No
+      { wch: 15 }, // ID Transaksi
+      { wch: 15 }, // Dibuat Pada
+      { wch: 20 }, // Waktu Peminjaman
+      { wch: 25 }, // Nama Customer
+      { wch: 15 }, // Merek Mobil
+      { wch: 25 }, // Tipe Unit
+      { wch: 15 }, // Plat Nomor
+      { wch: 15 }, // Transmisi
+      { wch: 15 }, // Rute
+      { wch: 15 }, // Jumlah Hari
+      { wch: 15 }, // DP
+      { wch: 20 }, // Sisa Pembayaran
+      { wch: 20 }, // Total Pembayaran
+      { wch: 18 }, // Status Pembayaran
+      { wch: 30 }, // Keterangan
+    ];
+    worksheet["!cols"] = wscols;
+
+    // Trigger Download File Excel
+    XLSX.writeFile(workbook, `Data_Transaksi_Rental_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   const resetFilters = () => {
@@ -218,11 +241,11 @@ export default function MainTransaction() {
 
           <div className="d-flex gap-2">
             <button
-              onClick={exportToCSV}
+              onClick={exportToExcel}
               className="btn btn-success shadow-sm px-3"
-              title="Export data ke Excel/CSV"
+              title="Export data ke Excel"
             >
-              <i className="fas fa-file-excel me-2"></i>Export CSV
+              <i className="fas fa-file-excel me-2"></i>Export Excel
             </button>
             <Link
               to="/transaction/create"
@@ -294,7 +317,6 @@ export default function MainTransaction() {
 
           {/* Area Tabel */}
           <div className="card-body p-0 flex-grow-1 overflow-auto">
-            {/* PERBAIKAN 1: Hapus text-nowrap agar tabel pas di layar dan teks panjang bisa turun ke bawah */}
             <table
               className="table table-hover align-middle mb-0"
               style={{ fontSize: "0.85rem" }}
@@ -336,15 +358,22 @@ export default function MainTransaction() {
                   </th>
                   <th
                     className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start"
-                    style={{ width: "15%" }}
+                    style={{ width: "10%" }}
                   >
                     Keterangan
                   </th>
                   <th
                     className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-end text-nowrap"
-                    style={{ width: "15%" }}
+                    style={{ width: "10%" }}
                   >
                     Total Pembayaran
+                  </th>
+                  {/* TAMBAHAN KOLOM STATUS */}
+                  <th
+                    className="px-3 py-3 text-center text-secondary fw-bold text-uppercase border-bottom text-nowrap"
+                    style={{ width: "10%" }}
+                  >
+                    Status
                   </th>
                   <th
                     className="px-4 py-3 text-center text-secondary fw-bold text-uppercase border-bottom text-nowrap"
@@ -357,7 +386,7 @@ export default function MainTransaction() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-5 text-muted">
+                    <td colSpan="9" className="text-center py-5 text-muted">
                       <div
                         className="spinner-border spinner-border-sm me-2"
                         role="status"
@@ -367,12 +396,14 @@ export default function MainTransaction() {
                   </tr>
                 ) : currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-5 text-muted">
+                    <td colSpan="9" className="text-center py-5 text-muted">
                       Tidak ada transaksi yang ditemukan.
                     </td>
                   </tr>
                 ) : (
                   currentItems.map((item, index) => {
+                    const isLunas = item.status_pembayaran === "Lunas";
+
                     return (
                       <tr key={item.transaction_id}>
                         <td className="px-4 text-muted text-center">
@@ -417,13 +448,26 @@ export default function MainTransaction() {
 
                         <td
                           className="px-3 text-start text-wrap text-muted"
-                          style={{ minWidth: "150px" }}
+                          style={{ minWidth: "120px" }}
                         >
                           {item.keterangan || "-"}
                         </td>
 
                         <td className="px-4 text-end fw-bold text-success text-nowrap">
                           Rp {formatRupiah(item.total_pembayaran || 0)}
+                        </td>
+
+                        {/* TAMPILAN STATUS */}
+                        <td className="px-3 text-center">
+                          <span
+                            className={`badge border rounded-pill px-2 py-1 ${
+                              isLunas
+                                ? "bg-success-subtle text-success border-success-subtle"
+                                : "bg-danger-subtle text-danger border-danger-subtle"
+                            }`}
+                          >
+                            {item.status_pembayaran || "Belum Lunas"}
+                          </span>
                         </td>
 
                         <td className="px-4 text-center text-nowrap">
@@ -467,7 +511,6 @@ export default function MainTransaction() {
           {/* Footer & Pagination */}
           <div className="card-footer bg-white border-top py-3 px-4 flex-shrink-0">
             <div className="d-flex justify-content-between align-items-center">
-              {/* PERBAIKAN 2: Ubah teks menjadi format "Showing X to Y of Z entries" */}
               <span className="text-muted small">
                 Showing{" "}
                 {filteredTransactions.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
@@ -475,7 +518,6 @@ export default function MainTransaction() {
                 {filteredTransactions.length} entries
               </span>
 
-              {/* PERBAIKAN 3: Sembunyikan pagination jika data cuma 1 halaman (<= 10 entries) */}
               {totalPages > 1 && (
                 <nav>
                   <ul className="pagination pagination-sm mb-0">

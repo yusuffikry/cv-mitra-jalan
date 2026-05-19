@@ -34,12 +34,14 @@ export default function ShowTransaction({ data, onBack }) {
 
   // --- PROSES LINK MEDIA ---
   const photoId = getDriveId(data.foto_mobil);
-  // Perbaikan penulisan variabel: tambahkan tanda $ sebelum kurung kurawal
   const renderPhotoUrl = photoId 
-    ? `https://lh3.googleusercontent.com/d/${photoId}`
+    ? `https://drive.google.com/thumbnail?id=${photoId}&sz=w1000`
     : data.foto_mobil;
 
   const videoId = getDriveId(data.video_mobil);
+  
+  // Tentukan warna badge status
+  const isLunas = data.status_pembayaran === "Lunas";
 
   return (
     <div className="p-4 bg-light h-100 overflow-auto w-100">
@@ -57,15 +59,22 @@ export default function ShowTransaction({ data, onBack }) {
               padding: 0 !important;
             }
             #printable-receipt .card-body { padding: 0 !important; }
+            
+            /* PERBAIKAN: Pakai avoid agar tidak memaksa pindah halaman, tapi mencegah terpotong */
             .page-break-section {
-              page-break-before: always !important; 
-              break-before: page !important;
+              page-break-inside: avoid !important; 
             }
+            .mb-5 { 
+              page-break-inside: avoid !important;
+              margin-bottom: 1.5rem !important; /* Margin dikecilkan sedikit untuk print */
+            }
+            
             body, .small, p, span, div { font-size: 13px !important; color: #000 !important; }
             h3 { font-size: 20px !important; }
             h6 { font-size: 14px !important; margin-bottom: 10px !important; }
-            .mb-5 { margin-bottom: 2rem !important; }
             .mb-4 { margin-bottom: 1.5rem !important; }
+            
+            /* UI ASLI TETAP DIPERTAHANKAN */
             .p-4.bg-light { 
               padding: 20px !important; 
               background-color: #f8f9fa !important; 
@@ -73,16 +82,16 @@ export default function ShowTransaction({ data, onBack }) {
             }
             .print-photo-center {
               margin: 0 auto !important;
-              max-width: 500px !important; 
+              max-width: 450px !important; 
               width: 100% !important;
               flex: 0 0 100% !important;
             }
             .ratio-4x3, .border-dashed {
-              height: 250px !important; 
-              min-height: 250px !important;
+              height: 220px !important; 
+              min-height: 220px !important;
             }
             .ratio-4x3 img {
-              max-height: 250px !important;
+              max-height: 220px !important;
               object-fit: cover !important;
             }
           }
@@ -90,7 +99,7 @@ export default function ShowTransaction({ data, onBack }) {
       </style>
 
       {/* Header Halaman */}
-      <div className="d-flex justify-content-between align-items-center mb-4 mx-auto" style={{ maxWidth: "900px" }}>
+      <div className="d-flex justify-content-between align-items-center mb-4 mx-auto no-print" style={{ maxWidth: "900px" }}>
         <div>
           <h4 className="fw-bold text-dark mb-1">Detail Transaksi</h4>
           <p className="text-muted small mb-0">Informasi lengkap penyewaan armada</p>
@@ -201,6 +210,21 @@ export default function ShowTransaction({ data, onBack }) {
                     <span className="text-muted">Sisa Pembayaran</span>
                     <span className="fw-bold text-danger">Rp {data.sisa_pembayaran}</span>
                   </div>
+                  
+                  {/* --- TAMBAHAN STATUS PEMBAYARAN --- */}
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <span className="text-muted">Status Pembayaran</span>
+                    <span 
+                      className={`badge border px-2 py-1 ${
+                        isLunas 
+                          ? "bg-success-subtle text-success border-success-subtle" 
+                          : "bg-danger-subtle text-danger border-danger-subtle"
+                      }`}
+                    >
+                      {data.status_pembayaran || "Belum Lunas"}
+                    </span>
+                  </div>
+
                   <hr className="border-secondary opacity-25" />
                   <div className="d-flex justify-content-between align-items-center mt-2">
                     <span className="text-muted fw-bold">TOTAL BIAYA</span>
@@ -287,7 +311,7 @@ export default function ShowTransaction({ data, onBack }) {
       </div>
 
       {/* Tombol Cetak */}
-      <div className="d-flex justify-content-end gap-3 mx-auto w-100 pb-5" style={{ maxWidth: "900px" }}>
+      <div className="d-flex justify-content-end gap-3 mx-auto w-100 pb-5 no-print" style={{ maxWidth: "900px" }}>
         <button
           className="btn px-4 py-2 fw-bold text-white shadow-sm d-flex align-items-center"
           style={{ backgroundColor: "#0061f2", borderRadius: "10px" }}

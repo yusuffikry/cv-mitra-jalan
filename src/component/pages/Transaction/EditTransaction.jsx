@@ -41,16 +41,25 @@ export default function EditTransaction() {
     video_mobil: "", // Simpan link lama
   });
 
+  // --- FUNGSI FORMAT INPUT UANG ---
+  const formatRupiahInput = (value) => {
+    if (!value) return "";
+    const numberString = value.toString().replace(/\D/g, ""); // Buang huruf/simbol
+    return new Intl.NumberFormat("id-ID").format(numberString); 
+  };
+
   // --- LOGIKA MENGHITUNG SISA PEMBAYARAN OTOMATIS ---
-  const currentTotalPay = parseInt(formData.total_pembayaran) || 0;
-  let currentDp = parseInt(formData.dp);
+  const currentTotalPay = parseInt(formData.total_pembayaran.toString().replace(/\./g, "")) || 0;
+  let currentDp = parseInt(formData.dp.toString().replace(/\./g, ""));
   if (isNaN(currentDp)) currentDp = 0;
 
   let currentSisaPay;
   if (formData.dp === "" || currentDp === 0) {
-    currentSisaPay = 0;
+    currentSisaPay = 0; // Anggap lunas jika DP 0
   } else {
     currentSisaPay = currentTotalPay - currentDp;
+    // PENGAMAN: Cegah sisa pembayaran minus
+    if (currentSisaPay < 0) currentSisaPay = 0;
   }
 
   // --- AMBIL DATA AWAL (Pilihan & Data Transaksi Lama) ---
@@ -100,8 +109,9 @@ export default function EditTransaction() {
               nama_customer: namaCust,
               rute: trxData.rute || "",
               car_id: trxData.car_id || "",
-              dp: trxData.dp || 0,
-              total_pembayaran: trxData.total_pembayaran || 0,
+              // PERBAIKAN: Format angka dari DB langsung pakai titik saat dirender
+              dp: trxData.dp ? formatRupiahInput(trxData.dp) : "",
+              total_pembayaran: trxData.total_pembayaran ? formatRupiahInput(trxData.total_pembayaran) : "",
               keterangan: trxData.keterangan || "",
               foto_mobil: trxData.foto_mobil || "",
               video_mobil: trxData.video_mobil || "",
@@ -186,9 +196,35 @@ export default function EditTransaction() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
-      const newData = { ...prev, [name]: value };
+      let newValue = value;
+
+      // LOGIKA KUNCI: Auto-format & Anti-Minus
+      if (name === "total_pembayaran") {
+        newValue = formatRupiahInput(value);
+        
+        const newTotalRaw = parseInt(newValue.replace(/\./g, "")) || 0;
+        const currentDpRaw = parseInt(prev.dp.toString().replace(/\./g, "")) || 0;
+        // Turunkan DP jika melebihi Total yang baru
+        if (currentDpRaw > newTotalRaw) {
+          prev.dp = formatRupiahInput(newTotalRaw.toString());
+        }
+
+      } else if (name === "dp") {
+        const rawDp = parseInt(value.replace(/\D/g, "")) || 0;
+        const currentTotalRaw = parseInt(prev.total_pembayaran.toString().replace(/\./g, "")) || 0;
+        
+        // Mentokkan DP di angka Total Pembayaran
+        if (rawDp > currentTotalRaw) {
+          newValue = formatRupiahInput(currentTotalRaw.toString());
+        } else {
+          newValue = formatRupiahInput(value);
+        }
+      }
+
+      const newData = { ...prev, [name]: newValue };
+      
       if (name === "waktu") {
-        const minReturn = getMinReturnDate();
+        const minReturn = getMinReturnDate(newValue);
         if (newData.waktu_pengembalian && newData.waktu_pengembalian < minReturn) {
           newData.waktu_pengembalian = ""; 
         }
@@ -232,6 +268,9 @@ export default function EditTransaction() {
         linkVideo = await uploadToDrive(videoFile, DRIVE_VIDEO_FOLDER_ID, googleToken);
       }
 
+      // --- LOGIKA STATUS PEMBAYARAN OTOMATIS ---
+      const statusOtomatis = currentDp > 0 ? "Belum Lunas" : "Lunas";
+
       // Proses UPDATE
       const { error } = await supabase
         .from("transactions")
@@ -247,6 +286,7 @@ export default function EditTransaction() {
           dp: currentDp,
           total_pembayaran: currentTotalPay,
           sisa_pembayaran: currentSisaPay,
+          status_pembayaran: statusOtomatis, // Terkirim otomatis saat update
           keterangan: formData.keterangan || null,
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
@@ -270,9 +310,9 @@ export default function EditTransaction() {
     }
   };
 
-  const getMinReturnDate = () => {
-    if (!formData.waktu) return "";
-    const pickupDate = new Date(formData.waktu);
+  const getMinReturnDate = (pickupDateString = formData.waktu) => {
+    if (!pickupDateString) return "";
+    const pickupDate = new Date(pickupDateString);
     pickupDate.setDate(pickupDate.getDate() + 1);
     const year = pickupDate.getFullYear();
     const month = String(pickupDate.getMonth() + 1).padStart(2, '0');
@@ -450,8 +490,9 @@ export default function EditTransaction() {
                     <label className="form-label text-secondary small fw-bold">Total Pembayaran</label>
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      {/* TYPE TEXT UNTUK FORMAT TITIK */}
                       <input
-                        type="number"
+                        type="text"
                         name="total_pembayaran"
                         value={formData.total_pembayaran}
                         onChange={handleChange}
@@ -467,8 +508,9 @@ export default function EditTransaction() {
                     <label className="form-label text-secondary small fw-bold">Uang Muka (DP)</label>
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      {/* TYPE TEXT UNTUK FORMAT TITIK */}
                       <input
-                        type="number"
+                        type="text"
                         name="dp"
                         value={formData.dp}
                         onChange={handleChange}
@@ -484,9 +526,9 @@ export default function EditTransaction() {
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">Rp</span>
                       <input
-                        type="number"
+                        type="text"
                         className="form-control bg-light border-0 py-2"
-                        value={currentSisaPay}
+                        value={new Intl.NumberFormat("id-ID").format(currentSisaPay)}
                         readOnly
                       />
                     </div>
