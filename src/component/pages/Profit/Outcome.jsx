@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
 import { useReactToPrint } from "react-to-print";
+import * as XLSX from "xlsx"; // TAMBAHAN: Import library Excel
 
 export default function Outcome() {
   // --- STATE UNTUK SUPABASE ---
@@ -142,15 +143,16 @@ export default function Outcome() {
     });
   };
 
-  const exportToCSV = () => {
+  // --- FUNGSI EXPORT KE EXCEL ---
+  const exportToExcel = () => {
     if (filteredExpenses.length === 0) {
       alert("Tidak ada data untuk di-export!");
       return;
     }
 
     const fileName = filterMonth
-      ? `Laporan_Pengeluaran_${filterMonth}.csv`
-      : "Laporan_Pengeluaran_Semua_Waktu.csv";
+      ? `Laporan_Pengeluaran_${filterMonth}.xlsx`
+      : "Laporan_Pengeluaran_Semua_Waktu.xlsx";
 
     const headers = [
       "No",
@@ -159,26 +161,35 @@ export default function Outcome() {
       "Keterangan",
       "Total Pengeluaran (Rp)",
     ];
+    
     const rows = filteredExpenses.map((item, index) => [
       index + 1,
-      `"${item.tanggal_pengeluaran || "-"}"`,
-      `"${item.jenis_pengeluaran || "-"}"`,
-      `"${item.keterangan || "-"}"`,
+      item.tanggal_pengeluaran || "-",
+      item.jenis_pengeluaran || "-",
+      item.keterangan || "-",
       item.total_pengeluaran || 0,
     ]);
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((e) => e.join(",")),
-    ].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Menggabungkan Header dan Data
+    const dataToExport = [headers, ...rows];
+
+    // Membuat Worksheet dan Workbook Excel
+    const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Pengeluaran");
+
+    // Mengatur lebar kolom otomatis agar rapi
+    const wscols = [
+      { wch: 5 },  // No
+      { wch: 15 }, // Tanggal
+      { wch: 25 }, // Jenis Pengeluaran
+      { wch: 45 }, // Keterangan (Lebih lebar karena bisa panjang)
+      { wch: 25 }, // Total Pengeluaran
+    ];
+    worksheet["!cols"] = wscols;
+
+    // Trigger Download File Excel
+    XLSX.writeFile(workbook, fileName);
   };
 
   const resetFilters = () => {
@@ -225,12 +236,13 @@ export default function Outcome() {
           </div>
 
           <div className="d-flex gap-2">
+            {/* PERBAIKAN: Tombol dipanggil ke exportToExcel */}
             <button
-              onClick={exportToCSV}
+              onClick={exportToExcel}
               className="btn btn-success text-white shadow-sm px-3"
-              title="Export CSV"
+              title="Export Excel"
             >
-              <i className="fas fa-file-excel me-2"></i>Export CSV
+              <i className="fas fa-file-excel me-2"></i>Export Excel
             </button>
             <button
               onClick={handlePrint}

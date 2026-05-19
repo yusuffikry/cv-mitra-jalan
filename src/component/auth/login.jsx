@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { Await, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
+import { gsap } from "gsap";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -10,6 +11,30 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
+  const leftSideRef = useRef(null);
+  const rightSideRef = useRef(null);
+  const formRef = useRef(null);
+
+  useEffect(() => {
+    const tl = gsap.timeline();
+    tl.fromTo(
+      leftSideRef.current,
+      { x: -100, opacity: 0 },
+      { x: 0, opacity: 1, duration: 1, ease: "power4.out" },
+    );
+    tl.fromTo(
+      rightSideRef.current,
+      { opacity: 0 },
+      { opacity: 1, duration: 1, ease: "power2.out" },
+      "-=0.5",
+    );
+    tl.fromTo(
+      formRef.current.children,
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.6, stagger: 0.15, ease: "back.out(1.7)" },
+      "-=0.5",
+    );
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -30,109 +55,171 @@ function Login() {
   };
 
   return (
-    <div
-      className="hold-transition login-page"
-      style={{ backgroundColor: "#f4f6f9" }}
-    >
-      <div className="login-box" style={{ width: "400px" }}>
-        <div className="login-logo">
-          <img
-            src="/Image/Logo 2.png"
-            alt="Logo"
-            style={{ width: "100px", marginBottom: "10px" }}
-          />
-          <br />
-          <a href="#">
-            <b style={{ color: "#5493ff" }}>MITRA</b> JALAN
-          </a>
+    <div className="container-fluid vh-100 p-0 font-sans shadow-lg overflow-hidden bg-white">
+      <div className="row no-gutters h-100 mx-0">
+        <div
+          ref={leftSideRef} // Ref GSAP
+          className="col-lg-6 d-none d-lg-flex flex-column"
+          style={{ backgroundColor: "#5493ff", padding: "60px" }}
+        >
+          <div className="text-white mt-4 mb-5 d-flex flex-column align-items-center text-center">
+            <div style={{ display: "inline-block" }}>
+              <h1
+                className="font-weight-bold mb-0"
+                style={{
+                  fontSize: "3.8rem",
+                  letterSpacing: "-1px",
+                  lineHeight: "1",
+                }}
+              >
+                CV MITRA JALAN
+              </h1>
+              <p
+                className="lead font-italic mb-0 text-right"
+                style={{
+                  opacity: "0.8",
+                  fontSize: "1.2rem",
+                  marginTop: "-5px",
+                  width: "100%",
+                }}
+              >
+                RENT CAR
+              </p>
+            </div>
+          </div>
+
+          <div className="flex-grow-1 d-flex align-items-center justify-content-center">
+            <img
+              src="/Image/Car finance-cuate 1.png"
+              alt="Illustration Mitra Jalan"
+              className="img-fluid"
+              style={{ maxWidth: "580px", height: "auto" }}
+            />
+          </div>
         </div>
         <div
-          className="card card-outline card-primary"
-          style={{ borderTopColor: "#5493ff" }}
+          ref={rightSideRef} // Ref GSAP
+          className="col-12 col-lg-6 d-flex align-items-center justify-content-center bg-white"
+          style={{ padding: "20px" }}
         >
-          <div className="card-header text-center">
-            <h1
-              className="h4 m-0 font-weight-bold"
-              style={{ color: "#5493ff" }}
-            >
-              LOGIN ADMIN
-            </h1>
-            <p className="text-muted small">Masuk untuk mengakses dashboard</p>
-          </div>
-          <div className="card-body login-card-body">
-            {errorMsg && (
-              <div className="alert alert-danger p-2 text-sm">{errorMsg}</div>
-            )}
-
-            <form onSubmit={handleLogin}>
-              {/* Email Input */}
-              <div className="input-group mb-3">
-                <input
-                  type="email"
-                  className="form-control"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+          <div
+            className="card shadow-sm border"
+            style={{
+              width: "100%",
+              maxWidth: "440px",
+              borderRadius: "12px",
+              borderColor: "#eaeaea",
+            }}
+          >
+            <div className="card-body p-4 p-md-5" ref={formRef}>
+              {" "}
+              <div className="d-flex flex-column align-items-center justify-content-center text-center mb-4 mb-md-5">
+                <img
+                  src="/Image/Logo 2.png"
+                  alt="Logo Mitra Jalan"
+                  className="mb-3 img-fluid"
+                  style={{ width: "80px", height: "auto" }}
                 />
-                <div className="input-group-append">
-                  <div className="input-group-text">
-                    <span className="fas fa-envelope"></span>
-                  </div>
-                </div>
+                <h3
+                  className="font-weight-bold mb-1"
+                  style={{
+                    color: "#5493ff",
+                    letterSpacing: "1px",
+                    fontSize: "1.4rem",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  LOGIN ADMIN
+                </h3>
+                <p className="text-muted small mb-0">
+                  Masuk untuk mengakses dashboard
+                </p>
               </div>
+              {errorMsg && (
+                <div
+                  className="alert alert-danger border-0 small py-2 mb-4"
+                  role="alert"
+                >
+                  {errorMsg}
+                </div>
+              )}
+              <form onSubmit={handleLogin}>
+                <div className="form-group mb-3 mb-md-4">
+                  <input
+                    type="email"
+                    className="form-control"
+                    placeholder="Username"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    style={{
+                      fontSize: "14px",
+                      padding: "12px 15px",
+                      borderRadius: "8px",
+                      backgroundColor: "#fafafa",
+                    }}
+                  />
+                </div>
 
-              {/* Password Input */}
-              <div className="input-group mb-3">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  className="form-control"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <div className="input-group-append">
-                  <div
-                    className="input-group-text"
-                    style={{ cursor: "pointer" }}
+                <div className="form-group mb-3 mb-md-4 position-relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className="form-control"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    style={{
+                      fontSize: "14px",
+                      padding: "12px 45px 12px 15px",
+                      borderRadius: "8px",
+                      backgroundColor: "#fafafa",
+                    }}
+                  />
+                  <span
+                    className="position-absolute"
+                    style={{
+                      right: "15px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      cursor: "pointer",
+                      color: "#b0b0b0",
+                    }}
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    <span
+                    <i
                       className={
                         showPassword ? "fas fa-eye-slash" : "fas fa-eye"
                       }
-                    ></span>
-                  </div>
+                    ></i>
+                  </span>
                 </div>
-              </div>
 
-              <div className="row">
-                <div className="col-12">
-                  <button
-                    type="submit"
-                    className="btn btn-primary btn-block font-weight-bold"
-                    style={{
-                      backgroundColor: "#5493ff",
-                      borderColor: "#5493ff",
-                    }}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <span className="spinner-border spinner-border-sm mr-2"></span>
-                    ) : (
-                      "LOGIN NOW"
-                    )}
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-block font-weight-bold mt-4 mt-md-5"
+                  style={{
+                    backgroundColor: "#5493ff",
+                    borderColor: "#5493ff",
+                    borderRadius: "8px",
+                    padding: "12px",
+                    textTransform: "uppercase",
+                    boxShadow: "0 4px 12px rgba(84, 147, 255, 0.25)",
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span className="spinner-border spinner-border-sm"></span>
+                  ) : (
+                    "Login Now"
+                  )}
+                </button>
+              </form>
+              <div className="mt-4 text-center d-lg-none">
+                <small className="text-muted text-uppercase">
+                  &copy; 2026 <strong>CV Mitra Jalan</strong>
+                </small>
               </div>
-            </form>
-
-            <div className="mt-4 text-center">
-              <p className="text-muted text-sm">
-                &copy; 2026{" "}
-                <span style={{ color: "#5493ff" }}>CV Mitra Jalan</span>
-              </p>
             </div>
           </div>
         </div>
@@ -140,5 +227,4 @@ function Login() {
     </div>
   );
 }
-
 export default Login;

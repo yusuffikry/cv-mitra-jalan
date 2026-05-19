@@ -9,6 +9,9 @@ export default function EditCarList() {
   // State loading untuk fetching dan submitting
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State untuk menampilkan modal sukses
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // State untuk menyimpan data armada
   const [formData, setFormData] = useState({
@@ -97,12 +100,18 @@ export default function EditCarList() {
           no_gps: formData.gpsNumber,
           masa_aktif_gps: formData.gpsActiveDate,
         })
-        .eq("cars_id", id); // PENTING: Jangan lupa klausa WHERE, kalau tidak semua mobil ikut terupdate!
+        .eq("cars_id", id); // PENTING: Jangan lupa klausa WHERE
 
       if (error) throw error;
 
-      alert("Data kendaraan berhasil diperbarui!");
-      navigate("/carlist"); // Kembali ke halaman utama armada
+      // Tampilkan modal sukses alih-alih menggunakan alert bawaan
+      setShowSuccessModal(true);
+
+      // Tunggu 2 detik sebelum redirect ke halaman armada
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        navigate("/carlist");
+      }, 2000);
 
     } catch (error) {
       console.error("Error updating car:", error.message);
@@ -125,7 +134,7 @@ export default function EditCarList() {
   }
 
   return (
-    <div className="container-fluid py-4 bg-light min-vh-100">
+    <div className="container-fluid py-4 bg-light min-vh-100 position-relative">
       {/* Header Halaman */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -229,9 +238,9 @@ export default function EditCarList() {
                     className="form-select bg-light border-0 py-2"
                     required
                   >
+                    {/* PERBAIKAN: Opsi 'Disewa' dihapus */}
                     <option value="Tersedia">Tersedia</option>
-                    <option value="Disewa">Disewa</option>
-                    <option value="Pemeliharaan">Pemeliharaan</option> {/* Disesuaikan DB */}
+                    <option value="Pemeliharaan">Pemeliharaan</option>
                   </select>
                 </div>
 
@@ -350,6 +359,43 @@ export default function EditCarList() {
           </form>
         </div>
       </div>
+
+      {/* --- MODAL POP UP SUKSES EDIT (AUTO CLOSE) --- */}
+      {showSuccessModal && (
+        <div 
+          className="modal fade show d-block" 
+          tabIndex="-1" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', zIndex: 1050 }}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+              <div className="modal-body p-4 text-center">
+                
+                {/* Ikon Centang Hijau */}
+                <div 
+                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success" 
+                  style={{ width: "64px", height: "64px", borderRadius: "50%" }}
+                >
+                  <i className="fas fa-check fs-2"></i>
+                </div>
+
+                <h5 className="fw-bold text-dark mb-2">Berhasil Diperbarui!</h5>
+                <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
+                  Data kendaraan <span className="fw-bold text-dark">{formData.name}</span> telah berhasil diperbarui di sistem.
+                </p>
+
+                {/* Indikator Redirect */}
+                <div className="d-flex align-items-center justify-content-center text-muted small">
+                  <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: '12px', height: '12px' }}></div>
+                  Mengalihkan halaman...
+                </div>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
