@@ -127,15 +127,23 @@ export default function CreateOutcome() {
                   
                   <div className="mb-4">
                     <label className="form-label text-secondary small fw-bold">Jenis Pengeluaran <span className="text-danger">*</span></label>
-                    <input
-                      type="text"
+                    {/* BAGIAN INI DIUBAH MENJADI DROPDOWN */}
+                    <select
                       name="jenis_pengeluaran"
                       value={formData.jenis_pengeluaran}
                       onChange={handleChange}
-                      className="form-control bg-light border-0 py-2 shadow-none"
-                      placeholder="Misal: BBM, Cuci Mobil, Ganti Oli..."
+                      className="form-select bg-light border-0 py-2 shadow-none"
                       required
-                    />
+                    >
+                      <option value="" disabled>-- Pilih Jenis Pengeluaran --</option>
+                      <option value="Beban BBM">Beban BBM</option>
+                      <option value="Beban Gaji">Beban Gaji</option>
+                      <option value="Pemeliharaan">Pemeliharaan</option>
+                      <option value="Angsuran">Angsuran</option>
+                      <option value="Operasional">Operasional</option>
+                      <option value="Pajak">Pajak</option>
+                      <option value="Beban Lain-lain">Beban Lain-lain</option>
+                    </select>
                   </div>
                 </div>
 

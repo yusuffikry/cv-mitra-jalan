@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
-import * as XLSX from "xlsx"; // TAMBAHAN: Import library Excel
+import * as XLSX from "xlsx"; 
 
 export default function CarList() {
   const [cars, setCars] = useState([]);
@@ -39,6 +39,7 @@ export default function CarList() {
     }
   };
 
+  // Fungsi untuk cek apakah tanggal hari ini sudah melewati masa aktif
   const checkGpsStatus = (expiryDate) => {
     if (!expiryDate) return false;
     const today = new Date();
@@ -90,19 +91,21 @@ export default function CarList() {
     return matchName || matchPlate;
   });
 
-  // PERBAIKAN: Fungsi Export diubah menjadi Excel
+  // Export ke Excel (Diperbarui untuk 2 GPS)
   const exportToExcel = () => {
     const headers = [
       "No", "Nama Kendaraan", "Tipe", "Tahun", "Plat Nomor", "Transmisi",
-      "Jatuh Tempo", "Tanggal Servis", "Tanggal Pajak", "No GPS",
-      "Masa Aktif GPS", "Status GPS", "Keluhan", "Status",
+      "Jatuh Tempo", "Tanggal Servis", "Tanggal Pajak", 
+      "No GPS 1", "Masa Aktif GPS 1", "Status GPS 1",
+      "No GPS 2", "Masa Aktif GPS 2", "Status GPS 2", 
+      "Keluhan", "Status",
     ];
 
     const rows = filteredCars.map((car, index) => {
-      const isGpsActive = checkGpsStatus(car.masa_aktif_gps) && car.status_gps === "Aktif" ? "Aktif" : "Tidak Aktif";
+      // Evaluasi status GPS murni berdasarkan tanggal
+      const isGps1Active = car.masa_aktif_gps_1 && checkGpsStatus(car.masa_aktif_gps_1) ? "Aktif" : "Tidak Aktif";
+      const isGps2Active = car.masa_aktif_gps_2 ? (checkGpsStatus(car.masa_aktif_gps_2) ? "Aktif" : "Tidak Aktif") : "-";
       
-      // Catatan: Tidak perlu lagi me-replace koma secara manual (keluhanClean)
-      // Karena library XLSX sudah pintar membedakan koma di dalam teks vs pemisah sel
       const keluhan = car.keluhan_unit || "-";
 
       return [
@@ -115,23 +118,22 @@ export default function CarList() {
         car.tgl_jatuh_tempo || "-",
         car.tgl_pergantian_oli || "-",
         car.tgl_mati_pajak || "-",
-        car.no_gps || "-",
-        car.masa_aktif_gps || "-",
-        isGpsActive,
+        car.no_gps_1 || "-",
+        car.masa_aktif_gps_1 || "-",
+        isGps1Active,
+        car.no_gps_2 || "-",
+        car.masa_aktif_gps_2 || "-",
+        isGps2Active,
         keluhan,
         car.status_mobil || "-",
       ];
     });
 
-    // Menggabungkan Header dan Data
     const dataToExport = [headers, ...rows];
-
-    // Membuat Worksheet dan Workbook Excel
     const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data Armada");
 
-    // Mengatur lebar kolom secara otomatis (opsional biar rapi saat dibuka)
     const wscols = [
       { wch: 5 },  // No
       { wch: 25 }, // Nama Kendaraan
@@ -142,15 +144,17 @@ export default function CarList() {
       { wch: 15 }, // Jatuh Tempo
       { wch: 15 }, // Tgl Servis
       { wch: 15 }, // Tgl Pajak
-      { wch: 20 }, // No GPS
-      { wch: 15 }, // Masa Aktif GPS
-      { wch: 15 }, // Status GPS
-      { wch: 40 }, // Keluhan (Lebih lebar)
+      { wch: 20 }, // No GPS 1
+      { wch: 15 }, // Masa Aktif GPS 1
+      { wch: 15 }, // Status GPS 1
+      { wch: 20 }, // No GPS 2
+      { wch: 15 }, // Masa Aktif GPS 2
+      { wch: 15 }, // Status GPS 2
+      { wch: 40 }, // Keluhan
       { wch: 15 }, // Status
     ];
     worksheet["!cols"] = wscols;
 
-    // Trigger Download File Excel
     XLSX.writeFile(workbook, `Data_Armada_Rental_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
@@ -171,7 +175,6 @@ export default function CarList() {
         </div>
 
         <div className="d-flex gap-2">
-          {/* PERBAIKAN: Tombol dipanggil ke exportToExcel */}
           <button onClick={exportToExcel} className="btn btn-success shadow-sm px-3" title="Export data ke Excel">
             <i className="fas fa-file-excel me-2"></i>Export Excel
           </button>
@@ -194,7 +197,7 @@ export default function CarList() {
                 </span>
                 <input 
                   type="text" 
-                  className={`form-control bg-light ${searchTerm ? 'border-end-0' : ''} border-start-0`} 
+                  className={`form-control bg-light ${searchTerm ? 'border-end-0' : ''} border-start-0 shadow-none`} 
                   placeholder="Cari nama unit atau plat..." 
                   value={searchTerm}
                   onChange={(e) => {
@@ -222,17 +225,17 @@ export default function CarList() {
 
         {/* Area Tabel */}
         <div className="card-body p-0 flex-grow-1 overflow-auto">
-          <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.85rem" }}>
+          <table className="table table-hover align-middle mb-0 text-nowrap" style={{ fontSize: "0.85rem" }}>
             <thead className="sticky-top bg-white" style={{ zIndex: 10 }}>
               <tr style={{ backgroundColor: "#f8f9fa" }}>
-                <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom" style={{ width: "40px" }}>No</th>
+                <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "40px" }}>No</th>
                 <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">Unit Kendaraan</th>
                 <th className="py-3 px-2 text-secondary fw-bold text-uppercase border-bottom text-center">Plat Nomor</th>
                 <th className="py-3 px-2 text-secondary fw-bold text-uppercase border-bottom text-center">Transmisi</th>
                 <th className="py-3 px-2 text-secondary fw-bold text-uppercase border-bottom text-center">Jatuh Tempo</th>
                 <th className="py-3 px-2 text-secondary fw-bold text-uppercase border-bottom text-center">Tgl Servis</th>
                 <th className="py-3 px-2 text-secondary fw-bold text-uppercase border-bottom text-center">Tgl Pajak</th>
-                <th className="py-3 px-2 text-secondary fw-bold text-uppercase border-bottom text-center">GPS & Masa Aktif</th>
+                <th className="py-3 px-3 text-secondary fw-bold text-uppercase border-bottom">GPS & Masa Aktif</th>
                 <th className="py-3 text-secondary fw-bold text-uppercase border-bottom">Keluhan Unit</th>
                 <th className="py-3 px-2 text-secondary fw-bold text-uppercase border-bottom text-center">Status</th>
                 <th className="py-3 px-3 text-center text-secondary fw-bold text-uppercase border-bottom">Aksi</th>
@@ -254,11 +257,12 @@ export default function CarList() {
                 </tr>
               ) : (
                 currentItems.map((car, index) => {
-                  const isGpsActive = checkGpsStatus(car.masa_aktif_gps) && car.status_gps === "Aktif";
+                  const isGps1Active = checkGpsStatus(car.masa_aktif_gps_1);
+                  const isGps2Active = car.masa_aktif_gps_2 ? checkGpsStatus(car.masa_aktif_gps_2) : null;
 
                   return (
                     <tr key={car.cars_id}>
-                      <td className="px-3 text-muted">{indexOfFirstItem + index + 1}</td>
+                      <td className="px-3 text-muted text-center">{indexOfFirstItem + index + 1}</td>
                       
                       <td>
                         <div className="fw-bold text-dark">{car.jenis_unit || "-"}</div>
@@ -287,32 +291,62 @@ export default function CarList() {
                         {car.tgl_mati_pajak || "-"}
                       </td>
 
-                      <td className="text-center">
-                        <div className="fw-bold text-dark" style={{ fontSize: "0.8rem" }}>
-                          {car.no_gps || "-"}
+                      {/* KOLOM GPS (Merender GPS 1 dan GPS 2 secara bersusun) */}
+                      <td className="px-3 align-top">
+                        {/* Area GPS 1 */}
+                        <div className="mb-2 pb-1">
+                          <div className="fw-bold text-dark" style={{ fontSize: "0.8rem" }}>
+                            <i className="fas fa-map-marker-alt text-primary me-1"></i> {car.no_gps_1 || "Belum didaftarkan"}
+                          </div>
+                          {car.masa_aktif_gps_1 && (
+                            <div className="d-flex align-items-center mt-1">
+                              <span className="text-muted me-2" style={{ fontSize: "0.72rem" }}>
+                                s/d {car.masa_aktif_gps_1}
+                              </span>
+                              <span
+                                className={`badge rounded-pill px-2 py-1 ${isGps1Active ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"}`}
+                                style={{ fontSize: "0.65rem", fontWeight: "600" }}
+                              >
+                                {isGps1Active ? "✓ Aktif" : "✗ Tidak Aktif"}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div className="text-muted mb-1" style={{ fontSize: "0.72rem" }}>
-                          s/d {car.masa_aktif_gps || "-"}
-                        </div>
-                        <span
-                          className={`badge rounded-pill px-2 py-1 ${isGpsActive ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"}`}
-                          style={{ fontSize: "0.65rem", fontWeight: "600" }}
-                        >
-                          {isGpsActive ? "✓ Aktif" : "✗ Tidak Aktif"}
-                        </span>
+
+                        {/* Area GPS 2 (Hanya dirender jika ada datanya) */}
+                        {(car.no_gps_2 || car.masa_aktif_gps_2) && (
+                          <div className="pt-2 border-top border-light">
+                            <div className="fw-bold text-dark" style={{ fontSize: "0.8rem" }}>
+                              <i className="fas fa-map-marker-alt text-secondary me-1"></i> {car.no_gps_2 || "-"}
+                            </div>
+                            {car.masa_aktif_gps_2 && (
+                              <div className="d-flex align-items-center mt-1">
+                                <span className="text-muted me-2" style={{ fontSize: "0.72rem" }}>
+                                  s/d {car.masa_aktif_gps_2}
+                               </span>
+                                <span
+                                  className={`badge rounded-pill px-2 py-1 ${isGps2Active ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"}`}
+                                  style={{ fontSize: "0.65rem", fontWeight: "600" }}
+                                >
+                                  {isGps2Active ? "✓ Aktif" : "✗ Tidak Aktif"}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
 
-                      <td className="text-muted" style={{ maxWidth: "250px" }}>
+                      <td className="text-muted text-wrap" style={{ minWidth: "150px" }}>
                         {car.keluhan_unit || "-"}
                       </td>
 
-                      <td className="text-center">
+                      <td className="text-center align-middle">
                         <span
                           className={`badge rounded-pill px-3 py-2 border ${
                             car.status_mobil === "Tersedia"
                               ? "bg-success-subtle text-success border-success-subtle"
                               : car.status_mobil === "Pemeliharaan"
-                              ? "bg-danger-subtle text-danger border-danger-subtle"
+                              ? "bg-warning-subtle text-warning border-warning-subtle"
                               : "bg-secondary-subtle text-secondary border-secondary-subtle"
                           }`}
                         >
@@ -321,7 +355,7 @@ export default function CarList() {
                         </span>
                       </td>
 
-                      <td className="text-center px-3">
+                      <td className="text-center px-3 align-middle">
                         <div className="btn-group shadow-sm">
                           <Link to={`/carlist/edit/${car.cars_id}`} className="btn btn-sm btn-white border text-primary">
                             <i className="fas fa-edit"></i>

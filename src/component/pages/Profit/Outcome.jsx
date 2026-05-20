@@ -346,14 +346,14 @@ export default function Outcome() {
           >
             {/* KOP SURAT (Hanya muncul saat di-print) */}
             <div className="d-none d-print-block px-4 pt-5 pb-3">
-              <div className="text-center border-bottom border-dark border-2 pb-3 mb-4">
+              <img src="/Image/kop_surat.png" alt="" className="w-100 h-100" />
+              <div className="text-center pb-3 mb-4">
                 <h3
                   className="fw-bold text-uppercase mb-1"
                   style={{ letterSpacing: "1px" }}
                 >
                   Rekapitulasi Pengeluaran
                 </h3>
-                <h5 className="text-muted mb-2">CV. MITRA JALAN</h5>
                 <p className="text-dark fw-bold mb-0">
                   Periode:{" "}
                   {filterMonth

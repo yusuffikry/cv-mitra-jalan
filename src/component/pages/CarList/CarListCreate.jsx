@@ -21,8 +21,11 @@ export default function CarListCreate() {
     dueDate: "",
     serviceDate: "",
     taxDate: "",
-    gpsNumber: "",
-    gpsActiveDate: "",
+    // State GPS diubah menjadi 2 buah
+    gpsNumber1: "",
+    gpsActiveDate1: "",
+    gpsNumber2: "",
+    gpsActiveDate2: "",
     transmission: "Manual",
     complaints: "",
   });
@@ -43,6 +46,8 @@ export default function CarListCreate() {
     
     try {
       // Mapping state formData ke nama kolom Supabase
+      // Catatan: Pastikan nama kolom di database Supabase kamu sudah sesuai 
+      // (misal: no_gps_1, masa_aktif_gps_1, no_gps_2, masa_aktif_gps_2)
       const { error } = await supabase
         .from("cars")
         .insert([
@@ -53,12 +58,15 @@ export default function CarListCreate() {
             tipe_kendaraan: formData.type,
             transmisi: formData.transmission,
             status_mobil: formData.status,
-            keluhan_unit: formData.complaints || null, // Kosongkan jadi null jika tidak ada keluhan
+            keluhan_unit: formData.complaints || null, 
             tgl_jatuh_tempo: formData.dueDate,
             tgl_mati_pajak: formData.taxDate,
             tgl_pergantian_oli: formData.serviceDate,
-            no_gps: formData.gpsNumber,
-            masa_aktif_gps: formData.gpsActiveDate,
+            // Mapping 2 perangkat GPS
+            no_gps_1: formData.gpsNumber1,
+            masa_aktif_gps_1: formData.gpsActiveDate1,
+            no_gps_2: formData.gpsNumber2 || null, // Nilai null jika kosong
+            masa_aktif_gps_2: formData.gpsActiveDate2 || null,
           }
         ]);
 
@@ -186,7 +194,6 @@ export default function CarListCreate() {
                     className="form-select bg-light border-0 py-2"
                     required
                   >
-                    {/* PERBAIKAN: Opsi 'Disewa' dihapus karena status harus otomatis berdasarkan transaksi */}
                     <option value="Tersedia">Tersedia</option>
                     <option value="Pemeliharaan">Pemeliharaan</option>
                   </select>
@@ -249,29 +256,64 @@ export default function CarListCreate() {
                   <h6 className="fw-bold text-dark mb-3">
                     <i className="fas fa-satellite-dish me-2 text-primary"></i>Perangkat GPS
                   </h6>
-                  <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Nomor / ID GPS</label>
-                    <input
-                      type="text"
-                      name="gpsNumber"
-                      value={formData.gpsNumber}
-                      onChange={handleChange}
-                      className="form-control py-2"
-                      placeholder="Contoh: GPS-101"
-                      required
-                    />
+
+                  {/* GPS 1 (Utama) */}
+                  <div className="border-bottom pb-3 mb-3">
+                    <p className="fw-bold text-primary small mb-2">GPS Utama (1)</p>
+                    <div className="row g-2">
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-bold mb-1">Nomor / ID GPS</label>
+                        <input
+                          type="text"
+                          name="gpsNumber1"
+                          value={formData.gpsNumber1}
+                          onChange={handleChange}
+                          className="form-control py-2"
+                          placeholder="Contoh: GPS-101"
+                          required
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-bold mb-1">Batas Masa Aktif</label>
+                        <input
+                          type="date"
+                          name="gpsActiveDate1"
+                          value={formData.gpsActiveDate1}
+                          onChange={handleChange}
+                          className="form-control py-2"
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
+
+                  {/* GPS 2 (Cadangan) */}
                   <div className="mb-0">
-                    <label className="form-label text-secondary small fw-bold">Batas Masa Aktif GPS</label>
-                    <input
-                      type="date"
-                      name="gpsActiveDate"
-                      value={formData.gpsActiveDate}
-                      onChange={handleChange}
-                      className="form-control py-2"
-                      required
-                    />
-                    <small className="text-muted mt-1 d-block" style={{ fontSize: "0.75rem" }}>
+                    <p className="fw-bold text-secondary small mb-2">GPS Cadangan (2) - <span className="text-muted fw-normal">Opsional</span></p>
+                    <div className="row g-2">
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-bold mb-1">Nomor / ID GPS</label>
+                        <input
+                          type="text"
+                          name="gpsNumber2"
+                          value={formData.gpsNumber2}
+                          onChange={handleChange}
+                          className="form-control py-2"
+                          placeholder="Contoh: GPS-102"
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-bold mb-1">Batas Masa Aktif</label>
+                        <input
+                          type="date"
+                          name="gpsActiveDate2"
+                          value={formData.gpsActiveDate2}
+                          onChange={handleChange}
+                          className="form-control py-2"
+                        />
+                      </div>
+                    </div>
+                    <small className="text-muted mt-2 d-block" style={{ fontSize: "0.75rem" }}>
                       *Status Aktif/Tidak Aktif akan dikalkulasi otomatis oleh sistem berdasarkan tanggal ini.
                     </small>
                   </div>

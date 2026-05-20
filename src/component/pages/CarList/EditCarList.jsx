@@ -23,8 +23,11 @@ export default function EditCarList() {
     dueDate: "",
     serviceDate: "",
     taxDate: "",
-    gpsNumber: "",
-    gpsActiveDate: "",
+    // State GPS diubah menjadi 2 buah
+    gpsNumber1: "",
+    gpsActiveDate1: "",
+    gpsNumber2: "",
+    gpsActiveDate2: "",
     transmission: "Manual",
     complaints: "",
   });
@@ -52,8 +55,11 @@ export default function EditCarList() {
             dueDate: data.tgl_jatuh_tempo || "",
             serviceDate: data.tgl_pergantian_oli || "",
             taxDate: data.tgl_mati_pajak || "",
-            gpsNumber: data.no_gps || "",
-            gpsActiveDate: data.masa_aktif_gps || "",
+            // Mapping data untuk 2 GPS
+            gpsNumber1: data.no_gps_1 || "",
+            gpsActiveDate1: data.masa_aktif_gps_1 || "",
+            gpsNumber2: data.no_gps_2 || "",
+            gpsActiveDate2: data.masa_aktif_gps_2 || "",
             transmission: data.transmisi || "Manual",
             complaints: data.keluhan_unit || "",
           });
@@ -97,8 +103,11 @@ export default function EditCarList() {
           tgl_jatuh_tempo: formData.dueDate,
           tgl_mati_pajak: formData.taxDate,
           tgl_pergantian_oli: formData.serviceDate,
-          no_gps: formData.gpsNumber,
-          masa_aktif_gps: formData.gpsActiveDate,
+          // Update mapping 2 perangkat GPS
+          no_gps_1: formData.gpsNumber1,
+          masa_aktif_gps_1: formData.gpsActiveDate1,
+          no_gps_2: formData.gpsNumber2 || null, // Nilai null jika kosong
+          masa_aktif_gps_2: formData.gpsActiveDate2 || null,
         })
         .eq("cars_id", id); // PENTING: Jangan lupa klausa WHERE
 
@@ -298,30 +307,67 @@ export default function EditCarList() {
                 </div>
 
                 <div className="p-3 bg-light rounded-3 mt-4 border">
-                  <h6 className="fw-bold text-dark mb-3"><i className="fas fa-satellite-dish me-2 text-primary"></i>Perangkat GPS</h6>
-                  <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Nomor / ID GPS</label>
-                    <input
-                      type="text"
-                      name="gpsNumber"
-                      value={formData.gpsNumber}
-                      onChange={handleChange}
-                      className="form-control py-2"
-                      placeholder="Contoh: GPS-101"
-                      required
-                    />
+                  <h6 className="fw-bold text-dark mb-3">
+                    <i className="fas fa-satellite-dish me-2 text-primary"></i>Perangkat GPS
+                  </h6>
+
+                  {/* GPS 1 (Utama) */}
+                  <div className="border-bottom pb-3 mb-3">
+                    <p className="fw-bold text-primary small mb-2">GPS Utama (1)</p>
+                    <div className="row g-2">
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-bold mb-1">Nomor / ID GPS</label>
+                        <input
+                          type="text"
+                          name="gpsNumber1"
+                          value={formData.gpsNumber1}
+                          onChange={handleChange}
+                          className="form-control py-2"
+                          placeholder="Contoh: GPS-101"
+                          required
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-bold mb-1">Batas Masa Aktif</label>
+                        <input
+                          type="date"
+                          name="gpsActiveDate1"
+                          value={formData.gpsActiveDate1}
+                          onChange={handleChange}
+                          className="form-control py-2"
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
+
+                  {/* GPS 2 (Cadangan) */}
                   <div className="mb-0">
-                    <label className="form-label text-secondary small fw-bold">Batas Masa Aktif GPS</label>
-                    <input
-                      type="date"
-                      name="gpsActiveDate"
-                      value={formData.gpsActiveDate}
-                      onChange={handleChange}
-                      className="form-control py-2"
-                      required
-                    />
-                    <small className="text-muted mt-1 d-block" style={{ fontSize: "0.75rem" }}>
+                    <p className="fw-bold text-secondary small mb-2">GPS Cadangan (2) - <span className="text-muted fw-normal">Opsional</span></p>
+                    <div className="row g-2">
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-bold mb-1">Nomor / ID GPS</label>
+                        <input
+                          type="text"
+                          name="gpsNumber2"
+                          value={formData.gpsNumber2}
+                          onChange={handleChange}
+                          className="form-control py-2"
+                          placeholder="Contoh: GPS-102"
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label text-secondary small fw-bold mb-1">Batas Masa Aktif</label>
+                        <input
+                          type="date"
+                          name="gpsActiveDate2"
+                          value={formData.gpsActiveDate2}
+                          onChange={handleChange}
+                          className="form-control py-2"
+                        />
+                      </div>
+                    </div>
+                    <small className="text-muted mt-2 d-block" style={{ fontSize: "0.75rem" }}>
                       *Status Aktif/Tidak Aktif akan dikalkulasi otomatis oleh sistem berdasarkan tanggal ini.
                     </small>
                   </div>
