@@ -13,51 +13,60 @@ export default function CreateTransaction() {
   const [cars, setCars] = useState([]);
 
   // State KHUSUS untuk input pencarian Customer
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchCustomerTerm, setSearchCustomerTerm] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+  // State KHUSUS untuk input pencarian Mobil
+  const [searchCarTerm, setSearchCarTerm] = useState("");
+  const [showCarDropdown, setShowCarDropdown] = useState(false);
 
   // handel foto drive
   const [fotoFile, setFotoFile] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
   const [googleToken, setGoogleToken] = useState("");
 
-  // REVISI: Pisahkan ID Folder Drive untuk Foto dan Video
+  // ID Folder Drive untuk Foto dan Video
   const DRIVE_PHOTO_FOLDER_ID = "1BBNYFg2TWx_-OOWUdL4HtmmMmILInWqI";
   const DRIVE_VIDEO_FOLDER_ID = "1hG4Vsh9C-bl8dWKVcgY7OkmnrgWr3aLM";
 
-  // State form utama (Nilai uang disimpan dalam format string bertitik, misal: "1.000.000")
+  // State form utama
   const [formData, setFormData] = useState({
     waktu: "",
     waktu_pengembalian: "",
     customer_id: "", 
     nama_customer: "",
-    rute: "",
-    car_id: "",
+    kontak: "",
+    nik: "",
+    alamat: "",
+    domisili: "",
+    rute: "", // Sekarang input manual
+    car_id: "", // Kosong jika mobil baru/diketik manual
+    mobil_plat: "", // Untuk menyimpan teks plat/mobil yang diketik
+    merek: "", // Opsional, bisa diisi manual jika mobil baru
+    tipe_unit: "", // Opsional
+    transmisi: "", // Opsional
     dp: "",
     total_pembayaran: "",
     keterangan: "",
   });
 
   // --- FUNGSI FORMAT INPUT UANG ---
-  // Menghapus semua karakter selain angka, lalu menyisipkan titik ribuan
   const formatRupiahInput = (value) => {
     if (!value) return "";
-    const numberString = value.replace(/\D/g, ""); // Buang semua huruf dan simbol (termasuk minus)
-    return new Intl.NumberFormat("id-ID").format(numberString); // Format ke gaya Indonesia (titik)
+    const numberString = value.replace(/\D/g, "");
+    return new Intl.NumberFormat("id-ID").format(numberString);
   };
 
   // --- LOGIKA MENGHITUNG SISA PEMBAYARAN OTOMATIS ---
-  // Parsing dari string berformat "1.000.000" kembali ke angka asli 1000000
   const currentTotalPay = parseInt(formData.total_pembayaran.replace(/\./g, "")) || 0;
   let currentDp = parseInt(formData.dp.replace(/\./g, ""));
   if (isNaN(currentDp)) currentDp = 0;
 
   let currentSisaPay;
   if (formData.dp === "" || currentDp === 0) {
-    currentSisaPay = 0; // (Anggap lunas jika DP 0, sesuai kodemu)
+    currentSisaPay = currentTotalPay; 
   } else {
     currentSisaPay = currentTotalPay - currentDp;
-    // PENGAMAN TAMBAHAN: Cegah hasil kalkulasi minus
     if (currentSisaPay < 0) currentSisaPay = 0;
   }
 
@@ -68,7 +77,7 @@ export default function CreateTransaction() {
         const { data: customerData, error: customerError } = await supabase
           .from("customers")
           .select("*")
-          .eq("status", "active");
+          // .eq("status", "active");
 
         if (customerError) {
           console.error("Error muat customer:", customerError.message);
@@ -93,10 +102,18 @@ export default function CreateTransaction() {
     fetchOptions();
   }, []);
 
-  // --- FILTER NAMA CUSTOMER SECARA REAL-TIME ---
+  // --- FILTER SECARA REAL-TIME ---
   const filteredCustomers = customers.filter((c) =>
-    c.nama_pelanggan?.toLowerCase().includes(searchTerm.toLowerCase()),
+    c.nama_pelanggan?.toLowerCase().includes(searchCustomerTerm.toLowerCase()),
   );
+
+  const filteredCars = cars.filter((c) => {
+    const searchLower = searchCarTerm.toLowerCase();
+    return (
+      c.jenis_unit?.toLowerCase().includes(searchLower) ||
+      c.nomor_plat?.toLowerCase().includes(searchLower)
+    );
+  });
 
   // handle drive
   const handleGoogleLogin = () => {
@@ -129,22 +146,17 @@ export default function CreateTransaction() {
     setFormData((prev) => {
       let newValue = value;
 
-      // LOGIKA KUNCI: Mencegah DP melebihi Total Pembayaran
       if (name === "total_pembayaran") {
         newValue = formatRupiahInput(value);
-        
-        // Jika Total Pembayaran diubah lebih kecil dari DP yang sudah diketik, otomatis turunkan DP
         const newTotalRaw = parseInt(newValue.replace(/\./g, "")) || 0;
         const currentDpRaw = parseInt(prev.dp.replace(/\./g, "")) || 0;
         if (currentDpRaw > newTotalRaw) {
           prev.dp = formatRupiahInput(newTotalRaw.toString());
         }
-
       } else if (name === "dp") {
         const rawDp = parseInt(value.replace(/\D/g, "")) || 0;
         const currentTotalRaw = parseInt(prev.total_pembayaran.replace(/\./g, "")) || 0;
         
-        // Jika admin ngetik DP lebih besar dari Total Pembayaran, kunci mentok di angka Total Pembayaran
         if (rawDp > currentTotalRaw) {
           newValue = formatRupiahInput(currentTotalRaw.toString());
         } else {
@@ -215,10 +227,15 @@ export default function CreateTransaction() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.customer_id) {
-      alert("Harap pilih Customer dari daftar Dropdown yang muncul!");
+    if (!formData.nama_customer) {
+      alert("Harap isi Nama Customer!");
       return;
     }
+    if (!formData.mobil_plat) {
+      alert("Harap isi Data Kendaraan (Plat/Unit)!");
+      return;
+    }
+
     if ((fotoFile || videoFile) && !googleToken) {
       alert("Silahkan login google dulu untuk upload file foto/video");
       return;
@@ -250,14 +267,21 @@ export default function CreateTransaction() {
         linkVideo = await uploadToDrive(videoFile, DRIVE_VIDEO_FOLDER_ID, googleToken);
       }
 
-      // --- LOGIKA STATUS PEMBAYARAN OTOMATIS ---
-      const statusOtomatis = currentDp > 0 ? "Belum Lunas" : "Lunas";
+      const statusOtomatis = currentDp > 0 && currentSisaPay > 0 ? "Belum Lunas" : "Lunas";
 
-      // Pastikan yang disimpan ke database adalah angka asli yang bebas dari titik
       const { error } = await supabase.from("transactions").insert([
         {
-          customer_id: formData.customer_id,
-          car_id: formData.car_id,
+          customer_id: formData.customer_id || null, 
+          nama_customer: formData.nama_customer, 
+          kontak: formData.kontak,
+          nik: formData.nik,
+          alamat: formData.alamat,
+          domisili: formData.domisili,
+          car_id: formData.car_id || null, // Kosong/null jika diketik manual
+          mobil: formData.mobil_plat, // Simpan teks plat/mobil
+          merek: formData.merek,
+          tipe_unit: formData.tipe_unit,
+          transmisi: formData.transmisi,
           tanggal_sewa: tglSewa,
           jam_sewa: jamSewa,
           tanggal_pengembalian: tglKembali,
@@ -267,7 +291,7 @@ export default function CreateTransaction() {
           dp: currentDp,
           total_pembayaran: currentTotalPay,
           sisa_pembayaran: currentSisaPay,
-          status_pembayaran: statusOtomatis, // Terkirim otomatis tanpa input manual admin
+          status_pembayaran: statusOtomatis,
           keterangan: formData.keterangan || null,
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
@@ -326,117 +350,180 @@ export default function CreateTransaction() {
         >
           <div className="card-body p-4 p-lg-5">
             <form onSubmit={handleSubmit}>
-              <h6 className="fw-bold text-primary mb-3">
-                Informasi Peminjaman
+              
+              {/* --- BAGIAN 1: INFORMASI CUSTOMER --- */}
+              <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
+                Data Customer
               </h6>
+              
+              <div className="mb-4 position-relative">
+                <label className="form-label text-secondary small fw-bold">
+                  Nama Customer (Cari / Ketik Baru)
+                </label>
+                <div className="position-relative">
+                  <input
+                    type="text"
+                    className="form-control bg-light border-0 py-2 pe-5"
+                    placeholder="Ketik nama customer..."
+                    value={searchCustomerTerm}
+                    onChange={(e) => {
+                      setSearchCustomerTerm(e.target.value);
+                      setShowCustomerDropdown(true);
+                      setFormData((prev) => ({
+                        ...prev,
+                        customer_id: "", 
+                        nama_customer: e.target.value,
+                      }));
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                    required
+                  />
+
+                  {searchCustomerTerm && (
+                    <button
+                      type="button"
+                      className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
+                      style={{ zIndex: 10 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSearchCustomerTerm("");
+                        setFormData((prev) => ({
+                          ...prev,
+                          customer_id: "",
+                          nama_customer: "",
+                        }));
+                        setShowCustomerDropdown(true);
+                      }}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+
+                {showCustomerDropdown && (
+                  <ul
+                    className="dropdown-menu show w-100 shadow border-0 mt-1"
+                    style={{
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      position: "absolute",
+                      zIndex: 1000,
+                    }}
+                  >
+                    {filteredCustomers.length > 0 ? (
+                      filteredCustomers.map((cust) => (
+                        <li key={cust.id || cust.customer_id}>
+                          <button
+                            type="button"
+                            className="dropdown-item py-2"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSearchCustomerTerm(cust.nama_pelanggan);
+                              setFormData((prev) => ({
+                                ...prev,
+                                customer_id: cust.id || cust.customer_id,
+                                nama_customer: cust.nama_pelanggan,
+                                kontak: cust.kontak || "",
+                                nik: cust.nik || "",
+                                alamat: cust.alamat || "",
+                                domisili: cust.domisili || "",
+                              }));
+                              setShowCustomerDropdown(false);
+                            }}
+                          >
+                            {cust.nama_pelanggan} 
+                            {cust.kontak && <small className="text-muted ms-2">({cust.kontak})</small>}
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li>
+                        <span className="dropdown-item text-muted disabled">
+                          (Tekan enter/simpan untuk jadikan customer baru)
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+
               <div className="row g-4 mb-5">
                 <div className="col-md-6">
-                  {/* --- CUSTOM SEARCHABLE DROPDOWN UNTUK CUSTOMER --- */}
-                  <div className="mb-3 position-relative">
-                    <label className="form-label text-secondary small fw-bold">
-                      Nama Customer (Cari / Pilih)
-                    </label>
-
-                    <div className="position-relative">
-                      <input
-                        type="text"
-                        className="form-control bg-light border-0 py-2 pe-5"
-                        placeholder="Ketik nama customer..."
-                        value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          setShowDropdown(true);
-                          setFormData((prev) => ({
-                            ...prev,
-                            customer_id: "",
-                            nama_customer: "",
-                          }));
-                        }}
-                        onFocus={() => setShowDropdown(true)}
-                        onBlur={() => setShowDropdown(false)}
-                        required={!formData.customer_id}
-                      />
-
-                      {searchTerm && (
-                        <button
-                          type="button"
-                          className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
-                          style={{ zIndex: 10 }}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setSearchTerm("");
-                            setFormData((prev) => ({
-                              ...prev,
-                              customer_id: "",
-                              nama_customer: "",
-                            }));
-                            setShowDropdown(true);
-                          }}
-                        >
-                          <i className="fas fa-times"></i>
-                        </button>
-                      )}
-                    </div>
-
-                    {showDropdown && (
-                      <ul
-                        className="dropdown-menu show w-100 shadow border-0 mt-1"
-                        style={{
-                          maxHeight: "200px",
-                          overflowY: "auto",
-                          position: "absolute",
-                          zIndex: 1000,
-                        }}
-                      >
-                        {filteredCustomers.length > 0 ? (
-                          filteredCustomers.map((cust) => (
-                            <li key={cust.id || cust.customer_id}>
-                              <button
-                                type="button"
-                                className="dropdown-item py-2"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  setSearchTerm(cust.nama_pelanggan);
-                                  setFormData((prev) => ({
-                                    ...prev,
-                                    customer_id: cust.id || cust.customer_id,
-                                    nama_customer: cust.nama_pelanggan,
-                                  }));
-                                  setShowDropdown(false);
-                                }}
-                              >
-                                {cust.nama_pelanggan}
-                              </button>
-                            </li>
-                          ))
-                        ) : (
-                          <li>
-                            <span className="dropdown-item text-muted disabled">
-                              Pelanggan tidak ditemukan
-                            </span>
-                          </li>
-                        )}
-                      </ul>
-                    )}
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Kontak / No. HP</label>
+                    <input
+                      type="text"
+                      name="kontak"
+                      value={formData.kontak}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Masukkan kontak..."
+                      required
+                    />
                   </div>
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">NIK</label>
+                    <input
+                      type="text"
+                      name="nik"
+                      value={formData.nik}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Masukkan 16 digit NIK..."
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Alamat Lengkap</label>
+                    <input
+                      type="text"
+                      name="alamat"
+                      value={formData.alamat}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Masukkan alamat asli..."
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Domisili Tujuan (Kota Rental)</label>
+                    <input
+                      type="text"
+                      name="domisili"
+                      value={formData.domisili}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Misal: Makassar, Maros..."
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
 
+
+              {/* --- BAGIAN 2: INFORMASI PEMINJAMAN --- */}
+              <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
+                Jadwal & Rute
+              </h6>
+              <div className="row g-4 mb-5">
+                <div className="col-md-12">
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
                       Rute Perjalanan
                     </label>
-                    <select
+                    {/* RUTE DIUBAH MENJADI INPUT MANUAL */}
+                    <input
+                      type="text"
                       name="rute"
+                      value={formData.rute}
                       onChange={handleChange}
-                      className="form-select bg-light border-0 py-2"
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Masukkan rute secara manual (cth: Dalkot Makassar, Lintas Provinsi...)"
                       required
-                    >
-                      <option value="">-- Pilih Rute --</option>
-                      <option value="DALKOT">Dalam Kota</option>
-                      <option value="LURKOT">Luar Kota</option>
-                      <option value="DALKOT & LURKOT">
-                        Dalam Kota & Luar Kota
-                      </option>
-                    </select>
+                    />
                   </div>
                 </div>
 
@@ -453,6 +540,8 @@ export default function CreateTransaction() {
                       required
                     />
                   </div>
+                </div>
+                <div className="col-md-6">
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
                       Jadwal Kembali
@@ -467,52 +556,169 @@ export default function CreateTransaction() {
                       className="form-control bg-light border-0 py-2"
                       required
                     />
-                    {!formData.waktu ? (
-                      <small
-                        className="text-danger"
-                        style={{ fontSize: "10px" }}
-                      >
+                    {!formData.waktu && (
+                      <small className="text-danger" style={{ fontSize: "10px" }}>
                         *Isi jadwal ambil terlebih dahulu
-                      </small>
-                    ) : (
-                      <small
-                        className="text-muted"
-                        style={{ fontSize: "10px" }}
-                      >
-                        *Minimal pengembalian adalah H+1 dari jadwal ambil.
                       </small>
                     )}
                   </div>
                 </div>
               </div>
-              <h6 className="fw-bold text-primary mb-3">
+
+
+              {/* --- BAGIAN 3: DATA KENDARAAN --- */}
+              <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
                 Data Kendaraan Terpilih
               </h6>
+              
+              <div className="mb-4 position-relative">
+                <label className="form-label text-secondary small fw-bold">
+                  Mobil (Cari / Ketik Plat Baru)
+                </label>
+                <div className="position-relative">
+                  <input
+                    type="text"
+                    className="form-control bg-light border-0 py-2 pe-5"
+                    placeholder="Ketik plat atau nama unit..."
+                    value={searchCarTerm}
+                    onChange={(e) => {
+                      setSearchCarTerm(e.target.value);
+                      setShowCarDropdown(true);
+                      setFormData((prev) => ({
+                        ...prev,
+                        car_id: "", 
+                        mobil_plat: e.target.value,
+                        merek: "",
+                        tipe_unit: "",
+                        transmisi: "",
+                      }));
+                    }}
+                    onFocus={() => setShowCarDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowCarDropdown(false), 200)}
+                    required
+                  />
+
+                  {searchCarTerm && (
+                    <button
+                      type="button"
+                      className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
+                      style={{ zIndex: 10 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSearchCarTerm("");
+                        setFormData((prev) => ({
+                          ...prev,
+                          car_id: "",
+                          mobil_plat: "",
+                          merek: "",
+                          tipe_unit: "",
+                          transmisi: "",
+                        }));
+                        setShowCarDropdown(true);
+                      }}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+
+                {showCarDropdown && (
+                  <ul
+                    className="dropdown-menu show w-100 shadow border-0 mt-1"
+                    style={{
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      position: "absolute",
+                      zIndex: 1000,
+                    }}
+                  >
+                    {filteredCars.length > 0 ? (
+                      filteredCars.map((car) => (
+                        <li key={car.cars_id}>
+                          <button
+                            type="button"
+                            className="dropdown-item py-2"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              const displayCar = `${car.nomor_plat} - ${car.jenis_unit}`;
+                              setSearchCarTerm(displayCar);
+                              setFormData((prev) => ({
+                                ...prev,
+                                car_id: car.cars_id,
+                                mobil_plat: displayCar,
+                                merek: car.jenis_unit?.split(" ")[0] || "", // Ambil kata pertama sebagai merek (contoh: Toyota Avanza -> Toyota)
+                                tipe_unit: car.tipe_kendaraan || "",
+                                transmisi: car.transmisi || "",
+                              }));
+                              setShowCarDropdown(false);
+                            }}
+                          >
+                            <strong>{car.nomor_plat}</strong> - {car.jenis_unit} 
+                            <small className="text-muted ms-2">({car.status_mobil})</small>
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li>
+                        <span className="dropdown-item text-muted disabled">
+                          (Plat baru akan direkam sebagai input manual)
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+
+              {/* Tampilkan field detail mobil jika user mengetik manual (car_id kosong) ATAU biarkan admin mengubah detailnya */}
               <div className="row g-4 mb-5">
-                <div className="col-md-12">
+                <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">
-                      Mobil (Plat Nomor)
-                    </label>
+                    <label className="form-label text-secondary small fw-bold">Merek</label>
+                    <input
+                      type="text"
+                      name="merek"
+                      value={formData.merek}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Contoh: Toyota"
+                    />
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Jenis Unit</label>
+                    <input
+                      type="text"
+                      name="tipe_unit"
+                      value={formData.tipe_unit}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Contoh: Avanza G"
+                    />
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Transmisi</label>
                     <select
-                      name="car_id"
+                      name="transmisi"
+                      value={formData.transmisi}
                       onChange={handleChange}
                       className="form-select bg-light border-0 py-2"
-                      required
                     >
-                      <option value="">
-                        -- Pilih Kendaraan yang Disewa --
-                      </option>
-                      {cars.map((car) => (
-                        <option key={car.cars_id} value={car.cars_id}>
-                          {car.jenis_unit} ({car.nomor_plat})
-                        </option>
-                      ))}
+                      <option value="">- Pilih -</option>
+                      <option value="MANUAL">Manual</option>
+                      <option value="OTOMATIS">Otomatis</option>
                     </select>
                   </div>
                 </div>
               </div>
-              <h6 className="fw-bold text-success mb-3">Rincian Pembayaran</h6>
+
+
+              {/* --- BAGIAN 4: RINCIAN PEMBAYARAN --- */}
+              <h6 className="fw-bold text-success mb-3 border-bottom pb-2">
+                Rincian Pembayaran
+              </h6>
               <div className="row g-4 mb-5">
                 <div className="col-md-4">
                   <div className="mb-3">
@@ -520,9 +726,7 @@ export default function CreateTransaction() {
                       Total Pembayaran
                     </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">
-                        Rp
-                      </span>
+                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
                       <input
                         type="text"
                         name="total_pembayaran"
@@ -541,9 +745,7 @@ export default function CreateTransaction() {
                       Uang Muka (DP)
                     </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">
-                        Rp
-                      </span>
+                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
                       <input
                         type="text"
                         name="dp"
@@ -561,9 +763,7 @@ export default function CreateTransaction() {
                       Sisa Pembayaran (Otomatis)
                     </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">
-                        Rp
-                      </span>
+                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
                       <input
                         type="text"
                         className="form-control bg-light border-0 py-2"
@@ -574,7 +774,10 @@ export default function CreateTransaction() {
                   </div>
                 </div>
               </div>
-              <h6 className="fw-bold text-success mb-3">
+
+
+              {/* --- BAGIAN 5: DOKUMENTASI --- */}
+              <h6 className="fw-bold text-success mb-3 border-bottom pb-2">
                 Dokumentasi & Keterangan
               </h6>
               <div className="row g-4 mb-4">
@@ -583,16 +786,14 @@ export default function CreateTransaction() {
                     <button
                       type="button"
                       onClick={handleGoogleLogin}
-                      className="btn btn-outline-danger mb-3 btn-sm"
+                      className="btn btn-outline-danger mb-3 btn-sm shadow-sm"
                     >
-                      1. Klik Login Google untuk Aktifkan Upload
+                      <i className="fab fa-google me-2"></i>1. Klik Login Google untuk Upload
                     </button>
                   )}
 
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">
-                      Foto Kendaraan
-                    </label>
+                    <label className="form-label text-secondary small fw-bold">Foto Kendaraan</label>
                     <input
                       type="file"
                       accept="image/*"
@@ -602,9 +803,7 @@ export default function CreateTransaction() {
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">
-                      Video Kendaraan
-                    </label>
+                    <label className="form-label text-secondary small fw-bold">Video Kendaraan</label>
                     <input
                       type="file"
                       accept="video/*"
@@ -615,9 +814,7 @@ export default function CreateTransaction() {
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3 h-100">
-                    <label className="form-label text-secondary small fw-bold">
-                      Keterangan Tambahan
-                    </label>
+                    <label className="form-label text-secondary small fw-bold">Keterangan Tambahan</label>
                     <textarea
                       name="keterangan"
                       onChange={handleChange}
@@ -628,15 +825,13 @@ export default function CreateTransaction() {
                   </div>
                 </div>
               </div>
+
+              {/* --- TOMBOL SUBMIT --- */}
               <div className="d-flex justify-content-end gap-3 mt-5 border-top pt-4">
                 <Link
                   to="/transaction"
                   className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                  style={{
-                    backgroundColor: "#ff9a90",
-                    border: "none",
-                    borderRadius: "12px",
-                  }}
+                  style={{ backgroundColor: "#ff9a90", border: "none", borderRadius: "12px" }}
                 >
                   Batal
                 </Link>
@@ -653,11 +848,7 @@ export default function CreateTransaction() {
                 >
                   {isSubmitting ? (
                     <>
-                      <span
-                        className="spinner-border spinner-border-sm me-2"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                       Menyimpan...
                     </>
                   ) : (
@@ -669,21 +860,16 @@ export default function CreateTransaction() {
           </div>
         </div>
       </div>
+
+      {/* --- MODAL SUKSES --- */}
       {showSuccessModal && (
         <div
           className="modal fade show d-block"
           tabIndex="-1"
-          style={{
-            backgroundColor: "rgba(0,0,0,0.5)",
-            backdropFilter: "blur(5px)",
-            zIndex: 1050,
-          }}
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(5px)", zIndex: 1050 }}
         >
           <div className="modal-dialog modal-dialog-centered modal-sm">
-            <div
-              className="modal-content border-0 shadow-lg"
-              style={{ borderRadius: "16px" }}
-            >
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
               <div className="modal-body p-4 text-center">
                 <div
                   className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success"
@@ -691,22 +877,12 @@ export default function CreateTransaction() {
                 >
                   <i className="fas fa-check fs-2"></i>
                 </div>
-                <h5 className="fw-bold text-dark mb-2">
-                  Berhasil Ditambahkan!
-                </h5>
+                <h5 className="fw-bold text-dark mb-2">Berhasil Ditambahkan!</h5>
                 <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
-                  Transaksi untuk{" "}
-                  <span className="fw-bold text-dark">
-                    {formData.nama_customer || "Customer"}
-                  </span>{" "}
-                  berhasil dibuat.
+                  Transaksi untuk <span className="fw-bold text-dark">{formData.nama_customer || "Customer"}</span> berhasil dibuat.
                 </p>
                 <div className="d-flex align-items-center justify-content-center text-muted small">
-                  <div
-                    className="spinner-border spinner-border-sm me-2"
-                    role="status"
-                    style={{ width: "12px", height: "12px" }}
-                  ></div>
+                  <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: "12px", height: "12px" }}></div>
                   Mengalihkan...
                 </div>
               </div>

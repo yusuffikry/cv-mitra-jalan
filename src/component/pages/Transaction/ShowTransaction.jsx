@@ -16,9 +16,21 @@ export default function ShowTransaction({ data, onBack }) {
   // 2. Gunakan contentRef untuk react-to-print versi terbaru
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: `Struk_Transaksi_TRX-${data?.id || 'Rental'}`,
+    documentTitle: `Struk_Transaksi_${data?.id || 'Rental'}`,
     removeAfterPrint: true,
   });
+
+  if (!data) {
+    return (
+      <div className="h-100 d-flex justify-content-center align-items-center bg-light">
+        <div className="text-center text-muted">
+          <i className="fas fa-file-invoice-dollar fs-1 mb-3"></i>
+          <h5>Data transaksi tidak ditemukan.</h5>
+          <button onClick={onBack} className="btn btn-primary mt-3">Kembali</button>
+        </div>
+      </div>
+    );
+  }
 
   if (!data) {
     return (
@@ -119,6 +131,11 @@ export default function ShowTransaction({ data, onBack }) {
         <div className="card-body p-4 p-md-5">
           
           <div className="text-center mb-5">
+            <div className="row-md ">
+              <div className="col-md">
+                <img src="/Image/kop_surat.png" alt="" />
+              </div>
+            </div>
             <h3 className="fw-bold text-uppercase tracking-wider" style={{ color: "#0061f2", letterSpacing: "2px" }}>
               Lembar Transaksi
             </h3>
@@ -138,64 +155,93 @@ export default function ShowTransaction({ data, onBack }) {
             </div>
           </div>
 
-          {/* DATA KENDARAAN */}
-          <div className="mb-5">
+          {/* --- DATA CUSTOMER --- */}
+          <div className="mb-5 page-break-section">
             <h6 className="text-primary fw-bold mb-3 pb-2 border-bottom d-inline-block" style={{ letterSpacing: "1px" }}>
+              <i className="fas fa-user me-2"></i>DATA CUSTOMER
+            </h6>
+            <div className="row g-4 px-2 mt-1">
+              <div className="col-md-6">
+                <div className="d-flex mb-3">
+                  <div className="text-muted w-50">Nama Pelanggan</div>
+                  <div className="fw-bold w-50 text-dark">{data.nama_customer || "-"}</div>
+                </div>
+                <div className="d-flex mb-3">
+                  <div className="text-muted w-50">NIK</div>
+                  <div className="fw-bold w-50 text-dark">{data.nik || "-"}</div>
+                </div>
+                <div className="d-flex mb-3">
+                  <div className="text-muted w-50">Kontak (HP)</div>
+                  <div className="fw-bold w-50 text-dark">{data.kontak || "-"}</div>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="d-flex mb-3">
+                  <div className="text-muted w-50">Alamat Asli</div>
+                  <div className="fw-bold w-50 text-dark text-wrap">{data.alamat || "-"}</div>
+                </div>
+                <div className="d-flex mb-3">
+                  <div className="text-muted w-50">Domisili Tujuan</div>
+                  <div className="fw-bold w-50 text-dark">{data.domisili || "-"}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* --- DATA KENDARAAN --- */}
+          <div className="mb-5 page-break-section">
+            <h6 className="text-danger fw-bold mb-3 pb-2 border-bottom d-inline-block" style={{ letterSpacing: "1px" }}>
               <i className="fas fa-car me-2"></i>DATA KENDARAAN
             </h6>
             <div className="row g-4 px-2 mt-1">
               <div className="col-md-6">
                 <div className="d-flex mb-3">
                   <div className="text-muted w-50">Merek/Brand</div>
-                  <div className="fw-bold w-50 text-dark">{data.merek}</div>
+                  <div className="fw-bold w-50 text-dark">{data.merek || "-"}</div>
                 </div>
                 <div className="d-flex mb-3">
                   <div className="text-muted w-50">Nomor Plat</div>
                   <div className="fw-bold w-50">
-                    <span className="badge border text-dark bg-light px-2 py-1">{data.mobil}</span>
+                    <span className="badge border text-dark bg-light px-2 py-1">{data.mobil || "-"}</span>
                   </div>
                 </div>
               </div>
               <div className="col-md-6">
                 <div className="d-flex mb-3">
                   <div className="text-muted w-50">Jenis Unit</div>
-                  <div className="fw-bold w-50 text-dark">{data.tipe_unit}</div>
+                  <div className="fw-bold w-50 text-dark">{data.tipe_unit || "-"}</div>
                 </div>
                 <div className="d-flex mb-3">
                   <div className="text-muted w-50">Transmisi</div>
-                  <div className="fw-bold w-50 text-dark">{data.transmisi}</div>
+                  <div className="fw-bold w-50 text-dark">{data.transmisi || "-"}</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* DATA PENYEWAAN */}
-          <div className="mb-5">
+          {/* --- DATA PENYEWAAN --- */}
+          <div className="mb-5 page-break-section">
             <h6 className="text-success fw-bold mb-3 pb-2 border-bottom d-inline-block" style={{ letterSpacing: "1px" }}>
-              <i className="fas fa-file-invoice-dollar me-2"></i>DATA PENYEWAAN
+              <i className="fas fa-file-invoice-dollar me-2"></i>DATA PENYEWAAN & PEMBAYARAN
             </h6>
             <div className="row g-4 px-2 mt-1">
               <div className="col-md-6">
                 <div className="d-flex mb-3">
-                  <div className="text-muted w-50">Nama Pelanggan</div>
-                  <div className="fw-bold w-50 text-primary">{data.nama_customer}</div>
-                </div>
-                <div className="d-flex mb-3">
                   <div className="text-muted w-50">Jadwal Ambil</div>
-                  <div className="fw-bold w-50 text-dark">{data.waktu}</div>
+                  <div className="fw-bold w-50 text-dark">{data.waktu || "-"}</div>
                 </div>
                 <div className="d-flex mb-3">
                   <div className="text-muted w-50">Jadwal Kembali</div>
-                  <div className="fw-bold w-50 text-dark">{data.waktu_pengembalian}</div>
+                  <div className="fw-bold w-50 text-dark">{data.waktu_pengembalian || "-"}</div>
                 </div>
                 <div className="d-flex mb-3">
                   <div className="text-muted w-50">Rute Perjalanan</div>
-                  <div className="fw-bold w-50 text-dark">{data.rute}</div>
+                  <div className="fw-bold w-50 text-dark">{data.rute || "-"}</div>
                 </div>
                 <div className="d-flex mb-3">
                   <div className="text-muted w-50">Durasi</div>
                   <div className="fw-bold w-50 text-dark">
-                    <span className="badge bg-secondary-subtle text-secondary px-2 py-1 border">{data.jumlah_hari} Hari</span>
+                    <span className="badge bg-secondary-subtle text-secondary px-2 py-1 border">{data.jumlah_hari || 0} Hari</span>
                   </div>
                 </div>
               </div>
@@ -204,14 +250,14 @@ export default function ShowTransaction({ data, onBack }) {
                 <div className="p-4 bg-light rounded-3 border border-2 border-white shadow-sm">
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Uang Muka (DP)</span>
-                    <span className="fw-bold text-dark">Rp {data.dp}</span>
+                    <span className="fw-bold text-dark">Rp {data.dp || "0"}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-3">
                     <span className="text-muted">Sisa Pembayaran</span>
-                    <span className="fw-bold text-danger">Rp {data.sisa_pembayaran}</span>
+                    <span className="fw-bold text-danger">Rp {data.sisa_pembayaran || "0"}</span>
                   </div>
                   
-                  {/* --- TAMBAHAN STATUS PEMBAYARAN --- */}
+                  {/* --- STATUS PEMBAYARAN --- */}
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <span className="text-muted">Status Pembayaran</span>
                     <span 
@@ -228,14 +274,15 @@ export default function ShowTransaction({ data, onBack }) {
                   <hr className="border-secondary opacity-25" />
                   <div className="d-flex justify-content-between align-items-center mt-2">
                     <span className="text-muted fw-bold">TOTAL BIAYA</span>
-                    <span className="fw-bold text-success fs-5">Rp {data.total_pembayaran}</span>
+                    <span className="fw-bold text-success fs-5">Rp {data.total_pembayaran || "0"}</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mb-5">
+          {/* --- KETERANGAN --- */}
+          <div className="mb-5 page-break-section">
             <h6 className="text-secondary fw-bold mb-3 pb-2 border-bottom d-inline-block" style={{ letterSpacing: "1px" }}>
               <i className="fas fa-align-left me-2"></i>KETERANGAN TAMBAHAN
             </h6>
@@ -244,7 +291,7 @@ export default function ShowTransaction({ data, onBack }) {
             </div>
           </div>
 
-          {/* DOKUMENTASI */}
+          {/* --- DOKUMENTASI --- */}
           <div className="page-break-section">
             <h6 className="text-secondary fw-bold mb-4 pb-2 border-bottom d-inline-block" style={{ letterSpacing: "1px" }}>
               <i className="fas fa-paperclip me-2"></i>LAMPIRAN DOKUMENTASI

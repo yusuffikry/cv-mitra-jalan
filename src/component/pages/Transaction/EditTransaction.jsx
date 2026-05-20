@@ -17,12 +17,16 @@ export default function EditTransaction() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // State KHUSUS untuk input pencarian Mobil
+  const [searchCarTerm, setSearchCarTerm] = useState("");
+  const [showCarDropdown, setShowCarDropdown] = useState(false);
+
   // handle file drive
   const [fotoFile, setFotoFile] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
   const [googleToken, setGoogleToken] = useState("");
 
-  // REVISI: Pisahkan ID Folder Drive untuk Foto dan Video
+  // ID Folder Drive untuk Foto dan Video
   const DRIVE_PHOTO_FOLDER_ID = "1BBNYFg2TWx_-OOWUdL4HtmmMmILInWqI";
   const DRIVE_VIDEO_FOLDER_ID = "1hG4Vsh9C-bl8dWKVcgY7OkmnrgWr3aLM";
 
@@ -32,19 +36,27 @@ export default function EditTransaction() {
     waktu_pengembalian: "",
     customer_id: "", 
     nama_customer: "",
-    rute: "",
-    car_id: "",
+    kontak: "",
+    nik: "",
+    alamat: "",
+    domisili: "",
+    rute: "", // Input Manual
+    car_id: "", // Kosong jika mobil diketik manual
+    mobil_plat: "", // Input manual plat/unit
+    merek: "",
+    tipe_unit: "",
+    transmisi: "",
     dp: "",
     total_pembayaran: "",
     keterangan: "",
-    foto_mobil: "", // Simpan link lama
-    video_mobil: "", // Simpan link lama
+    foto_mobil: "", 
+    video_mobil: "", 
   });
 
   // --- FUNGSI FORMAT INPUT UANG ---
   const formatRupiahInput = (value) => {
     if (!value) return "";
-    const numberString = value.toString().replace(/\D/g, ""); // Buang huruf/simbol
+    const numberString = value.toString().replace(/\D/g, ""); 
     return new Intl.NumberFormat("id-ID").format(numberString); 
   };
 
@@ -55,22 +67,20 @@ export default function EditTransaction() {
 
   let currentSisaPay;
   if (formData.dp === "" || currentDp === 0) {
-    currentSisaPay = 0; // Anggap lunas jika DP 0
+    currentSisaPay = currentTotalPay; // Sisa adalah total jika belum ada DP
   } else {
     currentSisaPay = currentTotalPay - currentDp;
-    // PENGAMAN: Cegah sisa pembayaran minus
     if (currentSisaPay < 0) currentSisaPay = 0;
   }
 
-  // --- AMBIL DATA AWAL (Pilihan & Data Transaksi Lama) ---
+  // --- AMBIL DATA AWAL ---
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // 1. Ambil data pelanggan aktif
+        // 1. Ambil data pelanggan
         const { data: customerData, error: customerError } = await supabase
           .from("customers")
-          .select("*")
-          .eq("status", "active");
+          .select("*");
         
         if (customerError) console.error("Error muat customer:", customerError.message);
         else setCustomers(customerData || []);
@@ -83,7 +93,7 @@ export default function EditTransaction() {
         if (carError) console.error("Error muat mobil:", carError.message);
         else setCars(carData || []);
 
-        // 3. Ambil data transaksi lama berdasarkan ID
+        // 3. Ambil data transaksi lama
         if (id) {
           const { data: trxData, error: trxError } = await supabase
             .from("transactions")
@@ -100,16 +110,24 @@ export default function EditTransaction() {
               return `${dateStr}T${time}`;
             };
 
-            const namaCust = trxData.customers?.nama_pelanggan || "";
+            const namaCust = trxData.nama_customer || trxData.customers?.nama_pelanggan || "";
+            const mobilUnit = trxData.mobil || ""; // Ambil string dari DB
 
             setFormData({
               waktu: formatDateTime(trxData.tanggal_sewa, trxData.jam_sewa),
               waktu_pengembalian: formatDateTime(trxData.tanggal_pengembalian, trxData.jam_pengembalian),
-              customer_id: trxData.customer_id,
+              customer_id: trxData.customer_id || "",
               nama_customer: namaCust,
+              kontak: trxData.kontak || "",
+              nik: trxData.nik || "",
+              alamat: trxData.alamat || "",
+              domisili: trxData.domisili || "",
               rute: trxData.rute || "",
               car_id: trxData.car_id || "",
-              // PERBAIKAN: Format angka dari DB langsung pakai titik saat dirender
+              mobil_plat: mobilUnit,
+              merek: trxData.merek || "",
+              tipe_unit: trxData.tipe_unit || "",
+              transmisi: trxData.transmisi || "",
               dp: trxData.dp ? formatRupiahInput(trxData.dp) : "",
               total_pembayaran: trxData.total_pembayaran ? formatRupiahInput(trxData.total_pembayaran) : "",
               keterangan: trxData.keterangan || "",
@@ -117,7 +135,9 @@ export default function EditTransaction() {
               video_mobil: trxData.video_mobil || "",
             });
             
+            // Set text di kolom search
             setSearchTerm(namaCust);
+            setSearchCarTerm(mobilUnit);
           }
         }
       } catch (error) {
@@ -128,10 +148,18 @@ export default function EditTransaction() {
     fetchInitialData();
   }, [id]);
 
-  // --- FILTER NAMA CUSTOMER SECARA REAL-TIME ---
+  // --- FILTER SECARA REAL-TIME ---
   const filteredCustomers = customers.filter((c) =>
     c.nama_pelanggan?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const filteredCars = cars.filter((c) => {
+    const searchLower = searchCarTerm.toLowerCase();
+    return (
+      c.jenis_unit?.toLowerCase().includes(searchLower) ||
+      c.nomor_plat?.toLowerCase().includes(searchLower)
+    );
+  });
 
   // handle drive login
   const handleGoogleLogin = () => {
@@ -182,7 +210,6 @@ export default function EditTransaction() {
 
       const result = await response.json();
       
-      // REVISI: Samakan format link dengan Create (Direct Link untuk Foto)
       if (file.type.startsWith("image/")) {
         return `https://drive.google.com/thumbnail?id=${result.id}&sz=w1000`;
       } else {
@@ -198,13 +225,10 @@ export default function EditTransaction() {
     setFormData((prev) => {
       let newValue = value;
 
-      // LOGIKA KUNCI: Auto-format & Anti-Minus
       if (name === "total_pembayaran") {
         newValue = formatRupiahInput(value);
-        
         const newTotalRaw = parseInt(newValue.replace(/\./g, "")) || 0;
         const currentDpRaw = parseInt(prev.dp.toString().replace(/\./g, "")) || 0;
-        // Turunkan DP jika melebihi Total yang baru
         if (currentDpRaw > newTotalRaw) {
           prev.dp = formatRupiahInput(newTotalRaw.toString());
         }
@@ -213,7 +237,6 @@ export default function EditTransaction() {
         const rawDp = parseInt(value.replace(/\D/g, "")) || 0;
         const currentTotalRaw = parseInt(prev.total_pembayaran.toString().replace(/\./g, "")) || 0;
         
-        // Mentokkan DP di angka Total Pembayaran
         if (rawDp > currentTotalRaw) {
           newValue = formatRupiahInput(currentTotalRaw.toString());
         } else {
@@ -236,12 +259,16 @@ export default function EditTransaction() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.customer_id) {
-      alert("Harap pilih Customer!");
+    if (!formData.nama_customer) {
+      alert("Harap isi Nama Customer!");
       return;
     }
 
-    // Jika admin mau ganti file tapi belum login google
+    if (!formData.mobil_plat) {
+      alert("Harap isi Data Kendaraan (Plat/Unit)!");
+      return;
+    }
+
     if ((fotoFile || videoFile) && !googleToken) {
       alert("Silahkan login google dulu untuk upload file baru");
       return;
@@ -257,7 +284,6 @@ export default function EditTransaction() {
         jumlah_hari = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
       }
 
-      // Handle Upload (Gunakan link lama jika tidak ada file baru yang dipilih)
       let linkFoto = formData.foto_mobil;
       let linkVideo = formData.video_mobil;
 
@@ -268,15 +294,22 @@ export default function EditTransaction() {
         linkVideo = await uploadToDrive(videoFile, DRIVE_VIDEO_FOLDER_ID, googleToken);
       }
 
-      // --- LOGIKA STATUS PEMBAYARAN OTOMATIS ---
-      const statusOtomatis = currentDp > 0 ? "Belum Lunas" : "Lunas";
+      const statusOtomatis = currentDp > 0 && currentSisaPay > 0 ? "Belum Lunas" : "Lunas";
 
-      // Proses UPDATE
       const { error } = await supabase
         .from("transactions")
         .update({
-          customer_id: formData.customer_id,
-          car_id: formData.car_id,
+          customer_id: formData.customer_id || null,
+          nama_customer: formData.nama_customer,
+          kontak: formData.kontak,
+          nik: formData.nik,
+          alamat: formData.alamat,
+          domisili: formData.domisili,
+          car_id: formData.car_id || null,
+          mobil: formData.mobil_plat,
+          merek: formData.merek,
+          tipe_unit: formData.tipe_unit,
+          transmisi: formData.transmisi,
           tanggal_sewa: formData.waktu.split("T")[0],
           jam_sewa: formData.waktu.split("T")[1] + ":00",
           tanggal_pengembalian: formData.waktu_pengembalian.split("T")[0],
@@ -286,7 +319,7 @@ export default function EditTransaction() {
           dp: currentDp,
           total_pembayaran: currentTotalPay,
           sisa_pembayaran: currentSisaPay,
-          status_pembayaran: statusOtomatis, // Terkirim otomatis saat update
+          status_pembayaran: statusOtomatis,
           keterangan: formData.keterangan || null,
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
@@ -340,90 +373,154 @@ export default function EditTransaction() {
           <div className="card-body p-4 p-lg-5">
             <form onSubmit={handleSubmit}>
               
-              <h6 className="fw-bold text-primary mb-3">Informasi Peminjaman</h6>
+              {/* --- BAGIAN 1: INFORMASI CUSTOMER --- */}
+              <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
+                Data Customer
+              </h6>
+              
+              <div className="mb-4 position-relative">
+                <label className="form-label text-secondary small fw-bold">Nama Customer (Cari / Ketik Baru)</label>
+                <div className="position-relative">
+                  <input
+                    type="text"
+                    className="form-control bg-light border-0 py-2 pe-5"
+                    placeholder="Ketik nama customer..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setShowDropdown(true);
+                      setFormData((prev) => ({ ...prev, customer_id: "", nama_customer: e.target.value }));
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                    required
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
+                      style={{ zIndex: 10 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault(); 
+                        setSearchTerm("");
+                        setFormData((prev) => ({ ...prev, customer_id: "", nama_customer: "" }));
+                        setShowDropdown(true); 
+                      }}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+                {showDropdown && (
+                  <ul 
+                    className="dropdown-menu show w-100 shadow border-0 mt-1" 
+                    style={{ maxHeight: "200px", overflowY: "auto", position: "absolute", zIndex: 1000 }}
+                  >
+                    {filteredCustomers.length > 0 ? (
+                      filteredCustomers.map((cust) => (
+                        <li key={cust.id || cust.customer_id}>
+                          <button
+                            type="button"
+                            className="dropdown-item py-2"
+                            onMouseDown={(e) => {
+                              e.preventDefault(); 
+                              setSearchTerm(cust.nama_pelanggan);
+                              setFormData((prev) => ({ 
+                                ...prev, 
+                                customer_id: cust.id || cust.customer_id, 
+                                nama_customer: cust.nama_pelanggan,
+                                kontak: cust.kontak || "",
+                                nik: cust.nik || "",
+                                alamat: cust.alamat || "",
+                                domisili: cust.domisili || "",
+                              }));
+                              setShowDropdown(false);
+                            }}
+                          >
+                            {cust.nama_pelanggan}
+                            {cust.kontak && <small className="text-muted ms-2">({cust.kontak})</small>}
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li><span className="dropdown-item text-muted disabled">(Tekan simpan untuk jadikan customer baru)</span></li>
+                    )}
+                  </ul>
+                )}
+              </div>
+
               <div className="row g-4 mb-5">
                 <div className="col-md-6">
-                  
-                  <div className="mb-3 position-relative">
-                    <label className="form-label text-secondary small fw-bold">Nama Customer (Cari / Pilih)</label>
-                    <div className="position-relative">
-                      <input
-                        type="text"
-                        className="form-control bg-light border-0 py-2 pe-5"
-                        placeholder="Ketik nama customer..."
-                        value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          setShowDropdown(true);
-                          setFormData((prev) => ({ ...prev, customer_id: "", nama_customer: "" }));
-                        }}
-                        onFocus={() => setShowDropdown(true)}
-                        onBlur={() => setShowDropdown(false)}
-                        required={!formData.customer_id}
-                      />
-                      {searchTerm && (
-                        <button
-                          type="button"
-                          className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
-                          style={{ zIndex: 10 }}
-                          onMouseDown={(e) => {
-                            e.preventDefault(); 
-                            setSearchTerm("");
-                            setFormData((prev) => ({ ...prev, customer_id: "", nama_customer: "" }));
-                            setShowDropdown(true); 
-                          }}
-                        >
-                          <i className="fas fa-times"></i>
-                        </button>
-                      )}
-                    </div>
-                    {showDropdown && (
-                      <ul 
-                        className="dropdown-menu show w-100 shadow border-0 mt-1" 
-                        style={{ maxHeight: "200px", overflowY: "auto", position: "absolute", zIndex: 1000 }}
-                      >
-                        {filteredCustomers.length > 0 ? (
-                          filteredCustomers.map((cust) => (
-                            <li key={cust.id || cust.customer_id}>
-                              <button
-                                type="button"
-                                className="dropdown-item py-2"
-                                onMouseDown={(e) => {
-                                  e.preventDefault(); 
-                                  setSearchTerm(cust.nama_pelanggan);
-                                  setFormData((prev) => ({ 
-                                    ...prev, 
-                                    customer_id: cust.id || cust.customer_id, 
-                                    nama_customer: cust.nama_pelanggan 
-                                  }));
-                                  setShowDropdown(false);
-                                }}
-                              >
-                                {cust.nama_pelanggan}
-                              </button>
-                            </li>
-                          ))
-                        ) : (
-                          <li><span className="dropdown-item text-muted disabled">Pelanggan tidak ditemukan</span></li>
-                        )}
-                      </ul>
-                    )}
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Kontak / No. HP</label>
+                    <input
+                      type="text"
+                      name="kontak"
+                      value={formData.kontak}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Masukkan kontak..."
+                      required
+                    />
                   </div>
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">NIK</label>
+                    <input
+                      type="text"
+                      name="nik"
+                      value={formData.nik}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Masukkan 16 digit NIK..."
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Alamat Lengkap</label>
+                    <input
+                      type="text"
+                      name="alamat"
+                      value={formData.alamat}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Masukkan alamat asli..."
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Domisili Tujuan (Kota Rental)</label>
+                    <input
+                      type="text"
+                      name="domisili"
+                      value={formData.domisili}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Misal: Makassar, Maros..."
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
 
+              {/* --- BAGIAN 2: INFORMASI PEMINJAMAN --- */}
+              <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
+                Jadwal & Rute
+              </h6>
+              <div className="row g-4 mb-5">
+                <div className="col-md-12">
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">Rute Perjalanan</label>
-                    <select
+                    <input
+                      type="text"
                       name="rute"
                       value={formData.rute}
                       onChange={handleChange}
-                      className="form-select bg-light border-0 py-2"
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Masukkan rute secara manual (cth: Dalkot, Luar Kota...)"
                       required
-                    >
-                      <option value="">-- Pilih Rute --</option>
-                      <option value="DALKOT">Dalam Kota</option>
-                      <option value="LURKOT">Luar Kota</option>
-                      <option value="DALKOT & LURKOT">Dalam Kota & Luar Kota</option>
-                    </select>
+                    />
                   </div>
                 </div>
                 
@@ -439,6 +536,8 @@ export default function EditTransaction() {
                       required
                     />
                   </div>
+                </div>
+                <div className="col-md-6">
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">Jadwal Kembali</label>
                     <input
@@ -451,46 +550,166 @@ export default function EditTransaction() {
                       className="form-control bg-light border-0 py-2"
                       required
                     />
-                    {!formData.waktu ? (
+                    {!formData.waktu && (
                       <small className="text-danger" style={{ fontSize: "10px" }}>*Isi jadwal ambil terlebih dahulu</small>
-                    ) : (
-                      <small className="text-muted" style={{ fontSize: "10px" }}>*Minimal pengembalian adalah H+1 dari jadwal ambil.</small>
                     )}
                   </div>
                 </div>
               </div>
 
-              <h6 className="fw-bold text-primary mb-3">Data Kendaraan Terpilih</h6>
+              {/* --- BAGIAN 3: DATA KENDARAAN --- */}
+              <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
+                Data Kendaraan Terpilih
+              </h6>
+              
+              <div className="mb-4 position-relative">
+                <label className="form-label text-secondary small fw-bold">Mobil (Cari / Ketik Plat Baru)</label>
+                <div className="position-relative">
+                  <input
+                    type="text"
+                    className="form-control bg-light border-0 py-2 pe-5"
+                    placeholder="Ketik plat atau nama unit..."
+                    value={searchCarTerm}
+                    onChange={(e) => {
+                      setSearchCarTerm(e.target.value);
+                      setShowCarDropdown(true);
+                      setFormData((prev) => ({
+                        ...prev,
+                        car_id: "", 
+                        mobil_plat: e.target.value,
+                        merek: "",
+                        tipe_unit: "",
+                        transmisi: "",
+                      }));
+                    }}
+                    onFocus={() => setShowCarDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowCarDropdown(false), 200)}
+                    required
+                  />
+
+                  {searchCarTerm && (
+                    <button
+                      type="button"
+                      className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
+                      style={{ zIndex: 10 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSearchCarTerm("");
+                        setFormData((prev) => ({
+                          ...prev,
+                          car_id: "",
+                          mobil_plat: "",
+                          merek: "",
+                          tipe_unit: "",
+                          transmisi: "",
+                        }));
+                        setShowCarDropdown(true);
+                      }}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+
+                {showCarDropdown && (
+                  <ul
+                    className="dropdown-menu show w-100 shadow border-0 mt-1"
+                    style={{
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      position: "absolute",
+                      zIndex: 1000,
+                    }}
+                  >
+                    {filteredCars.length > 0 ? (
+                      filteredCars.map((car) => (
+                        <li key={car.cars_id}>
+                          <button
+                            type="button"
+                            className="dropdown-item py-2"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              const displayCar = `${car.nomor_plat} - ${car.jenis_unit}`;
+                              setSearchCarTerm(displayCar);
+                              setFormData((prev) => ({
+                                ...prev,
+                                car_id: car.cars_id,
+                                mobil_plat: displayCar,
+                                merek: car.jenis_unit?.split(" ")[0] || "",
+                                tipe_unit: car.tipe_kendaraan || "",
+                                transmisi: car.transmisi || "",
+                              }));
+                              setShowCarDropdown(false);
+                            }}
+                          >
+                            <strong>{car.nomor_plat}</strong> - {car.jenis_unit} 
+                            <small className="text-muted ms-2">({car.status_mobil})</small>
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li>
+                        <span className="dropdown-item text-muted disabled">
+                          (Plat baru akan direkam sebagai input manual)
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+
               <div className="row g-4 mb-5">
-                <div className="col-md-12">
+                <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Mobil (Plat Nomor)</label>
+                    <label className="form-label text-secondary small fw-bold">Merek</label>
+                    <input
+                      type="text"
+                      name="merek"
+                      value={formData.merek}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Contoh: Toyota"
+                    />
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Jenis Unit</label>
+                    <input
+                      type="text"
+                      name="tipe_unit"
+                      value={formData.tipe_unit}
+                      onChange={handleChange}
+                      className="form-control bg-light border-0 py-2"
+                      placeholder="Contoh: Avanza G"
+                    />
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="mb-3">
+                    <label className="form-label text-secondary small fw-bold">Transmisi</label>
                     <select
-                      name="car_id"
-                      value={formData.car_id}
+                      name="transmisi"
+                      value={formData.transmisi}
                       onChange={handleChange}
                       className="form-select bg-light border-0 py-2"
-                      required
                     >
-                      <option value="">-- Pilih Kendaraan yang Disewa --</option>
-                      {cars.map((car) => (
-                        <option key={car.cars_id} value={car.cars_id}>
-                          {car.jenis_unit} ({car.nomor_plat})
-                        </option>
-                      ))}
+                      <option value="">- Pilih -</option>
+                      <option value="MANUAL">Manual</option>
+                      <option value="OTOMATIS">Otomatis</option>
                     </select>
                   </div>
                 </div>
               </div>
 
-              <h6 className="fw-bold text-success mb-3">Rincian Pembayaran</h6>
+              {/* --- BAGIAN 4: RINCIAN PEMBAYARAN --- */}
+              <h6 className="fw-bold text-success mb-3 border-bottom pb-2">Rincian Pembayaran</h6>
               <div className="row g-4 mb-5">
                 <div className="col-md-4">
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">Total Pembayaran</label>
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">Rp</span>
-                      {/* TYPE TEXT UNTUK FORMAT TITIK */}
                       <input
                         type="text"
                         name="total_pembayaran"
@@ -508,7 +727,6 @@ export default function EditTransaction() {
                     <label className="form-label text-secondary small fw-bold">Uang Muka (DP)</label>
                     <div className="input-group">
                       <span className="input-group-text bg-light border-0 text-muted">Rp</span>
-                      {/* TYPE TEXT UNTUK FORMAT TITIK */}
                       <input
                         type="text"
                         name="dp"
@@ -536,16 +754,17 @@ export default function EditTransaction() {
                 </div>
               </div>
 
-              <h6 className="fw-bold text-success mb-3">Dokumentasi & Keterangan</h6>
+              {/* --- BAGIAN 5: DOKUMENTASI --- */}
+              <h6 className="fw-bold text-success mb-3 border-bottom pb-2">Dokumentasi & Keterangan</h6>
               <div className="row g-4 mb-4">
                 <div className="col-md-6">
                   {!googleToken && (
                     <button
                       type="button"
                       onClick={handleGoogleLogin}
-                      className="btn btn-outline-danger mb-3 btn-sm"
+                      className="btn btn-outline-danger mb-3 btn-sm shadow-sm"
                     >
-                      1. Klik Login Google untuk Ganti File
+                      <i className="fab fa-google me-2"></i>1. Klik Login Google untuk Ganti File
                     </button>
                   )}
                   <div className="mb-3">
@@ -584,6 +803,7 @@ export default function EditTransaction() {
                 </div>
               </div>
 
+              {/* --- TOMBOL SUBMIT --- */}
               <div className="d-flex justify-content-end gap-3 mt-5 border-top pt-4">
                 <Link
                   to="/transaction"
@@ -596,7 +816,12 @@ export default function EditTransaction() {
                   type="submit"
                   disabled={isSubmitting}
                   className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                  style={{ backgroundColor: "#0cc2aa", border: "none", borderRadius: "12px", opacity: isSubmitting ? 0.7 : 1 }}
+                  style={{
+                    backgroundColor: "#0cc2aa",
+                    border: "none",
+                    borderRadius: "12px",
+                    opacity: isSubmitting ? 0.7 : 1,
+                  }}
                 >
                   {isSubmitting ? (
                     <>
@@ -608,13 +833,12 @@ export default function EditTransaction() {
                   )}
                 </button>
               </div>
-
             </form>
           </div>
         </div>
-
       </div>
 
+      {/* --- MODAL SUKSES --- */}
       {showSuccessModal && (
         <div 
           className="modal fade show d-block" 
@@ -632,11 +856,7 @@ export default function EditTransaction() {
                 </div>
                 <h5 className="fw-bold text-dark mb-2">Berhasil Diperbarui!</h5>
                 <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
-                  Transaksi untuk{" "}
-                  <span className="fw-bold text-dark">
-                    {formData.nama_customer || "Customer"}
-                  </span>{" "}
-                  berhasil diperbarui.
+                  Transaksi untuk <span className="fw-bold text-dark">{formData.nama_customer || "Customer"}</span> berhasil diperbarui.
                 </p>
                 <div className="d-flex align-items-center justify-content-center text-muted small">
                   <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: '12px', height: '12px' }}></div>
@@ -647,7 +867,6 @@ export default function EditTransaction() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
