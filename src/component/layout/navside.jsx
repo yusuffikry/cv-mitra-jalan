@@ -43,7 +43,7 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
         x: isCollapsed ? 4 : 8,
         duration: 0.3,
         ease: "power2.out",
-        backgroundColor: "rgba(255,255,255,0.08)",
+        backgroundColor: "rgba(245, 158, 11, 0.1)", // TEMA PRONTO: Sorotan Amber lembut saat hover
       });
     }
   };
@@ -57,7 +57,6 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
     });
   };
 
-  // PERBAIKAN: Tambahkan navigasi setelah logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
@@ -77,11 +76,12 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
           top: 0,
           left: 0,
           zIndex: 1050,
-          backgroundColor: "#1e293b",
-          color: "#cbd5e1",
+          backgroundColor: "#1e1e24", // TEMA PRONTO: Dark Charcoal background
+          color: "#e2e8f0",
           overflowY: "auto",
           overflowX: "hidden",
           transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          borderRight: "1px solid rgba(245, 158, 11, 0.15)", // TEMA PRONTO: Border kanan amber tipis
         }}
       >
         <div
@@ -106,7 +106,7 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
             )}
           </Link>
           <button
-            className="btn text-white p-1"
+            className="btn p-1 text-white opacity-75 btn-toggle-custom"
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
             <i
@@ -119,7 +119,7 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
         <hr className="border-secondary opacity-25" />
         <div
           className="d-flex align-items-center mb-3 p-2 rounded"
-          style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+          style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
         >
           <img
             src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
@@ -279,7 +279,7 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
         <hr className="border-secondary opacity-25" />
         <div className="px-2 pb-3">
           <button
-            className="btn btn-outline-light btn-sm w-100 d-flex align-items-center justify-content-center"
+            className="btn btn-outline-custom-logout btn-sm w-100 d-flex align-items-center justify-content-center"
             onClick={handleLogout}
           >
             <i className="fas fa-sign-out-alt"></i>
@@ -289,28 +289,51 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
       </div>
 
       <style>{`
-        /* Menghilangkan scrollbar tapi tetap bisa scroll */
         .sidebar-wrapper::-webkit-scrollbar { width: 0px; }
         
-        .nav-link { border-radius: 8px; transition: background 0.3s; }
+        .nav-link { border-radius: 6px; transition: background 0.3s; }
         .collapsed-mode .nav-link { justify-content: center; padding: 12px 0; }
         
-        /* Tooltip tetap muncul saat hover meski collapse */
         .menu-item:hover .custom-tooltip { display: block; }
+        
+        /* TEMA PRONTO: Warna tooltip diubah menjadi oranye amber khas Pronto */
         .custom-tooltip {
           display: none; position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
-          background: #3b82f6; color: white; padding: 5px 12px; border-radius: 4px;
+          background: #f59e0b; color: #1e1e24; font-weight: 600; padding: 5px 12px; border-radius: 4px;
           font-size: 12px; margin-left: 15px; z-index: 1060; white-space: nowrap;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
         }
 
-        .section-title { font-size: 10px; letter-spacing: 1.2px; opacity: 0.6; }
+        .section-title { font-size: 10px; letter-spacing: 1.2px; opacity: 0.5; color: #94a3b8 !important; }
+        
+        /* TEMA PRONTO: Link default berwarna abu-abu soft/slate */
         .link-light-custom { color: #94a3b8 !important; }
-        .active-custom { background-color: #3b82f6 !important; color: white !important; }
+        .link-light-custom i { color: #cbd5e1 !important; }
+        
+        /* TEMA PRONTO: Link aktif berwarna Oranye Amber dengan teks gelap/kontras */
+        .active-custom { background-color: #f59e0b !important; color: #111827 !important; font-weight: 600; }
+        .active-custom i { color: #111827 !important; }
 
-        /* Responsif Mobile: Sidebar tetap nempel, hanya lebar yang berubah */
+        /* TEMA PRONTO: Tombol logout outline khusus amber */
+        .btn-outline-custom-logout {
+          color: #f59e0b;
+          border-color: rgba(245, 158, 11, 0.4);
+          transition: all 0.3s;
+        }
+        .btn-outline-custom-logout:hover {
+          background-color: #f59e0b;
+          color: #111827;
+          border-color: #f59e0b;
+        }
+        
+        .btn-toggle-custom:hover {
+          color: #f59e0b !important;
+          opacity: 1 !important;
+        }
+
         @media (max-width: 991.98px) {
            .sidebar-wrapper {
-             box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+             box-shadow: 5px 0 25px rgba(0,0,0,0.4);
            }
         }
       `}</style>
