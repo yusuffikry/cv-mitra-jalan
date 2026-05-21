@@ -43,7 +43,7 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
         x: isCollapsed ? 4 : 8,
         duration: 0.3,
         ease: "power2.out",
-        backgroundColor: "rgba(245, 158, 11, 0.1)", // TEMA PRONTO: Sorotan Amber lembut saat hover
+        backgroundColor: "rgba(245, 158, 11, 0.1)",
       });
     }
   };
@@ -76,12 +76,12 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
           top: 0,
           left: 0,
           zIndex: 1050,
-          backgroundColor: "#1e1e24", // TEMA PRONTO: Dark Charcoal background
+          backgroundColor: "#1e1e24",
           color: "#e2e8f0",
           overflowY: "auto",
           overflowX: "hidden",
           transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-          borderRight: "1px solid rgba(245, 158, 11, 0.15)", // TEMA PRONTO: Border kanan amber tipis
+          borderRight: "1px solid rgba(245, 158, 11, 0.15)",
         }}
       >
         <div
