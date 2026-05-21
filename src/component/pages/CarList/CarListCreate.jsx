@@ -42,12 +42,11 @@ export default function CarListCreate() {
   // Fungsi untuk menangani submit form ke Supabase
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true); // Mulai proses loading
+    setIsSubmitting(true); 
     
     try {
-      // Mapping state formData ke nama kolom Supabase
-      // Catatan: Pastikan nama kolom di database Supabase kamu sudah sesuai 
-      // (misal: no_gps_1, masa_aktif_gps_1, no_gps_2, masa_aktif_gps_2)
+      // PENYESUAIAN PENTING: Mapping nama state ke nama kolom asli di tabel Supabase
+      // status_gps dan status_gps2 tidak dikirim karena sudah di-handle otomatis oleh Trigger Database
       const { error } = await supabase
         .from("cars")
         .insert([
@@ -62,17 +61,18 @@ export default function CarListCreate() {
             tgl_jatuh_tempo: formData.dueDate,
             tgl_mati_pajak: formData.taxDate,
             tgl_pergantian_oli: formData.serviceDate,
-            // Mapping 2 perangkat GPS
-            no_gps_1: formData.gpsNumber1,
-            masa_aktif_gps_1: formData.gpsActiveDate1,
-            no_gps_2: formData.gpsNumber2 || null, // Nilai null jika kosong
-            masa_aktif_gps_2: formData.gpsActiveDate2 || null,
+            // GPS 1 (Sesuai dengan nama kolom asli dan trigger)
+            no_gps: formData.gpsNumber1,
+            masa_aktif_gps: formData.gpsActiveDate1,
+            // GPS 2 (Sesuai dengan kolom baru yang Mas tambahkan)
+            no_gps2: formData.gpsNumber2 || null, 
+            masa_aktif_gps2: formData.gpsActiveDate2 || null,
           }
         ]);
 
-      if (error) throw error; // Lempar error jika gagal insert
+      if (error) throw error; 
 
-      // Tampilkan modal sukses alih-alih menggunakan alert bawaan
+      // Tampilkan modal sukses
       setShowSuccessModal(true);
 
       // Tunggu 2 detik sebelum redirect ke halaman armada
@@ -85,7 +85,7 @@ export default function CarListCreate() {
       console.error("Error inserting car:", error.message);
       alert("Gagal menambahkan kendaraan: " + error.message);
     } finally {
-      setIsSubmitting(false); // Matikan loading tombol submit
+      setIsSubmitting(false); 
     }
   };
 

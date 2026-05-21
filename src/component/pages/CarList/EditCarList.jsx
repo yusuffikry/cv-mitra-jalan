@@ -45,6 +45,7 @@ export default function EditCarList() {
         if (error) throw error;
 
         // Jika data ditemukan, masukkan ke state formData
+        // PERBAIKAN: Sesuaikan penarikan data GPS dengan nama kolom di Supabase
         if (data) {
           setFormData({
             name: data.jenis_unit || "",
@@ -55,11 +56,11 @@ export default function EditCarList() {
             dueDate: data.tgl_jatuh_tempo || "",
             serviceDate: data.tgl_pergantian_oli || "",
             taxDate: data.tgl_mati_pajak || "",
-            // Mapping data untuk 2 GPS
-            gpsNumber1: data.no_gps_1 || "",
-            gpsActiveDate1: data.masa_aktif_gps_1 || "",
-            gpsNumber2: data.no_gps_2 || "",
-            gpsActiveDate2: data.masa_aktif_gps_2 || "",
+            // Mapping data untuk 2 GPS sesuai kolom Supabase
+            gpsNumber1: data.gps_nomor || data.no_gps || "",
+            gpsActiveDate1: data.masa_aktif_gps || data.masa_aktif_gps_1 || "",
+            gpsNumber2: data.no_gps2 || data.no_gps_2 || "",
+            gpsActiveDate2: data.masa_aktif_gps2 || data.masa_aktif_gps_2 || "",
             transmission: data.transmisi || "Manual",
             complaints: data.keluhan_unit || "",
           });
@@ -103,11 +104,11 @@ export default function EditCarList() {
           tgl_jatuh_tempo: formData.dueDate,
           tgl_mati_pajak: formData.taxDate,
           tgl_pergantian_oli: formData.serviceDate,
-          // Update mapping 2 perangkat GPS
-          no_gps_1: formData.gpsNumber1,
-          masa_aktif_gps_1: formData.gpsActiveDate1,
-          no_gps_2: formData.gpsNumber2 || null, // Nilai null jika kosong
-          masa_aktif_gps_2: formData.gpsActiveDate2 || null,
+          // PERBAIKAN: Update mapping 2 perangkat GPS ke kolom yang benar
+          no_gps: formData.gpsNumber1,
+          masa_aktif_gps: formData.gpsActiveDate1,
+          no_gps2: formData.gpsNumber2 || null, // Nilai null jika kosong
+          masa_aktif_gps2: formData.gpsActiveDate2 || null,
         })
         .eq("cars_id", id); // PENTING: Jangan lupa klausa WHERE
 
@@ -247,7 +248,6 @@ export default function EditCarList() {
                     className="form-select bg-light border-0 py-2"
                     required
                   >
-                    {/* PERBAIKAN: Opsi 'Disewa' dihapus */}
                     <option value="Tersedia">Tersedia</option>
                     <option value="Pemeliharaan">Pemeliharaan</option>
                   </select>
