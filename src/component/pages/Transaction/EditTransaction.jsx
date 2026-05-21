@@ -34,7 +34,7 @@ export default function EditTransaction() {
   const [formData, setFormData] = useState({
     waktu: "",
     waktu_pengembalian: "",
-    customer_id: "", 
+    customer_id: "",
     nama_customer: "",
     kontak: "",
     nik: "",
@@ -49,19 +49,20 @@ export default function EditTransaction() {
     dp: "",
     total_pembayaran: "",
     keterangan: "",
-    foto_mobil: "", 
-    video_mobil: "", 
+    foto_mobil: "",
+    video_mobil: "",
   });
 
   // --- FUNGSI FORMAT INPUT UANG ---
   const formatRupiahInput = (value) => {
     if (!value) return "";
-    const numberString = value.toString().replace(/\D/g, ""); 
-    return new Intl.NumberFormat("id-ID").format(numberString); 
+    const numberString = value.toString().replace(/\D/g, "");
+    return new Intl.NumberFormat("id-ID").format(numberString);
   };
 
   // --- LOGIKA MENGHITUNG SISA PEMBAYARAN OTOMATIS ---
-  const currentTotalPay = parseInt(formData.total_pembayaran.toString().replace(/\./g, "")) || 0;
+  const currentTotalPay =
+    parseInt(formData.total_pembayaran.toString().replace(/\./g, "")) || 0;
   let currentDp = parseInt(formData.dp.toString().replace(/\./g, ""));
   if (isNaN(currentDp)) currentDp = 0;
 
@@ -81,15 +82,16 @@ export default function EditTransaction() {
         const { data: customerData, error: customerError } = await supabase
           .from("customers")
           .select("*");
-        
-        if (customerError) console.error("Error muat customer:", customerError.message);
+
+        if (customerError)
+          console.error("Error muat customer:", customerError.message);
         else setCustomers(customerData || []);
 
         // 2. Ambil data mobil
         const { data: carData, error: carError } = await supabase
           .from("cars")
           .select("*");
-        
+
         if (carError) console.error("Error muat mobil:", carError.message);
         else setCars(carData || []);
 
@@ -97,7 +99,7 @@ export default function EditTransaction() {
         if (id) {
           const { data: trxData, error: trxError } = await supabase
             .from("transactions")
-            .select(`*, customers(nama_pelanggan)`) 
+            .select(`*, customers(nama_pelanggan)`)
             .eq("transaction_id", id)
             .single();
 
@@ -106,16 +108,20 @@ export default function EditTransaction() {
           if (trxData) {
             const formatDateTime = (dateStr, timeStr) => {
               if (!dateStr || !timeStr) return "";
-              const time = timeStr.substring(0, 5); 
+              const time = timeStr.substring(0, 5);
               return `${dateStr}T${time}`;
             };
 
-            const namaCust = trxData.nama_customer || trxData.customers?.nama_pelanggan || "";
+            const namaCust =
+              trxData.nama_customer || trxData.customers?.nama_pelanggan || "";
             const mobilUnit = trxData.mobil || ""; // Ambil string dari DB
 
             setFormData({
               waktu: formatDateTime(trxData.tanggal_sewa, trxData.jam_sewa),
-              waktu_pengembalian: formatDateTime(trxData.tanggal_pengembalian, trxData.jam_pengembalian),
+              waktu_pengembalian: formatDateTime(
+                trxData.tanggal_pengembalian,
+                trxData.jam_pengembalian,
+              ),
               customer_id: trxData.customer_id || "",
               nama_customer: namaCust,
               kontak: trxData.kontak || "",
@@ -129,12 +135,14 @@ export default function EditTransaction() {
               tipe_unit: trxData.tipe_unit || "",
               transmisi: trxData.transmisi || "",
               dp: trxData.dp ? formatRupiahInput(trxData.dp) : "",
-              total_pembayaran: trxData.total_pembayaran ? formatRupiahInput(trxData.total_pembayaran) : "",
+              total_pembayaran: trxData.total_pembayaran
+                ? formatRupiahInput(trxData.total_pembayaran)
+                : "",
               keterangan: trxData.keterangan || "",
               foto_mobil: trxData.foto_mobil || "",
               video_mobil: trxData.video_mobil || "",
             });
-            
+
             // Set text di kolom search
             setSearchTerm(namaCust);
             setSearchCarTerm(mobilUnit);
@@ -150,7 +158,7 @@ export default function EditTransaction() {
 
   // --- FILTER SECARA REAL-TIME ---
   const filteredCustomers = customers.filter((c) =>
-    c.nama_pelanggan?.toLowerCase().includes(searchTerm.toLowerCase())
+    c.nama_pelanggan?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const filteredCars = cars.filter((c) => {
@@ -170,7 +178,8 @@ export default function EditTransaction() {
 
     try {
       const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: "792749158806-1len8ms3h3cq3v16h58qcj9befc8log9.apps.googleusercontent.com",
+        client_id:
+          "792749158806-1len8ms3h3cq3v16h58qcj9befc8log9.apps.googleusercontent.com",
         scope: "https://www.googleapis.com/auth/drive.file",
         callback: (response) => {
           if (response.access_token) {
@@ -191,11 +200,14 @@ export default function EditTransaction() {
     const metadata = {
       name: file.name,
       mimeType: file.type,
-      parents: [folderId], 
+      parents: [folderId],
     };
 
     const dataUpload = new FormData();
-    dataUpload.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+    dataUpload.append(
+      "metadata",
+      new Blob([JSON.stringify(metadata)], { type: "application/json" }),
+    );
     dataUpload.append("file", file);
 
     try {
@@ -205,15 +217,15 @@ export default function EditTransaction() {
           method: "POST",
           headers: { Authorization: `Bearer ${accessToken}` },
           body: dataUpload,
-        }
+        },
       );
 
       const result = await response.json();
-      
+
       if (file.type.startsWith("image/")) {
         return `https://drive.google.com/thumbnail?id=${result.id}&sz=w1000`;
       } else {
-        return `https://drive.google.com/file/d/${result.id}/preview`; 
+        return `https://drive.google.com/file/d/${result.id}/preview`;
       }
     } catch (error) {
       return null;
@@ -228,15 +240,16 @@ export default function EditTransaction() {
       if (name === "total_pembayaran") {
         newValue = formatRupiahInput(value);
         const newTotalRaw = parseInt(newValue.replace(/\./g, "")) || 0;
-        const currentDpRaw = parseInt(prev.dp.toString().replace(/\./g, "")) || 0;
+        const currentDpRaw =
+          parseInt(prev.dp.toString().replace(/\./g, "")) || 0;
         if (currentDpRaw > newTotalRaw) {
           prev.dp = formatRupiahInput(newTotalRaw.toString());
         }
-
       } else if (name === "dp") {
         const rawDp = parseInt(value.replace(/\D/g, "")) || 0;
-        const currentTotalRaw = parseInt(prev.total_pembayaran.toString().replace(/\./g, "")) || 0;
-        
+        const currentTotalRaw =
+          parseInt(prev.total_pembayaran.toString().replace(/\./g, "")) || 0;
+
         if (rawDp > currentTotalRaw) {
           newValue = formatRupiahInput(currentTotalRaw.toString());
         } else {
@@ -245,11 +258,14 @@ export default function EditTransaction() {
       }
 
       const newData = { ...prev, [name]: newValue };
-      
+
       if (name === "waktu") {
         const minReturn = getMinReturnDate(newValue);
-        if (newData.waktu_pengembalian && newData.waktu_pengembalian < minReturn) {
-          newData.waktu_pengembalian = ""; 
+        if (
+          newData.waktu_pengembalian &&
+          newData.waktu_pengembalian < minReturn
+        ) {
+          newData.waktu_pengembalian = "";
         }
       }
       return newData;
@@ -288,13 +304,22 @@ export default function EditTransaction() {
       let linkVideo = formData.video_mobil;
 
       if (fotoFile && googleToken) {
-        linkFoto = await uploadToDrive(fotoFile, DRIVE_PHOTO_FOLDER_ID, googleToken);
+        linkFoto = await uploadToDrive(
+          fotoFile,
+          DRIVE_PHOTO_FOLDER_ID,
+          googleToken,
+        );
       }
       if (videoFile && googleToken) {
-        linkVideo = await uploadToDrive(videoFile, DRIVE_VIDEO_FOLDER_ID, googleToken);
+        linkVideo = await uploadToDrive(
+          videoFile,
+          DRIVE_VIDEO_FOLDER_ID,
+          googleToken,
+        );
       }
 
-      const statusOtomatis = currentDp > 0 && currentSisaPay > 0 ? "Belum Lunas" : "Lunas";
+      const statusOtomatis =
+        currentDp > 0 && currentSisaPay > 0 ? "Belum Lunas" : "Lunas";
 
       const { error } = await supabase
         .from("transactions")
@@ -324,7 +349,7 @@ export default function EditTransaction() {
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
         })
-        .eq("transaction_id", id); 
+        .eq("transaction_id", id);
 
       if (error) throw error;
 
@@ -335,7 +360,6 @@ export default function EditTransaction() {
         setShowSuccessModal(false);
         navigate("/transaction");
       }, 2000);
-
     } catch (error) {
       console.error("Error:", error.message);
       alert("Gagal memperbarui transaksi: " + error.message);
@@ -348,38 +372,47 @@ export default function EditTransaction() {
     const pickupDate = new Date(pickupDateString);
     pickupDate.setDate(pickupDate.getDate() + 1);
     const year = pickupDate.getFullYear();
-    const month = String(pickupDate.getMonth() + 1).padStart(2, '0');
-    const day = String(pickupDate.getDate()).padStart(2, '0');
+    const month = String(pickupDate.getMonth() + 1).padStart(2, "0");
+    const day = String(pickupDate.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}T00:00`;
   };
 
   return (
     <div className="h-100 bg-light d-flex flex-column">
       <div className="flex-grow-1 overflow-auto p-4">
-        
-        <div className="d-flex justify-content-between align-items-center mb-4 mx-auto" style={{ maxWidth: "1000px" }}>
+        <div
+          className="d-flex justify-content-between align-items-center mb-4 mx-auto"
+          style={{ maxWidth: "1000px" }}
+        >
           <div>
             <h4 className="fw-bold text-dark mb-1">Edit Transaksi</h4>
             <p className="text-muted small mb-0">
               Perbarui informasi atau rincian pembayaran untuk transaksi ini.
             </p>
           </div>
-          <Link to="/transaction" className="btn btn-outline-secondary shadow-sm px-3">
+          <Link
+            to="/transaction"
+            className="btn btn-outline-secondary shadow-sm px-3"
+          >
             <i className="fas fa-arrow-left me-2"></i>Kembali
           </Link>
         </div>
 
-        <div className="card shadow-sm border-0 rounded-3 mb-5 mx-auto" style={{ maxWidth: "1000px" }}>
+        <div
+          className="card shadow-sm border-0 rounded-3 mb-5 mx-auto"
+          style={{ maxWidth: "1000px" }}
+        >
           <div className="card-body p-4 p-lg-5">
             <form onSubmit={handleSubmit}>
-              
               {/* --- BAGIAN 1: INFORMASI CUSTOMER --- */}
               <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
                 Data Customer
               </h6>
-              
+
               <div className="mb-4 position-relative">
-                <label className="form-label text-secondary small fw-bold">Nama Customer (Cari / Ketik Baru)</label>
+                <label className="form-label text-secondary small fw-bold">
+                  Nama Customer (Cari / Ketik Baru)
+                </label>
                 <div className="position-relative">
                   <input
                     type="text"
@@ -389,7 +422,11 @@ export default function EditTransaction() {
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
                       setShowDropdown(true);
-                      setFormData((prev) => ({ ...prev, customer_id: "", nama_customer: e.target.value }));
+                      setFormData((prev) => ({
+                        ...prev,
+                        customer_id: "",
+                        nama_customer: e.target.value,
+                      }));
                     }}
                     onFocus={() => setShowDropdown(true)}
                     onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
@@ -401,10 +438,14 @@ export default function EditTransaction() {
                       className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
                       style={{ zIndex: 10 }}
                       onMouseDown={(e) => {
-                        e.preventDefault(); 
+                        e.preventDefault();
                         setSearchTerm("");
-                        setFormData((prev) => ({ ...prev, customer_id: "", nama_customer: "" }));
-                        setShowDropdown(true); 
+                        setFormData((prev) => ({
+                          ...prev,
+                          customer_id: "",
+                          nama_customer: "",
+                        }));
+                        setShowDropdown(true);
                       }}
                     >
                       <i className="fas fa-times"></i>
@@ -412,9 +453,14 @@ export default function EditTransaction() {
                   )}
                 </div>
                 {showDropdown && (
-                  <ul 
-                    className="dropdown-menu show w-100 shadow border-0 mt-1" 
-                    style={{ maxHeight: "200px", overflowY: "auto", position: "absolute", zIndex: 1000 }}
+                  <ul
+                    className="dropdown-menu show w-100 shadow border-0 mt-1"
+                    style={{
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      position: "absolute",
+                      zIndex: 1000,
+                    }}
                   >
                     {filteredCustomers.length > 0 ? (
                       filteredCustomers.map((cust) => (
@@ -423,11 +469,11 @@ export default function EditTransaction() {
                             type="button"
                             className="dropdown-item py-2"
                             onMouseDown={(e) => {
-                              e.preventDefault(); 
+                              e.preventDefault();
                               setSearchTerm(cust.nama_pelanggan);
-                              setFormData((prev) => ({ 
-                                ...prev, 
-                                customer_id: cust.id || cust.customer_id, 
+                              setFormData((prev) => ({
+                                ...prev,
+                                customer_id: cust.id || cust.customer_id,
                                 nama_customer: cust.nama_pelanggan,
                                 kontak: cust.kontak || "",
                                 nik: cust.nik || "",
@@ -438,12 +484,20 @@ export default function EditTransaction() {
                             }}
                           >
                             {cust.nama_pelanggan}
-                            {cust.kontak && <small className="text-muted ms-2">({cust.kontak})</small>}
+                            {cust.kontak && (
+                              <small className="text-muted ms-2">
+                                ({cust.kontak})
+                              </small>
+                            )}
                           </button>
                         </li>
                       ))
                     ) : (
-                      <li><span className="dropdown-item text-muted disabled">(Tekan simpan untuk jadikan customer baru)</span></li>
+                      <li>
+                        <span className="dropdown-item text-muted disabled">
+                          (Tekan simpan untuk jadikan customer baru)
+                        </span>
+                      </li>
                     )}
                   </ul>
                 )}
@@ -452,7 +506,9 @@ export default function EditTransaction() {
               <div className="row g-4 mb-5">
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Kontak / No. HP</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Kontak / No. HP
+                    </label>
                     <input
                       type="text"
                       name="kontak"
@@ -464,7 +520,9 @@ export default function EditTransaction() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">NIK</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      NIK
+                    </label>
                     <input
                       type="text"
                       name="nik"
@@ -478,7 +536,9 @@ export default function EditTransaction() {
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Alamat Lengkap</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Alamat Lengkap
+                    </label>
                     <input
                       type="text"
                       name="alamat"
@@ -490,7 +550,9 @@ export default function EditTransaction() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Domisili Tujuan (Kota Rental)</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Domisili Tujuan (Kota Rental)
+                    </label>
                     <input
                       type="text"
                       name="domisili"
@@ -511,7 +573,9 @@ export default function EditTransaction() {
               <div className="row g-4 mb-5">
                 <div className="col-md-12">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Rute Perjalanan</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Rute Perjalanan
+                    </label>
                     <input
                       type="text"
                       name="rute"
@@ -523,10 +587,12 @@ export default function EditTransaction() {
                     />
                   </div>
                 </div>
-                
+
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Jadwal Ambil</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Jadwal Ambil
+                    </label>
                     <input
                       type="datetime-local"
                       name="waktu"
@@ -539,7 +605,9 @@ export default function EditTransaction() {
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Jadwal Kembali</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Jadwal Kembali
+                    </label>
                     <input
                       type="datetime-local"
                       name="waktu_pengembalian"
@@ -551,7 +619,12 @@ export default function EditTransaction() {
                       required
                     />
                     {!formData.waktu && (
-                      <small className="text-danger" style={{ fontSize: "10px" }}>*Isi jadwal ambil terlebih dahulu</small>
+                      <small
+                        className="text-danger"
+                        style={{ fontSize: "10px" }}
+                      >
+                        *Isi jadwal ambil terlebih dahulu
+                      </small>
                     )}
                   </div>
                 </div>
@@ -561,9 +634,11 @@ export default function EditTransaction() {
               <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
                 Data Kendaraan Terpilih
               </h6>
-              
+
               <div className="mb-4 position-relative">
-                <label className="form-label text-secondary small fw-bold">Mobil (Cari / Ketik Plat Baru)</label>
+                <label className="form-label text-secondary small fw-bold">
+                  Mobil (Cari / Ketik Plat Baru)
+                </label>
                 <div className="position-relative">
                   <input
                     type="text"
@@ -575,7 +650,7 @@ export default function EditTransaction() {
                       setShowCarDropdown(true);
                       setFormData((prev) => ({
                         ...prev,
-                        car_id: "", 
+                        car_id: "",
                         mobil_plat: e.target.value,
                         merek: "",
                         tipe_unit: "",
@@ -583,7 +658,9 @@ export default function EditTransaction() {
                       }));
                     }}
                     onFocus={() => setShowCarDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowCarDropdown(false), 200)}
+                    onBlur={() =>
+                      setTimeout(() => setShowCarDropdown(false), 200)
+                    }
                     required
                   />
 
@@ -642,8 +719,10 @@ export default function EditTransaction() {
                               setShowCarDropdown(false);
                             }}
                           >
-                            <strong>{car.nomor_plat}</strong> - {car.jenis_unit} 
-                            <small className="text-muted ms-2">({car.status_mobil})</small>
+                            <strong>{car.nomor_plat}</strong> - {car.jenis_unit}
+                            <small className="text-muted ms-2">
+                              ({car.status_mobil})
+                            </small>
                           </button>
                         </li>
                       ))
@@ -661,33 +740,44 @@ export default function EditTransaction() {
               <div className="row g-4 mb-5">
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Merek</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Plat Kendaraan
+                    </label>
                     <input
                       type="text"
                       name="merek"
                       value={formData.merek}
                       onChange={handleChange}
                       className="form-control bg-light border-0 py-2"
-                      placeholder="Contoh: Toyota"
+                      placeholder="DD 123 XX"
                     />
                   </div>
                 </div>
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Jenis Unit</label>
-                    <input
-                      type="text"
-                      name="tipe_unit"
-                      value={formData.tipe_unit}
+                    <label className="form-label text-secondary small fw-bold">
+                      Tipe Kendaraan
+                    </label>
+                    <select
+                      name="type"
+                      value={formData.type}
                       onChange={handleChange}
-                      className="form-control bg-light border-0 py-2"
-                      placeholder="Contoh: Avanza G"
-                    />
+                      className="form-select bg-light border-0 py-2"
+                      required
+                    >
+                      <option value="MPV">MPV</option>
+                      <option value="SUV">SUV</option>
+                      <option value="Sedan">Sedan</option>
+                      <option value="Hatchback">Hatchback</option>
+                      <option value="Minibus">Minibus</option>
+                    </select>
                   </div>
                 </div>
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Transmisi</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Transmisi
+                    </label>
                     <select
                       name="transmisi"
                       value={formData.transmisi}
@@ -703,13 +793,19 @@ export default function EditTransaction() {
               </div>
 
               {/* --- BAGIAN 4: RINCIAN PEMBAYARAN --- */}
-              <h6 className="fw-bold text-success mb-3 border-bottom pb-2">Rincian Pembayaran</h6>
+              <h6 className="fw-bold text-success mb-3 border-bottom pb-2">
+                Rincian Pembayaran
+              </h6>
               <div className="row g-4 mb-5">
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Total Pembayaran</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Total Pembayaran
+                    </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      <span className="input-group-text bg-light border-0 text-muted">
+                        Rp
+                      </span>
                       <input
                         type="text"
                         name="total_pembayaran"
@@ -724,9 +820,13 @@ export default function EditTransaction() {
                 </div>
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Uang Muka (DP)</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Uang Muka (DP)
+                    </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      <span className="input-group-text bg-light border-0 text-muted">
+                        Rp
+                      </span>
                       <input
                         type="text"
                         name="dp"
@@ -740,13 +840,19 @@ export default function EditTransaction() {
                 </div>
                 <div className="col-md-4">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Sisa Pembayaran (Otomatis)</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Sisa Pembayaran (Otomatis)
+                    </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      <span className="input-group-text bg-light border-0 text-muted">
+                        Rp
+                      </span>
                       <input
                         type="text"
                         className="form-control bg-light border-0 py-2"
-                        value={new Intl.NumberFormat("id-ID").format(currentSisaPay)}
+                        value={new Intl.NumberFormat("id-ID").format(
+                          currentSisaPay,
+                        )}
                         readOnly
                       />
                     </div>
@@ -755,7 +861,9 @@ export default function EditTransaction() {
               </div>
 
               {/* --- BAGIAN 5: DOKUMENTASI --- */}
-              <h6 className="fw-bold text-success mb-3 border-bottom pb-2">Dokumentasi & Keterangan</h6>
+              <h6 className="fw-bold text-success mb-3 border-bottom pb-2">
+                Dokumentasi & Keterangan
+              </h6>
               <div className="row g-4 mb-4">
                 <div className="col-md-6">
                   {!googleToken && (
@@ -764,33 +872,48 @@ export default function EditTransaction() {
                       onClick={handleGoogleLogin}
                       className="btn btn-outline-danger mb-3 btn-sm shadow-sm"
                     >
-                      <i className="fab fa-google me-2"></i>1. Klik Login Google untuk Ganti File
+                      <i className="fab fa-google me-2"></i>1. Klik Login Google
+                      untuk Ganti File
                     </button>
                   )}
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Ganti Foto Kendaraan</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Ganti Foto Kendaraan
+                    </label>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => setFotoFile(e.target.files[0])}
                       className="form-control bg-light border-0 py-2"
                     />
-                    {formData.foto_mobil && <small className="text-muted italic">*Sudah ada dokumentasi tersimpan</small>}
+                    {formData.foto_mobil && (
+                      <small className="text-muted italic">
+                        *Sudah ada dokumentasi tersimpan
+                      </small>
+                    )}
                   </div>
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Ganti Video Kendaraan</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Ganti Video Kendaraan
+                    </label>
                     <input
                       type="file"
                       accept="video/*"
                       onChange={(e) => setVideoFile(e.target.files[0])}
                       className="form-control bg-light border-0 py-2"
                     />
-                    {formData.video_mobil && <small className="text-muted italic">*Sudah ada dokumentasi tersimpan</small>}
+                    {formData.video_mobil && (
+                      <small className="text-muted italic">
+                        *Sudah ada dokumentasi tersimpan
+                      </small>
+                    )}
                   </div>
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3 h-100">
-                    <label className="form-label text-secondary small fw-bold">Keterangan Tambahan</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Keterangan Tambahan
+                    </label>
                     <textarea
                       name="keterangan"
                       value={formData.keterangan}
@@ -808,7 +931,11 @@ export default function EditTransaction() {
                 <Link
                   to="/transaction"
                   className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                  style={{ backgroundColor: "#ff9a90", border: "none", borderRadius: "12px" }}
+                  style={{
+                    backgroundColor: "#ff9a90",
+                    border: "none",
+                    borderRadius: "12px",
+                  }}
                 >
                   Batal
                 </Link>
@@ -825,7 +952,11 @@ export default function EditTransaction() {
                 >
                   {isSubmitting ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      <span
+                        className="spinner-border spinner-border-sm me-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
                       Menyimpan...
                     </>
                   ) : (
@@ -840,26 +971,41 @@ export default function EditTransaction() {
 
       {/* --- MODAL SUKSES --- */}
       {showSuccessModal && (
-        <div 
-          className="modal fade show d-block" 
-          tabIndex="-1" 
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', zIndex: 1050 }}
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{
+            backgroundColor: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(5px)",
+            zIndex: 1050,
+          }}
         >
           <div className="modal-dialog modal-dialog-centered modal-sm">
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+            <div
+              className="modal-content border-0 shadow-lg"
+              style={{ borderRadius: "16px" }}
+            >
               <div className="modal-body p-4 text-center">
-                <div 
-                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success" 
+                <div
+                  className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success"
                   style={{ width: "64px", height: "64px", borderRadius: "50%" }}
                 >
                   <i className="fas fa-check fs-2"></i>
                 </div>
                 <h5 className="fw-bold text-dark mb-2">Berhasil Diperbarui!</h5>
                 <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
-                  Transaksi untuk <span className="fw-bold text-dark">{formData.nama_customer || "Customer"}</span> berhasil diperbarui.
+                  Transaksi untuk{" "}
+                  <span className="fw-bold text-dark">
+                    {formData.nama_customer || "Customer"}
+                  </span>{" "}
+                  berhasil diperbarui.
                 </p>
                 <div className="d-flex align-items-center justify-content-center text-muted small">
-                  <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: '12px', height: '12px' }}></div>
+                  <div
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    style={{ width: "12px", height: "12px" }}
+                  ></div>
                   Mengalihkan...
                 </div>
               </div>

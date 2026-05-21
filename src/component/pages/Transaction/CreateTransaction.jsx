@@ -33,7 +33,7 @@ export default function CreateTransaction() {
   const [formData, setFormData] = useState({
     waktu: "",
     waktu_pengembalian: "",
-    customer_id: "", 
+    customer_id: "",
     nama_customer: "",
     kontak: "",
     nik: "",
@@ -57,14 +57,18 @@ export default function CreateTransaction() {
     return new Intl.NumberFormat("id-ID").format(numberString);
   };
 
+  // Tambahkan state ini di dekat state Anda yang lain (seperti formData, searchCarTerm, dll)
+  const [isManualCar, setIsManualCar] = useState(false);
+
   // --- LOGIKA MENGHITUNG SISA PEMBAYARAN OTOMATIS ---
-  const currentTotalPay = parseInt(formData.total_pembayaran.replace(/\./g, "")) || 0;
+  const currentTotalPay =
+    parseInt(formData.total_pembayaran.replace(/\./g, "")) || 0;
   let currentDp = parseInt(formData.dp.replace(/\./g, ""));
   if (isNaN(currentDp)) currentDp = 0;
 
   let currentSisaPay;
   if (formData.dp === "" || currentDp === 0) {
-    currentSisaPay = currentTotalPay; 
+    currentSisaPay = currentTotalPay;
   } else {
     currentSisaPay = currentTotalPay - currentDp;
     if (currentSisaPay < 0) currentSisaPay = 0;
@@ -76,8 +80,8 @@ export default function CreateTransaction() {
       try {
         const { data: customerData, error: customerError } = await supabase
           .from("customers")
-          .select("*")
-          // .eq("status", "active");
+          .select("*");
+        // .eq("status", "active");
 
         if (customerError) {
           console.error("Error muat customer:", customerError.message);
@@ -118,13 +122,16 @@ export default function CreateTransaction() {
   // handle drive
   const handleGoogleLogin = () => {
     if (!window.google || !window.google.accounts) {
-      alert("Library Google belum dimuat. Silakan refresh halaman atau tunggu sebentar.");
+      alert(
+        "Library Google belum dimuat. Silakan refresh halaman atau tunggu sebentar.",
+      );
       return;
     }
 
     try {
       const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: "792749158806-1len8ms3h3cq3v16h58qcj9befc8log9.apps.googleusercontent.com",
+        client_id:
+          "792749158806-1len8ms3h3cq3v16h58qcj9befc8log9.apps.googleusercontent.com",
         scope: "https://www.googleapis.com/auth/drive.file",
         callback: (response) => {
           if (response.access_token) {
@@ -155,8 +162,9 @@ export default function CreateTransaction() {
         }
       } else if (name === "dp") {
         const rawDp = parseInt(value.replace(/\D/g, "")) || 0;
-        const currentTotalRaw = parseInt(prev.total_pembayaran.replace(/\./g, "")) || 0;
-        
+        const currentTotalRaw =
+          parseInt(prev.total_pembayaran.replace(/\./g, "")) || 0;
+
         if (rawDp > currentTotalRaw) {
           newValue = formatRupiahInput(currentTotalRaw.toString());
         } else {
@@ -165,10 +173,13 @@ export default function CreateTransaction() {
       }
 
       const newData = { ...prev, [name]: newValue };
-      
+
       if (name === "waktu") {
         const minReturn = getMinReturnDate(newValue);
-        if (newData.waktu_pengembalian && newData.waktu_pengembalian < minReturn) {
+        if (
+          newData.waktu_pengembalian &&
+          newData.waktu_pengembalian < minReturn
+        ) {
           newData.waktu_pengembalian = "";
         }
       }
@@ -182,7 +193,7 @@ export default function CreateTransaction() {
     const metadata = {
       name: file.name,
       mimeType: file.type,
-      parents: [folderId], 
+      parents: [folderId],
     };
 
     const dataUpload = new FormData();
@@ -211,13 +222,12 @@ export default function CreateTransaction() {
       }
 
       const result = await response.json();
-      
+
       if (file.type.startsWith("image/")) {
         return `https://drive.google.com/thumbnail?id=${result.id}&sz=w1000`;
       } else {
-        return `https://drive.google.com/file/d/${result.id}/preview`; 
+        return `https://drive.google.com/file/d/${result.id}/preview`;
       }
-      
     } catch (error) {
       console.error("Network error Drive:", error);
       return null;
@@ -261,18 +271,27 @@ export default function CreateTransaction() {
       let linkVideo = null;
 
       if (fotoFile && googleToken) {
-        linkFoto = await uploadToDrive(fotoFile, DRIVE_PHOTO_FOLDER_ID, googleToken);
+        linkFoto = await uploadToDrive(
+          fotoFile,
+          DRIVE_PHOTO_FOLDER_ID,
+          googleToken,
+        );
       }
       if (videoFile && googleToken) {
-        linkVideo = await uploadToDrive(videoFile, DRIVE_VIDEO_FOLDER_ID, googleToken);
+        linkVideo = await uploadToDrive(
+          videoFile,
+          DRIVE_VIDEO_FOLDER_ID,
+          googleToken,
+        );
       }
 
-      const statusOtomatis = currentDp > 0 && currentSisaPay > 0 ? "Belum Lunas" : "Lunas";
+      const statusOtomatis =
+        currentDp > 0 && currentSisaPay > 0 ? "Belum Lunas" : "Lunas";
 
       const { error } = await supabase.from("transactions").insert([
         {
-          customer_id: formData.customer_id || null, 
-          nama_customer: formData.nama_customer, 
+          customer_id: formData.customer_id || null,
+          nama_customer: formData.nama_customer,
           kontak: formData.kontak,
           nik: formData.nik,
           alamat: formData.alamat,
@@ -350,12 +369,11 @@ export default function CreateTransaction() {
         >
           <div className="card-body p-4 p-lg-5">
             <form onSubmit={handleSubmit}>
-              
               {/* --- BAGIAN 1: INFORMASI CUSTOMER --- */}
               <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
                 Data Customer
               </h6>
-              
+
               <div className="mb-4 position-relative">
                 <label className="form-label text-secondary small fw-bold">
                   Nama Customer (Cari / Ketik Baru)
@@ -371,12 +389,14 @@ export default function CreateTransaction() {
                       setShowCustomerDropdown(true);
                       setFormData((prev) => ({
                         ...prev,
-                        customer_id: "", 
+                        customer_id: "",
                         nama_customer: e.target.value,
                       }));
                     }}
                     onFocus={() => setShowCustomerDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                    onBlur={() =>
+                      setTimeout(() => setShowCustomerDropdown(false), 200)
+                    }
                     required
                   />
 
@@ -432,8 +452,12 @@ export default function CreateTransaction() {
                               setShowCustomerDropdown(false);
                             }}
                           >
-                            {cust.nama_pelanggan} 
-                            {cust.kontak && <small className="text-muted ms-2">({cust.kontak})</small>}
+                            {cust.nama_pelanggan}
+                            {cust.kontak && (
+                              <small className="text-muted ms-2">
+                                ({cust.kontak})
+                              </small>
+                            )}
                           </button>
                         </li>
                       ))
@@ -451,7 +475,9 @@ export default function CreateTransaction() {
               <div className="row g-4 mb-5">
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Kontak / No. HP</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Kontak / No. HP
+                    </label>
                     <input
                       type="text"
                       name="kontak"
@@ -463,7 +489,9 @@ export default function CreateTransaction() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">NIK</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      NIK
+                    </label>
                     <input
                       type="text"
                       name="nik"
@@ -477,7 +505,9 @@ export default function CreateTransaction() {
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Alamat Lengkap</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Alamat Lengkap
+                    </label>
                     <input
                       type="text"
                       name="alamat"
@@ -489,7 +519,9 @@ export default function CreateTransaction() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Domisili Tujuan (Kota Rental)</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Domisili Tujuan (Kota Rental)
+                    </label>
                     <input
                       type="text"
                       name="domisili"
@@ -502,7 +534,6 @@ export default function CreateTransaction() {
                   </div>
                 </div>
               </div>
-
 
               {/* --- BAGIAN 2: INFORMASI PEMINJAMAN --- */}
               <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
@@ -557,7 +588,10 @@ export default function CreateTransaction() {
                       required
                     />
                     {!formData.waktu && (
-                      <small className="text-danger" style={{ fontSize: "10px" }}>
+                      <small
+                        className="text-danger"
+                        style={{ fontSize: "10px" }}
+                      >
                         *Isi jadwal ambil terlebih dahulu
                       </small>
                     )}
@@ -565,155 +599,259 @@ export default function CreateTransaction() {
                 </div>
               </div>
 
-
               {/* --- BAGIAN 3: DATA KENDARAAN --- */}
               <h6 className="fw-bold text-primary mb-3 border-bottom pb-2">
                 Data Kendaraan Terpilih
               </h6>
-              
-              <div className="mb-4 position-relative">
-                <label className="form-label text-secondary small fw-bold">
-                  Mobil (Cari / Ketik Plat Baru)
+
+              {/* Pilihan Sumber Kendaraan (Radio Buttons) */}
+              <div className="mb-4">
+                <label className="form-label text-secondary small fw-bold d-block">
+                  Sumber Kendaraan
                 </label>
-                <div className="position-relative">
+                <div className="form-check form-check-inline">
                   <input
-                    type="text"
-                    className="form-control bg-light border-0 py-2 pe-5"
-                    placeholder="Ketik plat atau nama unit..."
-                    value={searchCarTerm}
-                    onChange={(e) => {
-                      setSearchCarTerm(e.target.value);
-                      setShowCarDropdown(true);
+                    className="form-check-input"
+                    type="radio"
+                    name="carInputType"
+                    id="armadaSendiri"
+                    checked={!isManualCar}
+                    onChange={() => {
+                      setIsManualCar(false);
+                      setSearchCarTerm("");
                       setFormData((prev) => ({
                         ...prev,
-                        car_id: "", 
-                        mobil_plat: e.target.value,
+                        car_id: "",
+                        mobil_plat: "",
                         merek: "",
                         tipe_unit: "",
                         transmisi: "",
                       }));
                     }}
-                    onFocus={() => setShowCarDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowCarDropdown(false), 200)}
-                    required
                   />
-
-                  {searchCarTerm && (
-                    <button
-                      type="button"
-                      className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
-                      style={{ zIndex: 10 }}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setSearchCarTerm("");
-                        setFormData((prev) => ({
-                          ...prev,
-                          car_id: "",
-                          mobil_plat: "",
-                          merek: "",
-                          tipe_unit: "",
-                          transmisi: "",
-                        }));
-                        setShowCarDropdown(true);
-                      }}
-                    >
-                      <i className="fas fa-times"></i>
-                    </button>
-                  )}
+                  <label className="form-check-label" htmlFor="armadaSendiri">
+                    Armada Sendiri (Pilih dari Data)
+                  </label>
                 </div>
-
-                {showCarDropdown && (
-                  <ul
-                    className="dropdown-menu show w-100 shadow border-0 mt-1"
-                    style={{
-                      maxHeight: "200px",
-                      overflowY: "auto",
-                      position: "absolute",
-                      zIndex: 1000,
+                <div className="form-check form-check-inline">
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    name="carInputType"
+                    id="mobilBaru"
+                    checked={isManualCar}
+                    onChange={() => {
+                      setIsManualCar(true);
+                      setSearchCarTerm("");
+                      setFormData((prev) => ({
+                        ...prev,
+                        car_id: "",
+                        mobil_plat: "",
+                        merek: "",
+                        tipe_unit: "",
+                        transmisi: "",
+                      }));
                     }}
-                  >
-                    {filteredCars.length > 0 ? (
-                      filteredCars.map((car) => (
-                        <li key={car.cars_id}>
+                  />
+                  <label className="form-check-label" htmlFor="mobilBaru">
+                    Mobil Baru (Input Manual)
+                  </label>
+                </div>
+              </div>
+
+              {/* Form Pencarian Armada Sendiri (Hanya tampil jika !isManualCar) */}
+              {!isManualCar && (
+                <div className="mb-4 position-relative">
+                  <div className="row">
+                    <div className="col">
+                      <label className="form-label text-secondary small fw-bold">
+                        Cari Armada Sendiri
+                      </label>
+                      <div className="position-relative">
+                        <input
+                          type="text"
+                          className="form-control bg-light border-0 py-2 pe-5"
+                          placeholder="Ketik plat atau nama unit..."
+                          value={searchCarTerm}
+                          onChange={(e) => {
+                            setSearchCarTerm(e.target.value);
+                            setShowCarDropdown(true);
+                            // Kosongkan form detail saat mencari ulang agar user wajib memilih dari dropdown
+                            setFormData((prev) => ({
+                              ...prev,
+                              car_id: "",
+                              mobil_plat: "",
+                              merek: "",
+                              tipe_unit: "",
+                              transmisi: "",
+                            }));
+                          }}
+                          onFocus={() => setShowCarDropdown(true)}
+                          onBlur={() =>
+                            setTimeout(() => setShowCarDropdown(false), 200)
+                          }
+                        />
+
+                        {searchCarTerm && (
                           <button
                             type="button"
-                            className="dropdown-item py-2"
+                            className="btn position-absolute top-50 end-0 translate-middle-y text-muted border-0 bg-transparent"
+                            style={{ zIndex: 10 }}
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              const displayCar = `${car.nomor_plat} - ${car.jenis_unit}`;
-                              setSearchCarTerm(displayCar);
+                              setSearchCarTerm("");
                               setFormData((prev) => ({
                                 ...prev,
-                                car_id: car.cars_id,
-                                mobil_plat: displayCar,
-                                merek: car.jenis_unit?.split(" ")[0] || "", // Ambil kata pertama sebagai merek (contoh: Toyota Avanza -> Toyota)
-                                tipe_unit: car.tipe_kendaraan || "",
-                                transmisi: car.transmisi || "",
+                                car_id: "",
+                                mobil_plat: "",
+                                merek: "",
+                                tipe_unit: "",
+                                transmisi: "",
                               }));
-                              setShowCarDropdown(false);
+                              setShowCarDropdown(true);
                             }}
                           >
-                            <strong>{car.nomor_plat}</strong> - {car.jenis_unit} 
-                            <small className="text-muted ms-2">({car.status_mobil})</small>
+                            <i className="fas fa-times"></i>
                           </button>
-                        </li>
-                      ))
-                    ) : (
-                      <li>
-                        <span className="dropdown-item text-muted disabled">
-                          (Plat baru akan direkam sebagai input manual)
-                        </span>
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Tampilkan field detail mobil jika user mengetik manual (car_id kosong) ATAU biarkan admin mengubah detailnya */}
-              <div className="row g-4 mb-5">
-                <div className="col-md-4">
-                  <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Merek</label>
-                    <input
-                      type="text"
-                      name="merek"
-                      value={formData.merek}
-                      onChange={handleChange}
-                      className="form-control bg-light border-0 py-2"
-                      placeholder="Contoh: Toyota"
-                    />
-                  </div>
-                </div>
-                <div className="col-md-4">
-                  <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Jenis Unit</label>
-                    <input
-                      type="text"
-                      name="tipe_unit"
-                      value={formData.tipe_unit}
-                      onChange={handleChange}
-                      className="form-control bg-light border-0 py-2"
-                      placeholder="Contoh: Avanza G"
-                    />
-                  </div>
-                </div>
-                <div className="col-md-4">
-                  <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Transmisi</label>
-                    <select
-                      name="transmisi"
-                      value={formData.transmisi}
-                      onChange={handleChange}
-                      className="form-select bg-light border-0 py-2"
+                  {showCarDropdown && (
+                    <ul
+                      className="dropdown-menu show w-100 shadow border-0 mt-1"
+                      style={{
+                        maxHeight: "200px",
+                        overflowY: "auto",
+                        position: "absolute",
+                        zIndex: 1000,
+                      }}
                     >
-                      <option value="">- Pilih -</option>
-                      <option value="MANUAL">Manual</option>
-                      <option value="OTOMATIS">Otomatis</option>
-                    </select>
+                      {filteredCars.length > 0 ? (
+                        filteredCars.map((car) => (
+                          <li key={car.cars_id}>
+                            <button
+                              type="button"
+                              className="dropdown-item py-2"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                const displayCar = `${car.nomor_plat} - ${car.jenis_unit}`;
+                                setSearchCarTerm(displayCar);
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  car_id: car.cars_id,
+                                  mobil_plat: car.nomor_plat || "",
+                                  merek: car.jenis_unit?.split(" ")[0] || "",
+                                  tipe_unit: car.tipe_kendaraan || "",
+                                  transmisi: car.transmisi || "",
+                                }));
+                                setShowCarDropdown(false);
+                              }}
+                            >
+                              <strong>{car.nomor_plat}</strong> -{" "}
+                              {car.jenis_unit}
+                              <small className="text-muted ms-2">
+                                ({car.status_mobil})
+                              </small>
+                            </button>
+                          </li>
+                        ))
+                      ) : (
+                        <li>
+                          <span className="dropdown-item text-muted disabled">
+                            Armada tidak ditemukan
+                          </span>
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* Detail Mobil - Hanya tampil jika isManualCar (Mobil Baru) bernilai true */}
+              {isManualCar && (
+                <div className="row g-4 mb-5">
+                  {/* Input Merek / Nama Kendaraan */}
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label text-secondary small fw-bold">
+                        Merek / Nama Kendaraan
+                      </label>
+                      <input
+                        type="text"
+                        name="merek"
+                        value={formData.merek || ""}
+                        onChange={handleChange}
+                        className="form-control py-2 bg-light border-0"
+                        placeholder="Contoh: Toyota Avanza"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Input Plat Kendaraan */}
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label text-secondary small fw-bold">
+                        Plat Kendaraan
+                      </label>
+                      <input
+                        type="text"
+                        name="mobil_plat"
+                        value={formData.mobil_plat || ""}
+                        onChange={handleChange}
+                        className="form-control py-2 bg-light border-0"
+                        placeholder="DD 123 XX"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Input Tipe Kendaraan */}
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label text-secondary small fw-bold">
+                        Tipe Kendaraan
+                      </label>
+                      <select
+                        name="tipe_unit"
+                        value={formData.tipe_unit || ""}
+                        onChange={handleChange}
+                        className="form-select py-2 bg-light border-0"
+                        required
+                      >
+                        <option value="">- Pilih Tipe -</option>
+                        <option value="MPV">MPV</option>
+                        <option value="SUV">SUV</option>
+                        <option value="Sedan">Sedan</option>
+                        <option value="Hatchback">Hatchback</option>
+                        <option value="Minibus">Minibus</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Input Transmisi */}
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label text-secondary small fw-bold">
+                        Transmisi
+                      </label>
+                      <select
+                        name="transmisi"
+                        value={formData.transmisi || ""}
+                        onChange={handleChange}
+                        className="form-select py-2 bg-light border-0"
+                        required
+                      >
+                        <option value="">- Pilih Transmisi -</option>
+                        <option value="MANUAL">Manual</option>
+                        <option value="OTOMATIS">Otomatis</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
-
+              )}
 
               {/* --- BAGIAN 4: RINCIAN PEMBAYARAN --- */}
               <h6 className="fw-bold text-success mb-3 border-bottom pb-2">
@@ -726,7 +864,9 @@ export default function CreateTransaction() {
                       Total Pembayaran
                     </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      <span className="input-group-text bg-light border-0 text-muted">
+                        Rp
+                      </span>
                       <input
                         type="text"
                         name="total_pembayaran"
@@ -745,7 +885,9 @@ export default function CreateTransaction() {
                       Uang Muka (DP)
                     </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      <span className="input-group-text bg-light border-0 text-muted">
+                        Rp
+                      </span>
                       <input
                         type="text"
                         name="dp"
@@ -763,18 +905,21 @@ export default function CreateTransaction() {
                       Sisa Pembayaran (Otomatis)
                     </label>
                     <div className="input-group">
-                      <span className="input-group-text bg-light border-0 text-muted">Rp</span>
+                      <span className="input-group-text bg-light border-0 text-muted">
+                        Rp
+                      </span>
                       <input
                         type="text"
                         className="form-control bg-light border-0 py-2"
-                        value={new Intl.NumberFormat("id-ID").format(currentSisaPay)}
+                        value={new Intl.NumberFormat("id-ID").format(
+                          currentSisaPay,
+                        )}
                         readOnly
                       />
                     </div>
                   </div>
                 </div>
               </div>
-
 
               {/* --- BAGIAN 5: DOKUMENTASI --- */}
               <h6 className="fw-bold text-success mb-3 border-bottom pb-2">
@@ -788,12 +933,15 @@ export default function CreateTransaction() {
                       onClick={handleGoogleLogin}
                       className="btn btn-outline-danger mb-3 btn-sm shadow-sm"
                     >
-                      <i className="fab fa-google me-2"></i>1. Klik Login Google untuk Upload
+                      <i className="fab fa-google me-2"></i>1. Klik Login Google
+                      untuk Upload
                     </button>
                   )}
 
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Foto Kendaraan</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Foto Kendaraan
+                    </label>
                     <input
                       type="file"
                       accept="image/*"
@@ -803,7 +951,9 @@ export default function CreateTransaction() {
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label text-secondary small fw-bold">Video Kendaraan</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Video Kendaraan
+                    </label>
                     <input
                       type="file"
                       accept="video/*"
@@ -814,7 +964,9 @@ export default function CreateTransaction() {
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3 h-100">
-                    <label className="form-label text-secondary small fw-bold">Keterangan Tambahan</label>
+                    <label className="form-label text-secondary small fw-bold">
+                      Keterangan Tambahan
+                    </label>
                     <textarea
                       name="keterangan"
                       onChange={handleChange}
@@ -831,7 +983,11 @@ export default function CreateTransaction() {
                 <Link
                   to="/transaction"
                   className="btn px-5 py-2 fw-bold text-white shadow-sm"
-                  style={{ backgroundColor: "#ff9a90", border: "none", borderRadius: "12px" }}
+                  style={{
+                    backgroundColor: "#ff9a90",
+                    border: "none",
+                    borderRadius: "12px",
+                  }}
                 >
                   Batal
                 </Link>
@@ -848,7 +1004,11 @@ export default function CreateTransaction() {
                 >
                   {isSubmitting ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      <span
+                        className="spinner-border spinner-border-sm me-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
                       Menyimpan...
                     </>
                   ) : (
@@ -866,10 +1026,17 @@ export default function CreateTransaction() {
         <div
           className="modal fade show d-block"
           tabIndex="-1"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(5px)", zIndex: 1050 }}
+          style={{
+            backgroundColor: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(5px)",
+            zIndex: 1050,
+          }}
         >
           <div className="modal-dialog modal-dialog-centered modal-sm">
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
+            <div
+              className="modal-content border-0 shadow-lg"
+              style={{ borderRadius: "16px" }}
+            >
               <div className="modal-body p-4 text-center">
                 <div
                   className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success"
@@ -877,12 +1044,22 @@ export default function CreateTransaction() {
                 >
                   <i className="fas fa-check fs-2"></i>
                 </div>
-                <h5 className="fw-bold text-dark mb-2">Berhasil Ditambahkan!</h5>
+                <h5 className="fw-bold text-dark mb-2">
+                  Berhasil Ditambahkan!
+                </h5>
                 <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
-                  Transaksi untuk <span className="fw-bold text-dark">{formData.nama_customer || "Customer"}</span> berhasil dibuat.
+                  Transaksi untuk{" "}
+                  <span className="fw-bold text-dark">
+                    {formData.nama_customer || "Customer"}
+                  </span>{" "}
+                  berhasil dibuat.
                 </p>
                 <div className="d-flex align-items-center justify-content-center text-muted small">
-                  <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: "12px", height: "12px" }}></div>
+                  <div
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    style={{ width: "12px", height: "12px" }}
+                  ></div>
                   Mengalihkan...
                 </div>
               </div>
