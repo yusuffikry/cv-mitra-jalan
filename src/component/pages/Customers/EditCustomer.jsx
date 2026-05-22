@@ -264,7 +264,7 @@ export default function EditCustomer() {
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label text-secondary small fw-bold">
-                      Kota Rental
+                      Kota
                     </label>
                     <input
                       type="text"
