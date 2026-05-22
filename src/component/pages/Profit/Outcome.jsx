@@ -170,8 +170,17 @@ export default function Outcome() {
       item.total_pengeluaran || 0,
     ]);
 
-    // Menggabungkan Header dan Data
-    const dataToExport = [headers, ...rows];
+    // Tambahkan baris Grand Total di akhir file Excel
+    const grandTotalRow = [
+      "", // No
+      "", // Tanggal
+      "TOTAL KESELURUHAN PENGELUARAN", // Jenis Pengeluaran
+      "", // Keterangan
+      grandTotal // Total Pengeluaran (Rp)
+    ];
+
+    // Menggabungkan Header, Data, baris kosong, dan Grand Total
+    const dataToExport = [headers, ...rows, [], grandTotalRow];
 
     // Membuat Worksheet dan Workbook Excel
     const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
@@ -512,23 +521,29 @@ export default function Outcome() {
                     </td>
                   </tr>
                 ))}
-
-                {/* GRAND TOTAL HANYA MUNCUL DI PRINT */}
-                <tr className="table-light">
-                  <td
-                    colSpan="4"
-                    className="text-end py-3 fw-bold text-uppercase border-bottom-0"
-                  >
-                    Grand Total Pengeluaran
-                  </td>
-                  <td
-                    className="text-end py-3 fw-bold text-danger border-bottom-0 text-nowrap"
-                    style={{ fontSize: "1.1rem" }}
-                  >
-                    Rp {formatRupiah(grandTotal)}
-                  </td>
-                </tr>
               </tbody>
+
+              {/* GRAND TOTAL MUNCUL DI PRINT DAN LAYAR */}
+              {!loading && filteredExpenses.length > 0 && (
+                <tfoot className="table-light sticky-bottom shadow-sm" style={{ zIndex: 9 }}>
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="text-end py-3 fw-bold text-dark text-uppercase border-top"
+                    >
+                      TOTAL KESELURUHAN PENGELUARAN
+                    </td>
+                    <td
+                      className="px-4 text-end py-3 fw-bold text-danger border-top text-nowrap"
+                      style={{ fontSize: "1.1rem" }}
+                    >
+                      Rp {formatRupiah(grandTotal)}
+                    </td>
+                    <td className="border-top d-print-none"></td>
+                  </tr>
+                </tfoot>
+              )}
+
             </table>
 
             {/* TANDA TANGAN (Hanya muncul saat di-print) */}
