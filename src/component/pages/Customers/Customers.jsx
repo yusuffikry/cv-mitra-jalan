@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
-import * as XLSX from "xlsx"; // TAMBAHAN: Import library Excel
+import * as XLSX from "xlsx";
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState(null);
-
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-
-  // --- STATE UNTUK PAGINATION ---
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -72,8 +68,6 @@ export default function Customers() {
     setShowDeleteModal(false);
     setCustomerToDelete(null);
   };
-
-  // --- LOGIKA PENCARIAN (Dipindah ke atas agar bisa dipakai oleh fungsi Excel) ---
   const filteredCustomers = customers.filter((cust) => {
     const searchLower = searchTerm.toLowerCase();
     const matchName = (cust.nama_pelanggan || "")
@@ -82,8 +76,6 @@ export default function Customers() {
     const matchNik = (cust.nik || "").toLowerCase().includes(searchLower);
     return matchName || matchNik;
   });
-
-  // --- FUNGSI EXPORT KE EXCEL ---
   const exportToExcel = () => {
     const headers = [
       "No",
@@ -103,8 +95,6 @@ export default function Customers() {
           : cust.status === "blacklist"
             ? "Blacklist"
             : cust.status || "-";
-
-      // Bersih dari karakter ekstra karena Excel sudah menanganinya otomatis
       return [
         index + 1,
         cust.nama_pelanggan || "-",
@@ -123,28 +113,22 @@ export default function Customers() {
     const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data Pelanggan");
-
-    // Mengatur lebar kolom agar langsung rapi saat dibuka di Excel
     const wscols = [
-      { wch: 5 }, // No
-      { wch: 30 }, // Nama Pelanggan
-      { wch: 20 }, // NIK
-      { wch: 15 }, // Kontak
-      { wch: 40 }, // Alamat
-      { wch: 15 }, // Kota Rental
-      { wch: 15 }, // Total Rental
-      { wch: 15 }, // Status
+      { wch: 5 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 40 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
     ];
     worksheet["!cols"] = wscols;
-
-    // Trigger Download File Excel
     XLSX.writeFile(
       workbook,
       `Data_Pelanggan_${new Date().toISOString().split("T")[0]}.xlsx`,
     );
   };
-
-  // --- LOGIKA PAGINATION ---
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredCustomers.slice(
@@ -163,9 +147,7 @@ export default function Customers() {
             Data informasi dan riwayat penyewa
           </p>
         </div>
-
         <div className="d-flex gap-2">
-          {/* PERBAIKAN: Tombol dipanggil ke exportToExcel */}
           <button
             onClick={exportToExcel}
             className="btn btn-success shadow-sm px-3"
@@ -181,14 +163,10 @@ export default function Customers() {
           </Link>
         </div>
       </div>
-
-      {/* Card Utama */}
-      {/* Card Utama */}
       <div
         className="card border-0 shadow-sm rounded-3 d-flex flex-column flex-grow-1 overflow-hidden"
         style={{ backgroundColor: "#ffffff" }}
       >
-        {/* Toolbar Pencarian */}
         <div
           className="card-header bg-white py-3 border-bottom flex-shrink-0"
           style={{ borderColor: "#e2e8f0" }}
@@ -206,7 +184,7 @@ export default function Customers() {
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
-                    setCurrentPage(1); // Reset ke halaman 1 saat mencari
+                    setCurrentPage(1);
                   }}
                   style={{
                     fontSize: "0.85rem",
@@ -231,8 +209,6 @@ export default function Customers() {
             </div>
           </div>
         </div>
-
-        {/* Area Data Berbasis Responsif (Tabel Desktop / Card List Mobile) */}
         <div
           className="card-body p-0 flex-grow-1 overflow-auto"
           style={{ backgroundColor: "#f8fafc" }}
@@ -269,7 +245,6 @@ export default function Customers() {
             </div>
           ) : (
             <>
-              {/* TAMPILAN DESKTOP & TABLET: Tradisional ERP Table */}
               <div className="d-none d-md-block bg-white">
                 <table
                   className="table table-hover align-middle mb-0 text-nowrap"
@@ -379,7 +354,6 @@ export default function Customers() {
                     {currentItems.map((cust, index) => {
                       const isActive = cust.status === "active";
                       const isBlacklist = cust.status === "blacklist";
-
                       return (
                         <tr
                           key={cust.customer_id}
@@ -505,18 +479,14 @@ export default function Customers() {
                   </tbody>
                 </table>
               </div>
-
-              {/* TAMPILAN MOBILE: Stacked Cards (Otomatis Aktif di < md) */}
               <div className="d-block d-md-none p-3">
                 <div className="row g-3">
                   {currentItems.map((cust, index) => {
                     const isActive = cust.status === "active";
                     const isBlacklist = cust.status === "blacklist";
-
                     return (
                       <div className="col-12" key={`mob-${cust.customer_id}`}>
                         <div className="card border border-light-subtle shadow-sm rounded-3 bg-white p-3">
-                          {/* Header Atas Card Mobile */}
                           <div
                             className="d-flex justify-content-between align-items-start border-bottom pb-2 mb-2"
                             style={{ borderColor: "#f1f5f9" }}
@@ -565,8 +535,6 @@ export default function Customers() {
                               </span>
                             </span>
                           </div>
-
-                          {/* Detail Konten Grid Mobile */}
                           <div
                             className="row g-2"
                             style={{ fontSize: "0.8rem" }}
@@ -650,8 +618,6 @@ export default function Customers() {
             </>
           )}
         </div>
-
-        {/* Footer Dinamis & Kontrol Pagination */}
         <div
           className="card-footer bg-white border-top py-3 px-3 px-sm-4 flex-shrink-0"
           style={{ borderColor: "#e2e8f0" }}
@@ -683,9 +649,7 @@ export default function Customers() {
                       Prev
                     </button>
                   </li>
-
                   {Array.from({ length: totalPages }, (_, i) => {
-                    // Optimasi pagination mobile jika total halaman terlalu banyak
                     if (
                       totalPages > 5 &&
                       Math.abs(currentPage - (i + 1)) > 1 &&
@@ -701,7 +665,6 @@ export default function Customers() {
                       }
                       return null;
                     }
-
                     return (
                       <li
                         key={i + 1}
@@ -716,7 +679,7 @@ export default function Customers() {
                           style={{
                             fontSize: "0.75rem",
                             backgroundColor:
-                              currentPage === i + 1 ? "#0284c7" : "transparent", // Pronto Blue-Sky Accent
+                              currentPage === i + 1 ? "#0284c7" : "transparent",
                           }}
                           onClick={() => setCurrentPage(i + 1)}
                         >
@@ -754,7 +717,7 @@ export default function Customers() {
           className="modal fade show d-block"
           tabIndex="-1"
           style={{
-            backgroundColor: "rgba(15, 23, 42, 0.4)", // Slate-900 overlay khas ERP
+            backgroundColor: "rgba(15, 23, 42, 0.4)",
             backdropFilter: "blur(4px)",
             zIndex: 1050,
           }}
@@ -767,7 +730,6 @@ export default function Customers() {
               className="modal-content border-0 shadow-sm"
               style={{ borderRadius: "8px", backgroundColor: "#ffffff" }}
             >
-              {/* Header Modal - Garis Tipis Enterprise */}
               <div
                 className="modal-header border-bottom px-4 py-3 d-flex align-items-center justify-content-between"
                 style={{ borderColor: "#e2e8f0" }}
@@ -786,8 +748,6 @@ export default function Customers() {
                   onClick={cancelDelete}
                 ></button>
               </div>
-
-              {/* Konten Utama */}
               <div className="modal-body p-4 text-center">
                 <div
                   className="mx-auto mb-3 d-flex align-items-center justify-content-center"
@@ -828,8 +788,6 @@ export default function Customers() {
                     NIK: {customerToDelete?.nik}
                   </span>
                 </p>
-
-                {/* Banner Peringatan Fungsional */}
                 <div
                   className="alert border-0 p-2.5 rounded-2 mb-4 text-start d-flex align-items-start gap-2"
                   style={{
@@ -849,8 +807,6 @@ export default function Customers() {
                     ikut terarsip otomatis.
                   </span>
                 </div>
-
-                {/* Tombol Aksi - Gaya Komponen ERP Form */}
                 <div className="d-flex gap-2">
                   <button
                     type="button"
@@ -879,14 +835,12 @@ export default function Customers() {
           </div>
         </div>
       )}
-
-      {/* --- MODAL POP UP SUKSES HAPUS (AUTO CLOSE) --- */}
       {showSuccessModal && (
         <div
           className="modal fade show d-block"
           tabIndex="-1"
           style={{
-            backgroundColor: "rgba(15, 23, 42, 0.4)", // Slate-900 overlay standar ERP
+            backgroundColor: "rgba(15, 23, 42, 0.4)",
             backdropFilter: "blur(4px)",
             zIndex: 1050,
           }}
@@ -900,15 +854,14 @@ export default function Customers() {
               style={{ borderRadius: "8px", backgroundColor: "#ffffff" }}
             >
               <div className="modal-body p-4 text-center">
-                {/* Ikon Box Sukses Berbasis Grid ERP */}
                 <div
                   className="mx-auto mb-3 d-flex align-items-center justify-content-center"
                   style={{
                     width: "56px",
                     height: "56px",
                     borderRadius: "6px",
-                    backgroundColor: "#f0fdf4", // Emerald-50
-                    border: "1px solid #bbf7d0", // Emerald-200
+                    backgroundColor: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
                   }}
                 >
                   <i
@@ -916,16 +869,12 @@ export default function Customers() {
                     style={{ color: "#16a34a" }}
                   ></i>
                 </div>
-
-                {/* Judul Status */}
                 <h6
                   className="fw-bold text-dark mb-2"
                   style={{ fontSize: "1rem", color: "#0f172a" }}
                 >
                   Data Berhasil Dihapus
                 </h6>
-
-                {/* Deskripsi Entitas Terhapus */}
                 <p
                   className="text-secondary mb-4 px-2"
                   style={{ fontSize: "0.85rem", lineHeight: "1.5" }}
@@ -939,8 +888,6 @@ export default function Customers() {
                   </span>
                   telah dibersihkan secara aman dari master data.
                 </p>
-
-                {/* Proses Sync State / Refresh Data */}
                 <div
                   className="d-flex align-items-center justify-content-center py-2 px-3 rounded-2 mx-auto"
                   style={{
