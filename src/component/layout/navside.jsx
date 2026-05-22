@@ -129,7 +129,7 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
           />
           {!isCollapsed && (
             <div className="lh-1 nav-text">
-              <small className="fw-bold d-block text-white">Pria Also</small>
+              <small className="fw-bold d-block text-white">Rafli</small>
               <small className="text-secondary" style={{ fontSize: "11px" }}>
                 Administrator
               </small>
@@ -249,29 +249,6 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
                 <span className="ms-3 nav-text">Pengeluaran</span>
               )}
               {isCollapsed && <div className="custom-tooltip">Pengeluaran</div>}
-            </Link>
-          </li>
-          {!isCollapsed && (
-            <li className="nav-item small text-secondary text-uppercase fw-bold mt-4 mb-2 px-2 section-title">
-              Kendaraan
-            </li>
-          )}
-
-          <li className="nav-item position-relative menu-item">
-            <Link
-              to="/kendaraan/pemantauan"
-              className={`nav-link mb-1 d-flex align-items-center ${isActive("/kendaraan/pemantauan")}`}
-              onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
-              onMouseLeave={(e) => onMouseLeave(e.currentTarget)}
-            >
-              <i
-                className="fas fa-map-marked-alt text-info nav-icon text-center"
-                style={{ width: "25px" }}
-              ></i>
-              {!isCollapsed && (
-                <span className="ms-3 nav-text">Pemantauan</span>
-              )}
-              {isCollapsed && <div className="custom-tooltip">Pemantauan</div>}
             </Link>
           </li>
         </ul>
