@@ -71,133 +71,99 @@ export default function CarList() {
     setCarToDelete(null);
   };
 
-  const filteredCars = (
-    activeTab === "car-rent"
-      ? cars
-      : [
-          {
-            cars_id: "dummy-1",
-            jenis_unit: "Innova Zenix Dummy",
-            tipe_kendaraan: "MPV",
-            tahun_produksi: "2024",
-            nomor_plat: "DD 1234 XX",
-            transmisi: "Automatic",
-            tgl_jatuh_tempo: "2026-10-10",
-            tgl_pergantian_oli: "2026-06-15",
-            tgl_mati_pajak: "2027-01-01",
-            no_gps: "081234567890",
-            status_gps: "Aktif",
-            keluhan_unit: "Tidak ada keluhan",
-            status_mobil: "Tersedia",
-          },
-          {
-            cars_id: "dummy-2",
-            jenis_unit: "Avanza Veloz Dummy",
-            tipe_kendaraan: "MPV",
-            tahun_produksi: "2023",
-            nomor_plat: "DD 9999 YY",
-            transmisi: "Manual",
-            tgl_jatuh_tempo: "2026-08-22",
-            tgl_pergantian_oli: "2026-05-30",
-            tgl_mati_pajak: "2026-12-25",
-            no_gps: "087765432100",
-            status_gps: "Tidak Aktif",
-            keluhan_unit: "Bunyi bising di rem belakang",
-            status_mobil: "Pemeliharaan",
-          },
-        ]
-  ).filter((car) => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchName = (car.jenis_unit || "")
-      .toLowerCase()
-      .includes(searchLower);
-    const matchPlate = (car.nomor_plat || "")
-      .toLowerCase()
-      .includes(searchLower);
+  // --- FILTER MOBIL BERDASARKAN STATUS ARMADA & PENCARIAN ---
+  const filteredCars = cars
+    .filter((car) => {
+      // Filter berdasarkan Tab yang aktif
+      if (activeTab === "car-rent") {
+        return car.status_armada === "Internal" || !car.status_armada;
+      } else {
+        return car.status_armada === "Eksternal";
+      }
+    })
+    .filter((car) => {
+      // Filter berdasarkan kolom pencarian
+      const searchLower = searchTerm.toLowerCase();
+      const matchName = (car.jenis_unit || "").toLowerCase().includes(searchLower);
+      const matchPlate = (car.nomor_plat || "").toLowerCase().includes(searchLower);
 
-    return matchName || matchPlate;
-  });
+      return matchName || matchPlate;
+    });
 
   const exportToExcel = () => {
-    const headers = [
-      "No",
-      "Nama Kendaraan",
-      "Tipe",
-      "Tahun",
-      "Plat Nomor",
-      "Transmisi",
-      "Jatuh Tempo",
-      "Tanggal Servis",
-      "Tanggal Pajak",
-      "No GPS 1",
-      "Masa Aktif GPS 1",
-      "Status GPS 1",
-      "No GPS 2",
-      "Masa Aktif GPS 2",
-      "Status GPS 2",
-      "Keluhan",
-      "Status",
-    ];
+    let headers = [];
+    let rows = [];
+    let wscols = [];
 
-    const rows = filteredCars.map((car, index) => {
-      const gps1Nomor = car.no_gps || car.no_gps_1 || "-";
-      const gps1Aktif = car.masa_aktif_gps || car.masa_aktif_gps_1 || "-";
-      const gps1Status = car.status_gps || car.status_gps_1 || "-";
+    // Jika tab internal yang diexport
+    if (activeTab === "car-rent") {
+      headers = [
+        "No", "Nama Kendaraan", "Tipe", "Tahun", "Plat Nomor", "Transmisi",
+        "Jatuh Tempo", "Tanggal Servis", "Tanggal Pajak",
+        "No GPS Utama", "Masa Aktif GPS Utama", "Status GPS Utama",
+        "No GPS Cadangan", "Masa Aktif GPS Cadangan", "Status GPS Cadangan",
+        "Keluhan", "Status",
+      ];
 
-      const gps2Nomor = car.no_gps2 || car.no_gps_2 || "-";
-      const gps2Aktif = car.masa_aktif_gps2 || car.masa_aktif_gps_2 || "-";
-      const gps2Status = car.status_gps2 || car.status_gps_2 || "-";
+      rows = filteredCars.map((car, index) => {
+        const gps1Nomor = car.gps_nomor || car.no_gps_1 || "-";
+        const gps1Aktif = car.masa_aktif_gps || car.masa_aktif_gps_1 || "-";
+        const gps1Status = car.status_gps || car.status_gps_1 || "-";
 
-      return [
+        const gps2Nomor = car.no_gps2 || car.no_gps_2 || "-";
+        const gps2Aktif = car.masa_aktif_gps2 || car.masa_aktif_gps_2 || "-";
+        const gps2Status = car.status_gps2 || car.status_gps_2 || "-";
+
+        return [
+          index + 1,
+          car.jenis_unit || "-",
+          car.tipe_kendaraan || "-",
+          car.tahun_produksi || "-",
+          car.nomor_plat || "-",
+          car.transmisi || "-",
+          car.tgl_jatuh_tempo || "-",
+          car.tgl_pergantian_oli || "-",
+          car.tgl_mati_pajak || "-",
+          gps1Nomor, gps1Aktif, gps1Status,
+          gps2Nomor, gps2Aktif, gps2Status,
+          car.keluhan_unit || "-",
+          car.status_mobil || "-",
+        ];
+      });
+
+      wscols = [
+        { wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 },
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
+        { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 40 }, { wch: 15 },
+      ];
+    } 
+    // Jika tab eksternal yang diexport
+    else {
+      headers = ["No", "Nama Kendaraan", "Tipe", "Plat Nomor", "Transmisi", "Sumber"];
+      rows = filteredCars.map((car, index) => [
         index + 1,
         car.jenis_unit || "-",
         car.tipe_kendaraan || "-",
-        car.tahun_produksi || "-",
         car.nomor_plat || "-",
         car.transmisi || "-",
-        car.tgl_jatuh_tempo || "-",
-        car.tgl_pergantian_oli || "-",
-        car.tgl_mati_pajak || "-",
-        gps1Nomor,
-        gps1Aktif,
-        gps1Status,
-        gps2Nomor,
-        gps2Aktif,
-        gps2Status,
-        car.keluhan_unit || "-",
-        car.status_mobil || "-",
+        "Rent-to-Rent",
+      ]);
+      wscols = [
+        { wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
       ];
-    });
+    }
 
     const dataToExport = [headers, ...rows];
     const worksheet = XLSX.utils.aoa_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Armada");
-
-    const wscols = [
-      { wch: 5 },
-      { wch: 25 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 20 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 20 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 40 },
-      { wch: 15 },
-    ];
     worksheet["!cols"] = wscols;
+    
+    const workbook = XLSX.utils.book_new();
+    const sheetName = activeTab === "car-rent" ? "Data Armada Internal" : "Data Armada Eksternal";
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     XLSX.writeFile(
       workbook,
-      `Data_Armada_Rental_${new Date().toISOString().split("T")[0]}.xlsx`,
+      `Data_Armada_${activeTab === "car-rent" ? "Internal" : "Eksternal"}_${new Date().toISOString().split("T")[0]}.xlsx`
     );
   };
 
@@ -224,9 +190,13 @@ export default function CarList() {
           >
             <i className="fas fa-file-excel me-2"></i>Export Excel
           </button>
-          <Link to="/carlist/create" className="btn btn-primary shadow-sm px-3">
-            <i className="fas fa-plus me-2"></i>Tambah Mobil
-          </Link>
+          
+          {/* Tombol Tambah Mobil hanya muncul kalau lagi di tab Internal */}
+          {activeTab === "car-rent" && (
+            <Link to="/carlist/create" className="btn btn-primary shadow-sm px-3">
+              <i className="fas fa-plus me-2"></i>Tambah Mobil
+            </Link>
+          )}
         </div>
       </div>
 
@@ -251,13 +221,14 @@ export default function CarList() {
                 onClick={() => {
                   setActiveTab("car-rent");
                   setCurrentPage(1);
+                  setSearchTerm("");
                 }}
                 type="button"
               >
                 <i
-                  className="fas fa-car me-1.5"
+                  className="fas fa-car me-2"
                   style={{ fontSize: "0.85rem" }}
-                ></i>{" "}
+                ></i>
                 Rental Internal
               </button>
             </li>
@@ -279,14 +250,15 @@ export default function CarList() {
                 onClick={() => {
                   setActiveTab("rent-to-rent");
                   setCurrentPage(1);
+                  setSearchTerm("");
                 }}
                 type="button"
               >
                 <i
-                  className="fas fa-exchange-alt me-1.5"
+                  className="fas fa-exchange-alt me-2"
                   style={{ fontSize: "0.85rem" }}
-                ></i>{" "}
-                Rental Eksernal
+                ></i>
+                Rental Eksternal
               </button>
             </li>
           </ul>
@@ -327,280 +299,205 @@ export default function CarList() {
           </div>
         </div>
 
-        <div className="card-body p-3">
-          <table
-            className="table table-hover align-middle mb-0 w-100"
-            style={{
-              fontSize: "0.75rem",
-              tableLayout: "fixed",
-              wordWrap: "break-word",
-            }}
-          >
-            <thead className="bg-white">
-              <tr style={{ backgroundColor: "#f8f9fa" }}>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center"
-                  style={{ width: "4%" }}
-                >
-                  No
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom"
-                  style={{ width: "12%" }}
-                >
-                  Kendaraan
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center"
-                  style={{ width: "8%" }}
-                >
-                  Plat
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center"
-                  style={{ width: "9%" }}
-                >
-                  Transmisi
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center"
-                  style={{ width: "8%" }}
-                >
-                  Tempo
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center"
-                  style={{ width: "8%" }}
-                >
-                  Servis
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center"
-                  style={{ width: "8%" }}
-                >
-                  Pajak
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom"
-                  style={{ width: "11%" }}
-                >
-                  GPS Utama
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom"
-                  style={{ width: "11%" }}
-                >
-                  GPS Cadangan
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom"
-                  style={{ width: "10%" }}
-                >
-                  Keluhan
-                </th>
-                <th
-                  className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center"
-                  style={{ width: "7%" }}
-                >
-                  Status
-                </th>
-                <th
-                  className="p-2 text-center text-secondary fw-bold text-uppercase border-bottom"
-                  style={{ width: "5%" }}
-                >
-                  Aksi
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && activeTab === "car-rent" ? (
-                <tr>
-                  <td colSpan="12" className="text-center py-5 text-muted">
-                    <div
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                    ></div>
-                    Memuat data armada...
-                  </td>
+        <div className="card-body p-0">
+          
+          {/* ============================================================= */}
+          {/* RENDER TABEL INTERNAL */}
+          {/* ============================================================= */}
+          {activeTab === "car-rent" ? (
+            <table
+              className="table table-hover align-middle mb-0 w-100"
+              style={{
+                fontSize: "0.75rem",
+                tableLayout: "fixed",
+                wordWrap: "break-word",
+              }}
+            >
+              <thead className="bg-white">
+                <tr style={{ backgroundColor: "#f8f9fa" }}>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "3%" }}>No</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom" style={{ width: "12%" }}>Kendaraan</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "8%" }}>Plat</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "9%" }}>Transmisi</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "8%" }}>Tempo</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "8%" }}>Servis</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "8%" }}>Pajak</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom" style={{ width: "11%" }}>GPS Utama</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom" style={{ width: "11%" }}>GPS Cadangan</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom" style={{ width: "10%" }}>Keluhan</th>
+                  <th className="p-2 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "7%" }}>Status</th>
+                  <th className="p-2 text-center text-secondary fw-bold text-uppercase border-bottom" style={{ width: "5%" }}>Aksi</th>
                 </tr>
-              ) : currentItems.length === 0 ? (
-                <tr>
-                  <td colSpan="12" className="text-center py-5 text-muted">
-                    {searchTerm
-                      ? `Kendaraan dengan kata kunci "${searchTerm}" tidak ditemukan.`
-                      : "Belum ada data kendaraan yang didaftarkan."}
-                  </td>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="12" className="text-center py-5 text-muted">
+                      <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                      Memuat data armada...
+                    </td>
+                  </tr>
+                ) : currentItems.length === 0 ? (
+                  <tr>
+                    <td colSpan="12" className="text-center py-5 text-muted">
+                      {searchTerm ? `Kendaraan "${searchTerm}" tidak ditemukan.` : "Belum ada data kendaraan."}
+                    </td>
+                  </tr>
+                ) : (
+                  currentItems.map((car, index) => {
+                    const gps1Nomor = car.gps_nomor || car.no_gps_1;
+                    const gps1Aktif = car.masa_aktif_gps || car.masa_aktif_gps_1;
+                    const gps1Status = car.status_gps || car.status_gps_1;
+
+                    const gps2Nomor = car.no_gps2 || car.no_gps_2;
+                    const gps2Aktif = car.masa_aktif_gps2 || car.masa_aktif_gps_2;
+                    const gps2Status = car.status_gps2 || car.status_gps_2;
+
+                    return (
+                      <tr key={car.cars_id}>
+                        <td className="p-2 text-muted text-center">{indexOfFirstItem + index + 1}</td>
+                        <td className="p-2">
+                          <div className="fw-bold text-dark">{car.jenis_unit || "-"}</div>
+                          <div className="text-muted" style={{ fontSize: "0.65rem" }}>
+                            {car.tipe_kendaraan || "-"} <br />
+                            {car.tahun_produksi || "-"}
+                          </div>
+                        </td>
+                        <td className="text-center p-2">
+                          <span className="badge border text-dark fw-bold bg-white p-1" style={{ letterSpacing: "0.5px", fontSize: "0.65rem" }}>
+                            {car.nomor_plat || "-"}
+                          </span>
+                        </td>
+                        <td className="text-center text-primary fw-medium p-2">{car.transmisi || "-"}</td>
+                        <td className="text-center text-secondary p-2">{car.tgl_jatuh_tempo || "-"}</td>
+                        <td className="text-center text-secondary p-2">{car.tgl_pergantian_oli || "-"}</td>
+                        <td className="text-center text-secondary p-2">{car.tgl_mati_pajak || "-"}</td>
+                        <td className="p-2 align-middle">
+                          <div className="fw-bold text-dark" style={{ fontSize: "0.7rem" }}>
+                            <i className="fas fa-map-marker-alt text-primary me-1"></i>
+                            {gps1Nomor || "Belum didaftarkan"}
+                          </div>
+                          {gps1Aktif && (
+                            <div className="mt-1">
+                              <div className="text-muted mb-1" style={{ fontSize: "0.65rem" }}>s/d {gps1Aktif}</div>
+                              <span className={`badge rounded-pill p-1 ${gps1Status === "Aktif" ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"}`} style={{ fontSize: "0.6rem", fontWeight: "600" }}>
+                                {gps1Status === "Aktif" ? "✓ Aktif" : "✗ Tidak Aktif"}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-2 align-middle">
+                          {gps2Nomor || gps2Aktif ? (
+                            <>
+                              <div className="fw-bold text-dark" style={{ fontSize: "0.7rem" }}>
+                                <i className="fas fa-map-marker-alt text-secondary me-1"></i>{gps2Nomor || "-"}
+                              </div>
+                              {gps2Aktif && (
+                                <div className="mt-1">
+                                  <div className="text-muted mb-1" style={{ fontSize: "0.65rem" }}>s/d {gps2Aktif}</div>
+                                  <span className={`badge rounded-pill p-1 ${gps2Status === "Aktif" ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"}`} style={{ fontSize: "0.6rem", fontWeight: "600" }}>
+                                    {gps2Status === "Aktif" ? "✓ Aktif" : "✗ Tidak Aktif"}
+                                  </span>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-muted small fst-italic">-</span>
+                          )}
+                        </td>
+                        <td className="text-muted p-2" style={{ fontSize: "0.7rem" }}>{car.keluhan_unit || "-"}</td>
+                        <td className="text-center align-middle p-2">
+                          <span className={`badge rounded-pill p-1 border ${car.status_mobil === "Tersedia" ? "bg-success-subtle text-success border-success-subtle" : car.status_mobil === "Pemeliharaan" ? "bg-warning-subtle text-warning border-warning-subtle" : "bg-secondary-subtle text-secondary border-secondary-subtle"}`} style={{ fontSize: "0.6rem" }}>
+                            {car.status_mobil || "?"}
+                          </span>
+                        </td>
+                        <td className="text-center p-2 align-middle">
+                          <div className="d-flex flex-column gap-1 align-items-center">
+                            <Link to={`/carlist/edit/${car.cars_id}`} className="btn btn-sm btn-white border text-primary w-100 p-1">
+                              <i className="fas fa-edit"></i>
+                            </Link>
+                            <button onClick={() => handleDeleteClick(car.cars_id, car.jenis_unit, car.nomor_plat)} className="btn btn-sm btn-white border text-danger w-100 p-1">
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          ) : (
+            /* ============================================================= */
+            /* RENDER TABEL EKSTERNAL (KOLOM DIPANGKAS) */
+            /* ============================================================= */
+            <table
+              className="table table-hover align-middle mb-0 w-100"
+              style={{
+                fontSize: "0.8rem",
+                tableLayout: "fixed",
+                wordWrap: "break-word",
+              }}
+            >
+              <thead className="bg-white">
+                <tr style={{ backgroundColor: "#fdf8f5" }}>
+                  <th className="p-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "5%" }}>No</th>
+                  <th className="p-3 text-secondary fw-bold text-uppercase border-bottom" style={{ width: "35%" }}>Kendaraan Eksternal</th>
+                  <th className="p-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "25%" }}>Plat Nomor</th>
+                  <th className="p-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "20%" }}>Transmisi</th>
+                  <th className="p-3 text-center text-secondary fw-bold text-uppercase border-bottom" style={{ width: "15%" }}>Aksi</th>
                 </tr>
-              ) : (
-                currentItems.map((car, index) => {
-                  const gps1Nomor = car.gps_nomor || car.no_gps;
-                  const gps1Aktif = car.masa_aktif_gps || car.masa_aktif_gps_1;
-                  const gps1Status = car.status_gps || car.status_gps_1;
-
-                  const gps2Nomor = car.no_gps2 || car.no_gps_2;
-                  const gps2Aktif = car.masa_aktif_gps2 || car.masa_aktif_gps_2;
-                  const gps2Status = car.status_gps2 || car.status_gps_2;
-
-                  return (
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="text-center py-5 text-muted">
+                      <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                      Memuat data armada eksternal...
+                    </td>
+                  </tr>
+                ) : currentItems.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="text-center py-5 text-muted">
+                      {searchTerm ? `Kendaraan "${searchTerm}" tidak ditemukan.` : "Belum ada data armada eksternal (Rent-to-Rent)."}
+                    </td>
+                  </tr>
+                ) : (
+                  currentItems.map((car, index) => (
                     <tr key={car.cars_id}>
-                      <td className="p-2 text-muted text-center">
-                        {indexOfFirstItem + index + 1}
-                      </td>
-
-                      <td className="p-2">
-                        <div className="fw-bold text-dark">
-                          {car.jenis_unit || "-"}
-                        </div>
-                        <div
-                          className="text-muted"
-                          style={{ fontSize: "0.65rem" }}
-                        >
-                          {car.tipe_kendaraan || "-"} <br />
-                          {car.tahun_produksi || "-"}
+                      <td className="p-3 text-muted text-center fw-bold">{indexOfFirstItem + index + 1}</td>
+                      <td className="p-3">
+                        <div className="fw-bold text-dark" style={{ fontSize: "0.9rem" }}>{car.jenis_unit || "-"}</div>
+                        <div className="text-muted mt-1" style={{ fontSize: "0.75rem" }}>
+                          Tipe: {car.tipe_kendaraan || "-"}
                         </div>
                       </td>
-
-                      <td className="text-center p-2">
-                        <span
-                          className="badge border text-dark fw-bold bg-white p-1"
-                          style={{
-                            letterSpacing: "0.5px",
-                            fontSize: "0.65rem",
-                          }}
-                        >
+                      <td className="text-center p-3">
+                        <span className="badge border text-dark fw-bold bg-white px-3 py-2 shadow-sm" style={{ letterSpacing: "1px", fontSize: "0.75rem" }}>
                           {car.nomor_plat || "-"}
                         </span>
                       </td>
-
-                      <td className="text-center text-primary fw-medium p-2">
-                        {car.transmisi || "-"}
-                      </td>
-
-                      <td className="text-center text-secondary p-2">
-                        {car.tgl_jatuh_tempo || "-"}
-                      </td>
-                      <td className="text-center text-secondary p-2">
-                        {car.tgl_pergantian_oli || "-"}
-                      </td>
-                      <td className="text-center text-secondary p-2">
-                        {car.tgl_mati_pajak || "-"}
-                      </td>
-
-                      <td className="p-2 align-middle">
-                        <div
-                          className="fw-bold text-dark"
-                          style={{ fontSize: "0.7rem" }}
-                        >
-                          <i className="fas fa-map-marker-alt text-primary me-1"></i>
-                          {gps1Nomor || "Belum didaftarkan"}
-                        </div>
-                        {gps1Aktif && (
-                          <div className="mt-1">
-                            <div
-                              className="text-muted mb-1"
-                              style={{ fontSize: "0.65rem" }}
-                            >
-                              s/d {gps1Aktif}
-                            </div>
-                            <span
-                              className={`badge rounded-pill p-1 ${gps1Status === "Aktif" ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"}`}
-                              style={{ fontSize: "0.6rem", fontWeight: "600" }}
-                            >
-                              {gps1Status === "Aktif"
-                                ? "✓ Aktif"
-                                : "✗ Tidak Aktif"}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="p-2 align-middle">
-                        {gps2Nomor || gps2Aktif ? (
-                          <>
-                            <div
-                              className="fw-bold text-dark"
-                              style={{ fontSize: "0.7rem" }}
-                            >
-                              <i className="fas fa-map-marker-alt text-secondary me-1"></i>
-                              {gps2Nomor || "-"}
-                            </div>
-                            {gps2Aktif && (
-                              <div className="mt-1">
-                                <div
-                                  className="text-muted mb-1"
-                                  style={{ fontSize: "0.65rem" }}
-                                >
-                                  s/d {gps2Aktif}
-                                </div>
-                                <span
-                                  className={`badge rounded-pill p-1 ${gps2Status === "Aktif" ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle"}`}
-                                  style={{
-                                    fontSize: "0.6rem",
-                                    fontWeight: "600",
-                                  }}
-                                >
-                                  {gps2Status === "Aktif"
-                                    ? "✓ Aktif"
-                                    : "✗ Tidak Aktif"}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-muted small fst-italic">-</span>
-                        )}
-                      </td>
-
-                      <td
-                        className="text-muted p-2"
-                        style={{ fontSize: "0.7rem" }}
-                      >
-                        {car.keluhan_unit || "-"}
-                      </td>
-
-                      <td className="text-center align-middle p-2">
-                        <span
-                          className={`badge rounded-pill p-1 border ${
-                            car.status_mobil === "Tersedia"
-                              ? "bg-success-subtle text-success border-success-subtle"
-                              : car.status_mobil === "Pemeliharaan"
-                                ? "bg-warning-subtle text-warning border-warning-subtle"
-                                : "bg-secondary-subtle text-secondary border-secondary-subtle"
-                          }`}
-                          style={{ fontSize: "0.6rem" }}
-                        >
-                          {car.status_mobil || "?"}
+                      <td className="text-center p-3">
+                        <span className="badge bg-light text-primary border border-primary-subtle px-3 py-1">
+                          {car.transmisi || "-"}
                         </span>
                       </td>
-
-                      <td className="text-center p-2 align-middle">
-                        <div className="d-flex flex-column gap-1 align-items-center">
-                          <Link
-                            to={`/carlist/edit/${car.cars_id}`}
-                            className="btn btn-sm btn-white border text-primary w-100 p-1"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </Link>
-                          <button
-                            onClick={() =>
-                              handleDeleteClick(
-                                car.cars_id,
-                                car.jenis_unit,
-                                car.nomor_plat,
-                              )
-                            }
-                            className="btn btn-sm btn-white border text-danger w-100 p-1"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                        </div>
+                      <td className="text-center p-3 align-middle">
+                        {/* HANYA TOMBOL HAPUS UNTUK EKSTERNAL */}
+                        <button
+                          onClick={() => handleDeleteClick(car.cars_id, car.jenis_unit, car.nomor_plat)}
+                          className="btn btn-sm btn-white border text-danger px-3 shadow-sm"
+                          title="Hapus Mobil Eksternal"
+                        >
+                          <i className="fas fa-trash me-2"></i>Hapus
+                        </button>
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="card-footer bg-white border-top py-3 px-4">
@@ -614,29 +511,21 @@ export default function CarList() {
             {totalPages > 1 && (
               <nav>
                 <ul className="pagination pagination-sm mb-0">
-                  <li
-                    className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
-                  >
+                  <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
                     <button
                       className="page-link border-0 bg-transparent text-muted"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                     >
                       Prev
                     </button>
                   </li>
 
                   {Array.from({ length: totalPages }, (_, i) => (
-                    <li
-                      key={i + 1}
-                      className={`page-item ${currentPage === i + 1 ? "active" : ""}`}
-                    >
+                    <li key={i + 1} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
                       <button
                         className={`page-link border-0 rounded mx-1 shadow-sm px-3 ${currentPage === i + 1 ? "text-white" : "text-dark"}`}
                         style={{
-                          backgroundColor:
-                            currentPage === i + 1 ? "#0061f2" : "transparent",
+                          backgroundColor: currentPage === i + 1 ? "#0061f2" : "transparent",
                         }}
                         onClick={() => setCurrentPage(i + 1)}
                       >
@@ -645,14 +534,10 @@ export default function CarList() {
                     </li>
                   ))}
 
-                  <li
-                    className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
-                  >
+                  <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
                     <button
                       className="page-link border-0 bg-transparent text-primary"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                     >
                       Next
                     </button>
@@ -664,21 +549,15 @@ export default function CarList() {
         </div>
       </div>
 
+      {/* --- MODAL DELETE --- */}
       {showDeleteModal && (
         <div
           className="modal fade show d-block"
           tabIndex="-1"
-          style={{
-            backgroundColor: "rgba(0,0,0,0.5)",
-            backdropFilter: "blur(5px)",
-            zIndex: 1050,
-          }}
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(5px)", zIndex: 1050 }}
         >
           <div className="modal-dialog modal-dialog-centered modal-sm">
-            <div
-              className="modal-content border-0 shadow-lg"
-              style={{ borderRadius: "16px" }}
-            >
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
               <div className="modal-body p-4 text-center">
                 <div
                   className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-danger-subtle text-danger"
@@ -689,39 +568,20 @@ export default function CarList() {
                 <h5 className="fw-bold text-dark mb-2">Hapus Data Unit?</h5>
                 <p className="text-muted mb-4" style={{ fontSize: "0.9rem" }}>
                   Anda akan menghapus data kendaraan <br />
-                  <span className="fw-bold text-dark fs-6">
-                    {carToDelete?.name}
-                  </span>{" "}
-                  <br />
-                  <span
-                    className="badge bg-light border text-dark mt-2 px-3 py-2"
-                    style={{ letterSpacing: "1px" }}
-                  >
+                  <span className="fw-bold text-dark fs-6">{carToDelete?.name}</span> <br />
+                  <span className="badge bg-light border text-dark mt-2 px-3 py-2" style={{ letterSpacing: "1px" }}>
                     Plat: {carToDelete?.plate}
                   </span>
                 </p>
-                <div
-                  className="alert alert-warning border-0 bg-warning-subtle text-warning-emphasis p-2 rounded-3 mb-4 text-start d-flex align-items-center"
-                  style={{ fontSize: "0.8rem" }}
-                >
+                <div className="alert alert-warning border-0 bg-warning-subtle text-warning-emphasis p-2 rounded-3 mb-4 text-start d-flex align-items-center" style={{ fontSize: "0.8rem" }}>
                   <i className="fas fa-exclamation-triangle me-2 fs-6"></i>
                   Data ini tidak dapat dikembalikan setelah dihapus.
                 </div>
                 <div className="d-flex gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-light w-50 fw-bold border shadow-sm"
-                    style={{ borderRadius: "10px" }}
-                    onClick={cancelDelete}
-                  >
+                  <button type="button" className="btn btn-light w-50 fw-bold border shadow-sm" style={{ borderRadius: "10px" }} onClick={cancelDelete}>
                     Batal
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger w-50 fw-bold shadow-sm"
-                    style={{ borderRadius: "10px" }}
-                    onClick={confirmDelete}
-                  >
+                  <button type="button" className="btn btn-danger w-50 fw-bold shadow-sm" style={{ borderRadius: "10px" }} onClick={confirmDelete}>
                     Ya, Hapus
                   </button>
                 </div>
@@ -731,21 +591,15 @@ export default function CarList() {
         </div>
       )}
 
+      {/* --- MODAL SUCCESS --- */}
       {showSuccessModal && (
         <div
           className="modal fade show d-block"
           tabIndex="-1"
-          style={{
-            backgroundColor: "rgba(0,0,0,0.5)",
-            backdropFilter: "blur(5px)",
-            zIndex: 1050,
-          }}
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(5px)", zIndex: 1050 }}
         >
           <div className="modal-dialog modal-dialog-centered modal-sm">
-            <div
-              className="modal-content border-0 shadow-lg"
-              style={{ borderRadius: "16px" }}
-            >
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px" }}>
               <div className="modal-body p-4 text-center">
                 <div
                   className="mx-auto mb-4 d-flex align-items-center justify-content-center bg-success-subtle text-success"
@@ -755,16 +609,10 @@ export default function CarList() {
                 </div>
                 <h5 className="fw-bold text-dark mb-2">Berhasil Dihapus!</h5>
                 <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
-                  Kendaraan{" "}
-                  <span className="fw-bold text-dark">{carToDelete?.name}</span>{" "}
-                  telah berhasil dihapus dari sistem.
+                  Kendaraan <span className="fw-bold text-dark">{carToDelete?.name}</span> telah berhasil dihapus dari sistem.
                 </p>
                 <div className="d-flex align-items-center justify-content-center text-muted small">
-                  <div
-                    className="spinner-border spinner-border-sm me-2"
-                    role="status"
-                    style={{ width: "12px", height: "12px" }}
-                  ></div>
+                  <div className="spinner-border spinner-border-sm me-2" role="status" style={{ width: "12px", height: "12px" }}></div>
                   Memperbarui tabel...
                 </div>
               </div>
