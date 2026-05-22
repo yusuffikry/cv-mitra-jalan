@@ -338,7 +338,7 @@ export default function EditCustomer() {
                 style={{
                   borderRadius: "6px",
                   fontSize: "0.825rem",
-                  backgroundColor: "#0284c7", // Pronto Corporate Sky-Blue
+                  backgroundColor: "#0284c7",
                   borderColor: "#0284c7",
                   opacity: isSubmitting ? 0.75 : 1,
                 }}
