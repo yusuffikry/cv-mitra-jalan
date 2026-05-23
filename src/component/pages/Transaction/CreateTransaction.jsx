@@ -596,7 +596,6 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan 16 digit NIK..."
                       readOnly={isExistingCustomer}
-                      required
                     />
                   </div>
                 </div>
@@ -618,7 +617,7 @@ export default function CreateTransaction() {
                   </div>
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
-                      Domisili Tujuan (Kota Rental)
+                      Domisili
                     </label>
                     <input
                       type="text"
