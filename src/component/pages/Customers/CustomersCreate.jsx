@@ -264,7 +264,7 @@ export default function CustomersCreate() {
                       className="form-label text-dark small fw-semibold"
                       style={{ fontSize: "0.8rem" }}
                     >
-                      Kota Rental
+                      Kota
                     </label>
                     <input
                       type="text"

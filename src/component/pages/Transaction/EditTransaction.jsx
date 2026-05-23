@@ -63,32 +63,54 @@ export default function EditTransaction() {
   const isExistingCustomer = !!formData.customer_id;
   const isExistingExternalCar = isManualCar && !!formData.car_id;
 
-  // --- LOGIKA MENGHITUNG SISA PEMBAYARAN OTOMATIS ---
-  const currentTotalPay =
-    parseInt(formData.total_pembayaran.toString().replace(/\./g, "")) || 0;
-  let currentDp = parseInt(formData.dp.toString().replace(/\./g, ""));
-  if (isNaN(currentDp)) currentDp = 0;
+  // ========================================================
+  // LOGIKA MENGHITUNG UANG, SISA PEMBAYARAN & STATUS LUNAS
+  // ========================================================
+  const currentTotalPay = parseInt(formData.total_pembayaran.toString().replace(/\./g, "")) || 0;
+  let dbDp = parseInt(formData.dp.toString().replace(/\./g, ""));
+  
+  let finalSisaPay = 0;
+  let finalStatus = "Belum Lunas";
 
-  let finalSisaPay = currentTotalPay - currentDp;
-  if (finalSisaPay < 0) finalSisaPay = 0;
-
-  let displaySisaPay = "";
-  if (formData.dp !== "") {
-    displaySisaPay = new Intl.NumberFormat("id-ID").format(finalSisaPay);
+  // Jika input DP dibiarkan kosong, anggap LUNAS
+  if (formData.dp === "") {
+    finalSisaPay = 0;
+    finalStatus = "Lunas";
+    dbDp = currentTotalPay; // Nilai asli yg akan masuk ke DB untuk merepresentasikan pelunasan
+  } else {
+    // Jika diisi angka (termasuk angka "0")
+    if (isNaN(dbDp)) dbDp = 0;
+    finalSisaPay = currentTotalPay - dbDp;
+    if (finalSisaPay <= 0) {
+      finalSisaPay = 0;
+      finalStatus = "Lunas";
+    } else {
+      finalStatus = "Belum Lunas";
+    }
   }
+
+  // Format untuk ditampilkan ke UI
+  let displaySisaPay = new Intl.NumberFormat("id-ID").format(finalSisaPay);
+
 
   // --- AMBIL DATA AWAL ---
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // 1. Ambil data pelanggan
+        // 1. Ambil data pelanggan (Dengan filter anti-blacklist)
         const { data: customerData, error: customerError } = await supabase
           .from("customers")
           .select("*");
 
-        if (customerError)
+        if (customerError) {
           console.error("Error muat customer:", customerError.message);
-        else setCustomers(customerData || []);
+        } else {
+          // Hanya masukkan customer yang aktif/tidak blacklist ke dropdown
+          const activeCustomers = (customerData || []).filter(
+            (c) => c.status !== "blacklist"
+          );
+          setCustomers(activeCustomers);
+        }
 
         // 2. Ambil data mobil
         const { data: carData, error: carError } = await supabase
@@ -254,7 +276,7 @@ export default function EditTransaction() {
         const newTotalRaw = parseInt(newValue.replace(/\./g, "")) || 0;
         const currentDpRaw =
           parseInt(prev.dp.toString().replace(/\./g, "")) || 0;
-        if (currentDpRaw > newTotalRaw) {
+        if (currentDpRaw > newTotalRaw && prev.dp !== "") {
           prev.dp = formatRupiahInput(newTotalRaw.toString());
         }
       } else if (name === "dp") {
@@ -262,7 +284,7 @@ export default function EditTransaction() {
         const currentTotalRaw =
           parseInt(prev.total_pembayaran.toString().replace(/\./g, "")) || 0;
 
-        if (rawDp > currentTotalRaw) {
+        if (rawDp > currentTotalRaw && value !== "") {
           newValue = formatRupiahInput(currentTotalRaw.toString());
         } else {
           newValue = formatRupiahInput(value);
@@ -323,6 +345,15 @@ export default function EditTransaction() {
         if (checkError) throw checkError;
 
         if (existingCustomer) {
+          // CEK TAMBAHAN (Sistem Lapis Dua):
+          // Kalau admin memaksakan ngetik NIK orang blacklist secara manual
+          if (existingCustomer.status === "blacklist") {
+            alert(
+              "GAGAL! NIK ini terdaftar sebagai customer yang telah di-blacklist. Tidak dapat melakukan transaksi.",
+            );
+            setIsSubmitting(false);
+            return;
+          }
           finalCustomerId = existingCustomer.id || existingCustomer.customer_id;
         } else {
           const { data: newCustomer, error: customerError } = await supabase
@@ -368,7 +399,7 @@ export default function EditTransaction() {
           if (carError) throw carError;
           finalCarId = newCar.cars_id || newCar.id;
         } else {
-          // B. Update Data Mobil Eksternal Lama (Karena dari CarList tidak bisa edit)
+          // B. Update Data Mobil Eksternal Lama
           const { error: updateCarError } = await supabase
             .from("cars")
             .update({
@@ -377,7 +408,7 @@ export default function EditTransaction() {
               tipe_kendaraan: formData.tipe_unit,
               transmisi: formData.transmisi,
             })
-            .eq("cars_id", finalCarId); // atau .eq("id", finalCarId) tergantung nama kolom PK
+            .eq("cars_id", finalCarId); 
 
           if (updateCarError) throw updateCarError;
         }
@@ -409,9 +440,7 @@ export default function EditTransaction() {
         );
       }
 
-      const statusOtomatis = finalSisaPay > 0 ? "Belum Lunas" : "Lunas";
-
-      // 4. UPDATE TRANSAKSI FINAL
+      // 4. UPDATE TRANSAKSI FINAL (Menggunakan dbDp, finalSisaPay & finalStatus)
       const { error } = await supabase
         .from("transactions")
         .update({
@@ -423,10 +452,10 @@ export default function EditTransaction() {
           jam_pengembalian: formData.waktu_pengembalian.split("T")[1] + ":00",
           rute: formData.rute,
           jumlah_hari: jumlah_hari,
-          dp: currentDp,
+          dp: dbDp, 
           total_pembayaran: currentTotalPay,
-          sisa_pembayaran: finalSisaPay,
-          status_pembayaran: statusOtomatis,
+          sisa_pembayaran: finalSisaPay, 
+          status_pembayaran: finalStatus, 
           keterangan: formData.keterangan || null,
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
@@ -602,7 +631,7 @@ export default function EditTransaction() {
                     ) : (
                       <li>
                         <span className="dropdown-item text-muted disabled">
-                          (Tekan simpan untuk jadikan customer baru)
+                          (Customer tidak ditemukan atau terblacklist)
                         </span>
                       </li>
                     )}
@@ -639,7 +668,6 @@ export default function EditTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan 16 digit NIK..."
                       readOnly={isExistingCustomer}
-                      required
                     />
                   </div>
                 </div>
@@ -661,7 +689,7 @@ export default function EditTransaction() {
                   </div>
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
-                      Domisili Tujuan (Kota Rental)
+                      Domisili
                     </label>
                     <input
                       type="text"
@@ -852,6 +880,7 @@ export default function EditTransaction() {
                     <option value="">
                       -- Pilih Kendaraan dari Database --
                     </option>
+                    {/* HANYA TAMPILKAN MOBIL INTERNAL / DEFAULT LAMA */}
                     {cars
                       .filter(
                         (car) =>
@@ -871,7 +900,7 @@ export default function EditTransaction() {
                 </div>
               )}
 
-              {/* Form Input Manual Rent-to-Rent */}
+              {/* Form Rent-to-Rent (Dropdown Eksternal & Manual Input) */}
               {isManualCar && (
                 <div
                   className="row g-4 mb-5 p-4 rounded-3"
@@ -923,6 +952,7 @@ export default function EditTransaction() {
                       <option value="">
                         + Input Manual Mobil Eksternal Baru
                       </option>
+                      {/* HANYA TAMPILKAN MOBIL EKSTERNAL */}
                       {cars
                         .filter((car) => car.status_armada === "Eksternal")
                         .map((car) => (
@@ -958,7 +988,7 @@ export default function EditTransaction() {
                         name="merek"
                         value={formData.merek || ""}
                         onChange={handleChange}
-                        className="form-control py-2 bg-white"
+                        className={`form-control py-2 bg-white ${!isExistingExternalCar ? "border" : "border"}`}
                         placeholder="Contoh: Honda Brio Luar"
                         required
                       />
@@ -974,7 +1004,7 @@ export default function EditTransaction() {
                         name="mobil_plat"
                         value={formData.mobil_plat || ""}
                         onChange={handleChange}
-                        className="form-control py-2 bg-white"
+                        className={`form-control py-2 bg-white ${!isExistingExternalCar ? "border" : "border"}`}
                         placeholder="DD 123 XX"
                         required
                       />
@@ -989,7 +1019,7 @@ export default function EditTransaction() {
                         name="tipe_unit"
                         value={formData.tipe_unit || ""}
                         onChange={handleChange}
-                        className="form-select py-2 bg-white"
+                        className={`form-select py-2 bg-white border`}
                         required
                       >
                         <option value="">- Pilih Tipe -</option>
@@ -1010,7 +1040,7 @@ export default function EditTransaction() {
                         name="transmisi"
                         value={formData.transmisi || ""}
                         onChange={handleChange}
-                        className="form-select py-2 bg-white"
+                        className={`form-select py-2 bg-white border`}
                         required
                       >
                         <option value="">- Pilih Transmisi -</option>
@@ -1063,7 +1093,7 @@ export default function EditTransaction() {
                         value={formData.dp}
                         onChange={handleChange}
                         className="form-control bg-light border-0 py-2"
-                        placeholder="0"
+                        placeholder="Kosongkan jika langsung Lunas"
                       />
                     </div>
                   </div>
@@ -1079,12 +1109,18 @@ export default function EditTransaction() {
                       </span>
                       <input
                         type="text"
-                        className="form-control bg-light border-0 py-2"
+                        className="form-control bg-light border-0 py-2 text-danger fw-bold"
                         value={displaySisaPay}
                         placeholder="0"
                         readOnly
                       />
                     </div>
+                    {finalStatus === "Lunas" && (
+                      <small className="text-success mt-1 d-block fw-bold">
+                        <i className="fas fa-check-circle me-1"></i> Status:
+                        LUNAS
+                      </small>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1223,7 +1259,9 @@ export default function EditTransaction() {
                 >
                   <i className="fas fa-check fs-2"></i>
                 </div>
-                <h5 className="fw-bold text-dark mb-2">Berhasil Diperbarui!</h5>
+                <h5 className="fw-bold text-dark mb-2">
+                  Berhasil Diperbarui!
+                </h5>
                 <p className="text-muted mb-3" style={{ fontSize: "0.9rem" }}>
                   Transaksi untuk{" "}
                   <span className="fw-bold text-dark">

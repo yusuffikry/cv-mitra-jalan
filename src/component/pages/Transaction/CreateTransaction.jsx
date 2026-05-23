@@ -59,28 +59,31 @@ export default function CreateTransaction() {
   // Status Form Terkunci (Read-Only)
   const isExistingCustomer = !!formData.customer_id;
   const isExistingExternalCar = isManualCar && !!formData.car_id;
-  const totalUntukStatus =
-    parseInt(formData.total_pembayaran.replace(/\./g, ""), 10) || 0;
-  const dpUntukStatus = parseInt(formData.dp.replace(/\./g, ""), 10) || 0;
-  const sisaUntukStatus = totalUntukStatus - dpUntukStatus;
 
   // ========================================================
-  // LOGIKA MENGHITUNG UANG & SISA PEMBAYARAN
+  // LOGIKA MENGHITUNG UANG, SISA PEMBAYARAN & STATUS LUNAS
   // ========================================================
-  const currentTotalPay =
-    parseInt(formData.total_pembayaran.replace(/\./g, "")) || 0;
-  let currentDp = parseInt(formData.dp.replace(/\./g, ""));
-  if (isNaN(currentDp)) currentDp = 0;
+  const currentTotalPay = parseInt(formData.total_pembayaran.replace(/\./g, "")) || 0;
+  let dbDp = parseInt(formData.dp.replace(/\./g, "")) || 0;
+  
+  let finalSisaPay = 0;
+  let finalStatus = "Lunas";
 
-  // Nilai Sisa Pembayaran Asli (Untuk disimpan ke Database)
-  let finalSisaPay = currentTotalPay - currentDp;
-  if (finalSisaPay < 0) finalSisaPay = 0;
-
-  // Tampilan Sisa Pembayaran di UI (Hanya nampil kalau DP sudah diketik)
-  let displaySisaPay = "";
-  if (formData.dp !== "") {
-    displaySisaPay = new Intl.NumberFormat("id-ID").format(finalSisaPay);
+  // Jika kolom DP kosong, otomatis anggap dibayar Lunas (Sisa 0, DP = Total Pembayaran)
+  if (formData.dp === "") {
+    finalSisaPay = 0;
+    finalStatus = "Lunas";
+    dbDp = currentTotalPay;
+  } else {
+    // Jika DP diisi (termasuk jika diisi "0" secara manual)
+    finalSisaPay = currentTotalPay - dbDp;
+    if (finalSisaPay < 0) finalSisaPay = 0;
+    finalStatus = finalSisaPay === 0 ? "Lunas" : "Belum Lunas";
   }
+
+  // Tampilan Sisa Pembayaran di UI
+  const displaySisaPay = new Intl.NumberFormat("id-ID").format(finalSisaPay);
+
 
   // --- AMBIL DATA DARI SUPABASE ---
   useEffect(() => {
@@ -93,7 +96,11 @@ export default function CreateTransaction() {
         if (customerError) {
           console.error("Error muat customer:", customerError.message);
         } else {
-          setCustomers(customerData || []);
+          // PERBAIKAN: Saring data customer, pastikan yang statusnya "blacklist" TIDAK ikut masuk
+          const activeCustomers = (customerData || []).filter(
+            (c) => c.status !== "blacklist"
+          );
+          setCustomers(activeCustomers);
         }
 
         const { data: carData, error: carError } = await supabase
@@ -156,15 +163,17 @@ export default function CreateTransaction() {
         newValue = formatRupiahInput(value);
         const newTotalRaw = parseInt(newValue.replace(/\./g, "")) || 0;
         const currentDpRaw = parseInt(prev.dp.replace(/\./g, "")) || 0;
-        if (currentDpRaw > newTotalRaw) {
+        
+        // Mencegah nilai DP lebih besar dari Total Pembayaran yang baru
+        if (currentDpRaw > newTotalRaw && prev.dp !== "") {
           prev.dp = formatRupiahInput(newTotalRaw.toString());
         }
       } else if (name === "dp") {
         const rawDp = parseInt(value.replace(/\D/g, "")) || 0;
-        const currentTotalRaw =
-          parseInt(prev.total_pembayaran.replace(/\./g, "")) || 0;
+        const currentTotalRaw = parseInt(prev.total_pembayaran.replace(/\./g, "")) || 0;
 
-        if (rawDp > currentTotalRaw) {
+        // Mentokkan DP di angka Total Pembayaran
+        if (rawDp > currentTotalRaw && value !== "") {
           newValue = formatRupiahInput(currentTotalRaw.toString());
         } else {
           newValue = formatRupiahInput(value);
@@ -273,6 +282,12 @@ export default function CreateTransaction() {
         if (checkError) throw checkError;
 
         if (existingCustomer) {
+          // CEK TAMBAHAN: Kalau ternyata admin ngetik NIK manual dan itu NIK orang blacklist
+          if (existingCustomer.status === "blacklist") {
+            alert("GAGAL! NIK ini terdaftar sebagai customer yang telah di-blacklist.");
+            setIsSubmitting(false);
+            return;
+          }
           finalCustomerId = existingCustomer.id || existingCustomer.customer_id;
         } else {
           const { data: newCustomer, error: customerError } = await supabase
@@ -353,8 +368,6 @@ export default function CreateTransaction() {
         );
       }
 
-      const statusOtomatis = sisaUntukStatus > 0 ? "Belum Lunas" : "Lunas";
-
       // 4. INSERT TRANSAKSI FINAL
       const { error } = await supabase.from("transactions").insert([
         {
@@ -366,10 +379,10 @@ export default function CreateTransaction() {
           jam_pengembalian: jamKembali,
           rute: formData.rute,
           jumlah_hari: jumlah_hari,
-          dp: currentDp,
+          dp: dbDp, // Menggunakan nilai DP yang sudah tervalidasi
           total_pembayaran: currentTotalPay,
           sisa_pembayaran: finalSisaPay,
-          status_pembayaran: statusOtomatis,
+          status_pembayaran: finalStatus, // Menggunakan status Lunas / Belum Lunas hasil kalkulasi
           keterangan: formData.keterangan || null,
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
@@ -604,7 +617,7 @@ export default function CreateTransaction() {
                   </div>
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
-                      Domisili Tujuan (Kota Rental)
+                      Domisili
                     </label>
                     <input
                       type="text"
@@ -630,18 +643,6 @@ export default function CreateTransaction() {
                     <label className="form-label text-secondary small fw-bold">
                       Rute Perjalanan
                     </label>
-                    {/* <select
-                      name="rute"
-                      value={formData.rute}
-                      onChange={handleChange}
-                      className="form-select bg-light border-0 py-2"
-                      required
-                    >
-                      <option value="">- Pilih Rute Perjalanan -</option>
-                      <option value="DALKOT">DALKOT (Dalam Kota)</option>
-                      <option value="LURKOT">LURKOT (Luar Kota)</option>
-                      <option value="DALKOT & LURKOT">DALKOT & LURKOT</option>
-                    </select> */}
                     <input
                       type="text"
                       name="rute"
@@ -1024,7 +1025,7 @@ export default function CreateTransaction() {
                         value={formData.dp}
                         onChange={handleChange}
                         className="form-control bg-light border-0 py-2"
-                        placeholder="0"
+                        placeholder="Kosongkan jika langsung Lunas"
                       />
                     </div>
                   </div>
@@ -1040,12 +1041,18 @@ export default function CreateTransaction() {
                       </span>
                       <input
                         type="text"
-                        className="form-control bg-light border-0 py-2"
+                        className="form-control bg-light border-0 py-2 text-danger fw-bold"
                         value={displaySisaPay}
                         placeholder="0"
                         readOnly
                       />
                     </div>
+                    {finalStatus === "Lunas" && (
+                      <small className="text-success mt-1 d-block fw-bold">
+                        <i className="fas fa-check-circle me-1"></i> Status:
+                        LUNAS
+                      </small>
+                    )}
                   </div>
                 </div>
               </div>
