@@ -97,14 +97,20 @@ export default function EditTransaction() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // 1. Ambil data pelanggan
+        // 1. Ambil data pelanggan (Dengan filter anti-blacklist)
         const { data: customerData, error: customerError } = await supabase
           .from("customers")
           .select("*");
 
-        if (customerError)
+        if (customerError) {
           console.error("Error muat customer:", customerError.message);
-        else setCustomers(customerData || []);
+        } else {
+          // Hanya masukkan customer yang aktif/tidak blacklist ke dropdown
+          const activeCustomers = (customerData || []).filter(
+            (c) => c.status !== "blacklist"
+          );
+          setCustomers(activeCustomers);
+        }
 
         // 2. Ambil data mobil
         const { data: carData, error: carError } = await supabase
@@ -339,6 +345,15 @@ export default function EditTransaction() {
         if (checkError) throw checkError;
 
         if (existingCustomer) {
+          // CEK TAMBAHAN (Sistem Lapis Dua):
+          // Kalau admin memaksakan ngetik NIK orang blacklist secara manual
+          if (existingCustomer.status === "blacklist") {
+            alert(
+              "GAGAL! NIK ini terdaftar sebagai customer yang telah di-blacklist. Tidak dapat melakukan transaksi.",
+            );
+            setIsSubmitting(false);
+            return;
+          }
           finalCustomerId = existingCustomer.id || existingCustomer.customer_id;
         } else {
           const { data: newCustomer, error: customerError } = await supabase
@@ -425,7 +440,7 @@ export default function EditTransaction() {
         );
       }
 
-      // 4. UPDATE TRANSAKSI FINAL (Menggunakan dbDp, finalSisaPay & finalStatus hasil kalkulasi)
+      // 4. UPDATE TRANSAKSI FINAL (Menggunakan dbDp, finalSisaPay & finalStatus)
       const { error } = await supabase
         .from("transactions")
         .update({
@@ -616,7 +631,7 @@ export default function EditTransaction() {
                     ) : (
                       <li>
                         <span className="dropdown-item text-muted disabled">
-                          (Tekan simpan untuk jadikan customer baru)
+                          (Customer tidak ditemukan atau terblacklist)
                         </span>
                       </li>
                     )}
@@ -653,6 +668,7 @@ export default function EditTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan 16 digit NIK..."
                       readOnly={isExistingCustomer}
+                      required
                     />
                   </div>
                 </div>
@@ -865,6 +881,7 @@ export default function EditTransaction() {
                     <option value="">
                       -- Pilih Kendaraan dari Database --
                     </option>
+                    {/* HANYA TAMPILKAN MOBIL INTERNAL / DEFAULT LAMA */}
                     {cars
                       .filter(
                         (car) =>
@@ -884,7 +901,7 @@ export default function EditTransaction() {
                 </div>
               )}
 
-              {/* Form Input Manual Rent-to-Rent */}
+              {/* Form Rent-to-Rent (Dropdown Eksternal & Manual Input) */}
               {isManualCar && (
                 <div
                   className="row g-4 mb-5 p-4 rounded-3"
@@ -936,6 +953,7 @@ export default function EditTransaction() {
                       <option value="">
                         + Input Manual Mobil Eksternal Baru
                       </option>
+                      {/* HANYA TAMPILKAN MOBIL EKSTERNAL */}
                       {cars
                         .filter((car) => car.status_armada === "Eksternal")
                         .map((car) => (
@@ -1098,10 +1116,10 @@ export default function EditTransaction() {
                         readOnly
                       />
                     </div>
-                    {/* Tampilkan indikator lunas secara real-time di UI */}
                     {finalStatus === "Lunas" && (
                       <small className="text-success mt-1 d-block fw-bold">
-                        <i className="fas fa-check-circle me-1"></i> Status: LUNAS
+                        <i className="fas fa-check-circle me-1"></i> Status:
+                        LUNAS
                       </small>
                     )}
                   </div>

@@ -96,7 +96,11 @@ export default function CreateTransaction() {
         if (customerError) {
           console.error("Error muat customer:", customerError.message);
         } else {
-          setCustomers(customerData || []);
+          // PERBAIKAN: Saring data customer, pastikan yang statusnya "blacklist" TIDAK ikut masuk
+          const activeCustomers = (customerData || []).filter(
+            (c) => c.status !== "blacklist"
+          );
+          setCustomers(activeCustomers);
         }
 
         const { data: carData, error: carError } = await supabase
@@ -278,6 +282,12 @@ export default function CreateTransaction() {
         if (checkError) throw checkError;
 
         if (existingCustomer) {
+          // CEK TAMBAHAN: Kalau ternyata admin ngetik NIK manual dan itu NIK orang blacklist
+          if (existingCustomer.status === "blacklist") {
+            alert("GAGAL! NIK ini terdaftar sebagai customer yang telah di-blacklist.");
+            setIsSubmitting(false);
+            return;
+          }
           finalCustomerId = existingCustomer.id || existingCustomer.customer_id;
         } else {
           const { data: newCustomer, error: customerError } = await supabase
@@ -586,6 +596,7 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan 16 digit NIK..."
                       readOnly={isExistingCustomer}
+                      required
                     />
                   </div>
                 </div>
@@ -1039,7 +1050,8 @@ export default function CreateTransaction() {
                     </div>
                     {finalStatus === "Lunas" && (
                       <small className="text-success mt-1 d-block fw-bold">
-                        <i className="fas fa-check-circle me-1"></i> Status: LUNAS
+                        <i className="fas fa-check-circle me-1"></i> Status:
+                        LUNAS
                       </small>
                     )}
                   </div>
