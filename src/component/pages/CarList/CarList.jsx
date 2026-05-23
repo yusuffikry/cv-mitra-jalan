@@ -118,7 +118,8 @@ export default function CarList() {
       ];
 
       rows = filteredCars.map((car, index) => {
-        const gps1Nomor = car.gps_nomor || car.no_gps_1 || "-";
+        // PERBAIKAN: Tambahkan car.no_gps
+        const gps1Nomor = car.no_gps || car.gps_nomor || car.no_gps_1 || "-";
         const gps1Aktif = car.masa_aktif_gps || car.masa_aktif_gps_1 || "-";
         const gps1Status = car.status_gps || car.status_gps_1 || "-";
         const gps2Nomor = car.no_gps2 || car.no_gps_2 || "-";
@@ -219,8 +220,6 @@ export default function CarList() {
       className="container-fluid py-3 bg-white d-flex flex-column"
       style={{ fontSize: "0.825rem", color: "#333333" }}
     >
-      {/* Breadcrumb Navigation */}
-
       {/* Header Utama */}
       <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
         <div>
@@ -516,7 +515,8 @@ export default function CarList() {
                   </tr>
                 ) : (
                   currentItems.map((car, index) => {
-                    const gps1Nomor = car.gps_nomor || car.no_gps_1;
+                    // PERBAIKAN: Tambahkan car.no_gps sebagai prioritas utama
+                    const gps1Nomor = car.no_gps || car.gps_nomor || car.no_gps_1;
                     const gps1Aktif =
                       car.masa_aktif_gps || car.masa_aktif_gps_1;
                     const gps1Status = car.status_gps || car.status_gps_1;
