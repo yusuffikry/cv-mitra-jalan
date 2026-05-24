@@ -138,7 +138,7 @@ export default function CreateOutcome() {
                       <option value="" disabled>-- Pilih Jenis Pengeluaran --</option>
                       <option value="Beban BBM">Beban BBM</option>
                       <option value="Beban Gaji">Beban Gaji</option>
-                      <option value="Beban Gaji">Beban GPS</option>
+                      <option value="Beban GPS">Beban GPS</option>
                       <option value="Pemeliharaan">Pemeliharaan</option>
                       <option value="Angsuran">Angsuran</option>
                       <option value="Operasional">Operasional</option>
