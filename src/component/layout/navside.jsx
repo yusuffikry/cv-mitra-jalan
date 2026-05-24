@@ -122,7 +122,7 @@ export default function Navside({ isCollapsed, setIsCollapsed }) {
           style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
         >
           <img
-            src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
+            src="\Image\2300eb83c15e0926c126d851c4948ad4.jpg"
             className="rounded-circle me-2 border border-secondary flex-shrink-0"
             alt="User"
             style={{ width: "38px" }}
