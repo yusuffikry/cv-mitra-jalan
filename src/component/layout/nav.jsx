@@ -11,7 +11,7 @@ import Breadcumb from "./breadcumb";
 export default function Nav() {
   return (
     <div>
-      <Navbar fluid className="py-6 !bg-sky-300">
+      <Navbar fluid className="py-6">
         <Breadcumb />
         <NavbarToggle />
       </Navbar>
