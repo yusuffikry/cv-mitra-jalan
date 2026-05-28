@@ -257,7 +257,6 @@ export default function EditCustomer() {
                     }}
                     rows="3"
                     placeholder="Masukkan alamat domisili pelanggan..."
-                    required
                   ></textarea>
                 </div>
 
@@ -274,7 +273,6 @@ export default function EditCustomer() {
                       className="form-control bg-light border-0 py-2 custom-input"
                       style={{ borderRadius: "6px", color: "#334155" }}
                       placeholder="Contoh: Makassar"
-                      required
                     />
                   </div>
                   <div className="col-md-6 mb-3">

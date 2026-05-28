@@ -254,7 +254,6 @@ export default function CustomersCreate() {
                       resize: "none",
                     }}
                     placeholder="Masukkan alamat domisili operasional saat ini..."
-                    required
                   ></textarea>
                 </div>
 
@@ -279,7 +278,6 @@ export default function CustomersCreate() {
                         backgroundColor: "#ffffff",
                       }}
                       placeholder="Contoh: Makassar"
-                      required
                     />
                   </div>
                   <div className="col-12 col-sm-6 mb-3">
