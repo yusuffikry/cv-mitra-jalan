@@ -581,7 +581,6 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan kontak..."
                       readOnly={isExistingCustomer}
-                      required
                     />
                   </div>
                   <div className="mb-3">
@@ -612,7 +611,6 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan alamat asli..."
                       readOnly={isExistingCustomer}
-                      required
                     />
                   </div>
                   <div className="mb-3">
@@ -627,7 +625,6 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Misal: Makassar, Maros..."
                       readOnly={isExistingCustomer}
-                      required
                     />
                   </div>
                 </div>
