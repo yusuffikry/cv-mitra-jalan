@@ -171,7 +171,6 @@ export default function CustomersCreate() {
                       backgroundColor: "#ffffff",
                     }}
                     placeholder="Masukkan 16 digit angka NIK..."
-                    required
                   />
                 </div>
 
