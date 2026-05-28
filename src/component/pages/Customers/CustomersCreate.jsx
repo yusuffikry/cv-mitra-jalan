@@ -201,7 +201,6 @@ export default function CustomersCreate() {
                         backgroundColor: "#ffffff",
                       }}
                       placeholder="Contoh: 081234567890"
-                      required
                     />
                   </div>
                 </div>

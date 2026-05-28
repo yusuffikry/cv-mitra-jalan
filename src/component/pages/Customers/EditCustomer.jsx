@@ -210,7 +210,6 @@ export default function EditCustomer() {
                       className="form-control bg-light border-0 py-2 custom-input"
                       style={{ borderRadius: "0 6px 6px 0", color: "#334155" }}
                       placeholder="Contoh: 081234567890"
-                      required
                     />
                   </div>
                 </div>
