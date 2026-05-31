@@ -273,13 +273,19 @@ export default function CreateTransaction() {
       let finalCustomerId = formData.customer_id;
 
       if (!finalCustomerId) {
-        const { data: existingCustomer, error: checkError } = await supabase
-          .from("customers")
-          .select("*")
-          .eq("nik", formData.nik)
-          .maybeSingle();
+        let existingCustomer = null;
 
-        if (checkError) throw checkError;
+        // Hanya cari data ke Supabase jika NIK diisi
+        if (formData.nik) {
+          const { data: checkData, error: checkError } = await supabase
+            .from("customers")
+            .select("*")
+            .eq("nik", formData.nik)
+            .maybeSingle();
+
+          if (checkError) throw checkError;
+          existingCustomer = checkData;
+        }
 
         if (existingCustomer) {
           // CEK TAMBAHAN: Kalau ternyata admin ngetik NIK manual dan itu NIK orang blacklist
@@ -290,13 +296,14 @@ export default function CreateTransaction() {
           }
           finalCustomerId = existingCustomer.id || existingCustomer.customer_id;
         } else {
+          // Jika NIK tidak diisi atau NIK tidak ditemukan, buat pelanggan baru
           const { data: newCustomer, error: customerError } = await supabase
             .from("customers")
             .insert([
               {
                 nama_pelanggan: formData.nama_customer,
                 kontak: formData.kontak,
-                nik: formData.nik,
+                nik: formData.nik || null, // PERBAIKAN: Jika string kosong, kirim null
                 alamat: formData.alamat,
                 kota: formData.domisili,
               },
@@ -581,11 +588,12 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan kontak..."
                       readOnly={isExistingCustomer}
+                      required
                     />
                   </div>
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
-                      NIK
+                      NIK (Opsional)
                     </label>
                     <input
                       type="text"
@@ -595,6 +603,7 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan 16 digit NIK..."
                       readOnly={isExistingCustomer}
+                      // Hapus parameter required di sini
                     />
                   </div>
                 </div>
@@ -611,11 +620,12 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan alamat asli..."
                       readOnly={isExistingCustomer}
+                      required
                     />
                   </div>
                   <div className="mb-3">
                     <label className="form-label text-secondary small fw-bold">
-                      Domisili
+                      Domisili Tujuan (Kota Rental)
                     </label>
                     <input
                       type="text"
@@ -625,6 +635,7 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Misal: Makassar, Maros..."
                       readOnly={isExistingCustomer}
+                      required
                     />
                   </div>
                 </div>
