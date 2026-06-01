@@ -23,6 +23,9 @@ export default function Customers() {
       const { data, error } = await supabase
         .from("customers")
         .select("*")
+        // Diurutkan berdasarkan total rental terbanyak (DESC), 
+        // lalu diurutkan berdasarkan abjad nama untuk total rental yang sama (ASC)
+        .order("total_rental", { ascending: false })
         .order("nama_pelanggan", { ascending: true });
 
       if (error) throw error;
@@ -68,6 +71,7 @@ export default function Customers() {
     setShowDeleteModal(false);
     setCustomerToDelete(null);
   };
+
   const filteredCustomers = customers.filter((cust) => {
     const searchLower = searchTerm.toLowerCase();
     const matchName = (cust.nama_pelanggan || "")
@@ -76,6 +80,7 @@ export default function Customers() {
     const matchNik = (cust.nik || "").toLowerCase().includes(searchLower);
     return matchName || matchNik;
   });
+
   const exportToExcel = () => {
     const headers = [
       "No",
@@ -129,6 +134,7 @@ export default function Customers() {
       `Data_Pelanggan_${new Date().toISOString().split("T")[0]}.xlsx`,
     );
   };
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredCustomers.slice(
