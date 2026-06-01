@@ -11,10 +11,11 @@ export default function MainTransaction() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // State untuk Filter
+  // State untuk Filter & Sorting
   const [searchPlat, setSearchPlat] = useState("");
   const [searchCustomer, setSearchCustomer] = useState("");
-  const [searchDate, setSearchDate] = useState("");
+  const [searchDate, setSearchDate] = useState(""); // Sekarang akan menyimpan format YYYY-MM
+  const [sortOrder, setSortOrder] = useState("DESC"); // Default: Terbaru ke Terlama
 
   // State untuk Modal Hapus & Sukses
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -39,8 +40,9 @@ export default function MainTransaction() {
           *,
           cars (nomor_plat, jenis_unit, transmisi),
           customers (nama_pelanggan, nik)
-        `,
+        `
         )
+        // Order by bawaan database, namun akan ditimpa oleh frontend sorting
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -52,24 +54,38 @@ export default function MainTransaction() {
     }
   };
 
-  const filteredTransactions = transactions.filter((trx) => {
-    const matchPlat = (trx.cars?.nomor_plat || "")
-      .toLowerCase()
-      .includes(searchPlat.toLowerCase());
-    const matchCustomer = (trx.customers?.nama_pelanggan || "")
-      .toLowerCase()
-      .includes(searchCustomer.toLowerCase());
-    const matchDate = searchDate === "" || trx.tanggal_sewa === searchDate;
+  const filteredTransactions = transactions
+    .filter((trx) => {
+      const matchPlat = (trx.cars?.nomor_plat || "")
+        .toLowerCase()
+        .includes(searchPlat.toLowerCase());
+      const matchCustomer = (trx.customers?.nama_pelanggan || "")
+        .toLowerCase()
+        .includes(searchCustomer.toLowerCase());
+      
+      // PERBAIKAN: Menggunakan startsWith karena searchDate sekarang berformat YYYY-MM
+      const matchDate = searchDate === "" || (trx.tanggal_sewa && trx.tanggal_sewa.startsWith(searchDate));
 
-    return matchPlat && matchCustomer && matchDate;
-  });
+      return matchPlat && matchCustomer && matchDate;
+    })
+    .sort((a, b) => {
+      // Menggabungkan tanggal dan jam sewa untuk sorting waktu yang lebih akurat
+      const timeA = `${a.tanggal_sewa || "0000-00-00"} ${a.jam_sewa || "00:00"}`;
+      const timeB = `${b.tanggal_sewa || "0000-00-00"} ${b.jam_sewa || "00:00"}`;
+
+      if (sortOrder === "DESC") {
+        return timeB.localeCompare(timeA); // Terbaru ke Terlama
+      } else {
+        return timeA.localeCompare(timeB); // Terlama ke Terbaru
+      }
+    });
 
   // Logika Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredTransactions.slice(
     indexOfFirstItem,
-    indexOfLastItem,
+    indexOfLastItem
   );
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
@@ -221,7 +237,7 @@ export default function MainTransaction() {
 
     XLSX.writeFile(
       workbook,
-      `Data_Transaksi_Rental_${new Date().toISOString().split("T")[0]}.xlsx`,
+      `Data_Transaksi_Rental_${new Date().toISOString().split("T")[0]}.xlsx`
     );
   };
 
@@ -229,6 +245,7 @@ export default function MainTransaction() {
     setSearchPlat("");
     setSearchCustomer("");
     setSearchDate("");
+    setSortOrder("DESC");
     setCurrentPage(1);
   };
 
@@ -252,8 +269,7 @@ export default function MainTransaction() {
             Manajemen Transaksi Operasional
           </h5>
           <p className="text-muted mb-0" style={{ fontSize: "0.775rem" }}>
-            Data lengkap berkas penyewaan, penagihan, dan status peminjaman
-            armada.
+            Data lengkap berkas penyewaan, penagihan, dan status peminjaman armada.
           </p>
         </div>
 
@@ -283,7 +299,7 @@ export default function MainTransaction() {
       >
         <div className="card-body p-2">
           <div className="row g-2 align-items-center">
-            <div className="col-md-4">
+            <div className="col-md-3">
               <div className="input-group input-group-sm">
                 <span
                   className="input-group-text bg-white border-end-0 text-muted"
@@ -305,19 +321,19 @@ export default function MainTransaction() {
               </div>
             </div>
 
-            <div className="col-md-3">
+            <div className="col-md-2">
               <div className="input-group input-group-sm">
                 <span
                   className="input-group-text bg-white border-end-0 text-muted"
                   style={{ fontSize: "0.75rem" }}
                 >
-                  Plat Nomor
+                  Plat
                 </span>
                 <input
                   type="text"
                   className="form-control border-start-0 font-mono"
                   style={{ borderRadius: "3px" }}
-                  placeholder="B 1234 XYZ..."
+                  placeholder="B 1234 XYZ"
                   value={searchPlat}
                   onChange={(e) => {
                     setSearchPlat(e.target.value);
@@ -333,10 +349,11 @@ export default function MainTransaction() {
                   className="input-group-text bg-white border-end-0 text-muted"
                   style={{ fontSize: "0.75rem" }}
                 >
-                  Tanggal
+                  Bulan/Tahun
                 </span>
+                {/* PERBAIKAN: Mengubah type="date" menjadi type="month" */}
                 <input
-                  type="date"
+                  type="month"
                   className="form-control border-start-0 font-mono text-muted"
                   style={{ borderRadius: "3px" }}
                   value={searchDate}
@@ -348,7 +365,26 @@ export default function MainTransaction() {
               </div>
             </div>
 
-            {(searchCustomer || searchPlat || searchDate) && (
+            {/* Tombol Sortir Waktu Pinjam */}
+            <div className="col-md-2">
+              <button
+                className="btn btn-sm btn-white border w-100 d-flex justify-content-between align-items-center"
+                style={{ borderRadius: "3px", backgroundColor: "#ffffff" }}
+                onClick={() => {
+                  setSortOrder(sortOrder === "DESC" ? "ASC" : "DESC");
+                  setCurrentPage(1);
+                }}
+                title="Urutkan Waktu Pinjam"
+              >
+                <span className="text-secondary fw-bold" style={{ fontSize: "0.75rem" }}>
+                  <i className={`fas fa-sort-amount-${sortOrder === "DESC" ? "down" : "up"} me-1`}></i>
+                  {sortOrder === "DESC" ? "Terbaru" : "Terlama"}
+                </span>
+              </button>
+            </div>
+
+            {/* Tombol Reset Filter */}
+            {(searchCustomer || searchPlat || searchDate || sortOrder === "ASC") && (
               <div className="col-md-2 d-grid">
                 <button
                   className="btn btn-sm btn-white border text-secondary fw-bold"
@@ -393,9 +429,15 @@ export default function MainTransaction() {
                     fontSize: "0.725rem",
                     fontWeight: 700,
                     letterSpacing: "0.5px",
+                    cursor: "pointer"
                   }}
+                  onClick={() => {
+                    setSortOrder(sortOrder === "DESC" ? "ASC" : "DESC");
+                    setCurrentPage(1);
+                  }}
+                  title="Klik untuk mengubah urutan"
                 >
-                  Waktu Pinjam
+                  Waktu Pinjam <i className={`fas fa-sort-${sortOrder === "DESC" ? "down" : "up"} ms-1 text-muted`}></i>
                 </th>
                 <th
                   className="py-2 text-dark border-bottom"
@@ -614,7 +656,7 @@ export default function MainTransaction() {
                             onClick={() =>
                               handleDeleteClick(
                                 item.transaction_id,
-                                item.customers?.nama_pelanggan,
+                                item.customers?.nama_pelanggan
                               )
                             }
                             className="btn btn-light border text-danger"
