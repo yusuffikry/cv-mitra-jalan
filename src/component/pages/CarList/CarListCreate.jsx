@@ -5,13 +5,9 @@ import { supabase } from "../../../supabaseClient";
 export default function CarListCreate() {
   const navigate = useNavigate();
 
-  // State untuk indikator loading saat submit
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // State untuk menampilkan modal sukses
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // State untuk menyimpan data form pendaftaran mobil baru
   const [formData, setFormData] = useState({
     name: "",
     plate: "",
@@ -21,7 +17,6 @@ export default function CarListCreate() {
     dueDate: "",
     serviceDate: "",
     taxDate: "",
-    // State GPS diubah menjadi 2 buah
     gpsNumber1: "",
     gpsActiveDate1: "",
     gpsNumber2: "",
@@ -30,7 +25,6 @@ export default function CarListCreate() {
     complaints: "",
   });
 
-  // Fungsi untuk menangani perubahan input form
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -39,14 +33,11 @@ export default function CarListCreate() {
     }));
   };
 
-  // Fungsi untuk menangani submit form ke Supabase
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // PENYESUAIAN PENTING: Mapping nama state ke nama kolom asli di tabel Supabase
-      // status_gps dan status_gps2 tidak dikirim karena sudah di-handle otomatis oleh Trigger Database
       const { error } = await supabase.from("cars").insert([
         {
           jenis_unit: formData.name,
@@ -59,10 +50,8 @@ export default function CarListCreate() {
           tgl_jatuh_tempo: formData.dueDate,
           tgl_mati_pajak: formData.taxDate,
           tgl_pergantian_oli: formData.serviceDate,
-          // GPS 1 (Sesuai dengan nama kolom asli dan trigger)
           no_gps: formData.gpsNumber1,
           masa_aktif_gps: formData.gpsActiveDate1,
-          // GPS 2 (Sesuai dengan kolom baru yang Mas tambahkan)
           no_gps2: formData.gpsNumber2 || null,
           masa_aktif_gps2: formData.gpsActiveDate2 || null,
         },
@@ -70,10 +59,8 @@ export default function CarListCreate() {
 
       if (error) throw error;
 
-      // Tampilkan modal sukses
       setShowSuccessModal(true);
 
-      // Tunggu 2 detik sebelum redirect ke halaman armada
       setTimeout(() => {
         setShowSuccessModal(false);
         navigate("/carlist");
@@ -209,6 +196,7 @@ export default function CarListCreate() {
                   >
                     <option value="Tersedia">Tersedia</option>
                     <option value="Pemeliharaan">Pemeliharaan</option>
+                    <option value="Disewa">Disewa</option>
                   </select>
                 </div>
 

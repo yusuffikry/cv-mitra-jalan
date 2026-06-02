@@ -265,6 +265,7 @@ export default function EditCarList() {
                   >
                     <option value="Tersedia">Tersedia</option>
                     <option value="Pemeliharaan">Pemeliharaan</option>
+                    <option value="Disewa">Disewa</option>
                   </select>
                 </div>
 

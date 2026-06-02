@@ -8,24 +8,19 @@ export default function CreateTransaction() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // State untuk menampung data dari database
   const [customers, setCustomers] = useState([]);
   const [cars, setCars] = useState([]);
 
-  // State KHUSUS untuk input pencarian Customer
   const [searchCustomerTerm, setSearchCustomerTerm] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
-  // handel foto drive
   const [fotoFile, setFotoFile] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
   const [googleToken, setGoogleToken] = useState("");
 
-  // ID Folder Drive untuk Foto dan Video
   const DRIVE_PHOTO_FOLDER_ID = "1BBNYFg2TWx_-OOWUdL4HtmmMmILInWqI";
   const DRIVE_VIDEO_FOLDER_ID = "1hG4Vsh9C-bl8dWKVcgY7OkmnrgWr3aLM";
 
-  // State form utama
   const [formData, setFormData] = useState({
     waktu: "",
     waktu_pengembalian: "",
@@ -46,46 +41,35 @@ export default function CreateTransaction() {
     keterangan: "",
   });
 
-  // Fungsi Format Input Uang
   const formatRupiahInput = (value) => {
     if (!value) return "";
     const numberString = value.replace(/\D/g, "");
     return new Intl.NumberFormat("id-ID").format(numberString);
   };
 
-  // State Penentu Tipe Armada (Internal/Eksternal)
   const [isManualCar, setIsManualCar] = useState(false);
 
-  // Status Form Terkunci (Read-Only)
   const isExistingCustomer = !!formData.customer_id;
   const isExistingExternalCar = isManualCar && !!formData.car_id;
 
-  // ========================================================
-  // LOGIKA MENGHITUNG UANG, SISA PEMBAYARAN & STATUS LUNAS
-  // ========================================================
   const currentTotalPay = parseInt(formData.total_pembayaran.replace(/\./g, "")) || 0;
   let dbDp = parseInt(formData.dp.replace(/\./g, "")) || 0;
   
   let finalSisaPay = 0;
   let finalStatus = "Lunas";
 
-  // Jika kolom DP kosong, otomatis anggap dibayar Lunas (Sisa 0, DP = Total Pembayaran)
   if (formData.dp === "") {
     finalSisaPay = 0;
     finalStatus = "Lunas";
     dbDp = currentTotalPay;
   } else {
-    // Jika DP diisi (termasuk jika diisi "0" secara manual)
     finalSisaPay = currentTotalPay - dbDp;
     if (finalSisaPay < 0) finalSisaPay = 0;
     finalStatus = finalSisaPay === 0 ? "Lunas" : "Belum Lunas";
   }
 
-  // Tampilan Sisa Pembayaran di UI
   const displaySisaPay = new Intl.NumberFormat("id-ID").format(finalSisaPay);
 
-
-  // --- AMBIL DATA DARI SUPABASE ---
   useEffect(() => {
     const fetchOptions = async () => {
       try {
@@ -96,7 +80,6 @@ export default function CreateTransaction() {
         if (customerError) {
           console.error("Error muat customer:", customerError.message);
         } else {
-          // PERBAIKAN: Saring data customer, pastikan yang statusnya "blacklist" TIDAK ikut masuk
           const activeCustomers = (customerData || []).filter(
             (c) => c.status !== "blacklist"
           );
@@ -120,12 +103,10 @@ export default function CreateTransaction() {
     fetchOptions();
   }, []);
 
-  // Filter Customer Real-time
   const filteredCustomers = customers.filter((c) =>
     c.nama_pelanggan?.toLowerCase().includes(searchCustomerTerm.toLowerCase()),
   );
 
-  // Login Drive
   const handleGoogleLogin = () => {
     if (!window.google || !window.google.accounts) {
       alert(
@@ -164,7 +145,6 @@ export default function CreateTransaction() {
         const newTotalRaw = parseInt(newValue.replace(/\./g, "")) || 0;
         const currentDpRaw = parseInt(prev.dp.replace(/\./g, "")) || 0;
         
-        // Mencegah nilai DP lebih besar dari Total Pembayaran yang baru
         if (currentDpRaw > newTotalRaw && prev.dp !== "") {
           prev.dp = formatRupiahInput(newTotalRaw.toString());
         }
@@ -172,7 +152,6 @@ export default function CreateTransaction() {
         const rawDp = parseInt(value.replace(/\D/g, "")) || 0;
         const currentTotalRaw = parseInt(prev.total_pembayaran.replace(/\./g, "")) || 0;
 
-        // Mentokkan DP di angka Total Pembayaran
         if (rawDp > currentTotalRaw && value !== "") {
           newValue = formatRupiahInput(currentTotalRaw.toString());
         } else {
@@ -242,7 +221,6 @@ export default function CreateTransaction() {
     }
   };
 
-  // --- SUBMIT KESELURUHAN ---
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -251,7 +229,6 @@ export default function CreateTransaction() {
       return;
     }
 
-    // Validasi pemilihan/pengisian mobil
     if (!isManualCar && !formData.car_id) {
       alert("Harap pilih Kendaraan Internal dari dropdown!");
       return;
@@ -269,13 +246,25 @@ export default function CreateTransaction() {
     setIsSubmitting(true);
 
     try {
+      // PENENTUAN STATUS MOBIL BERDASARKAN WAKTU SEKARANG
+      const now = new Date();
+      const startDate = new Date(formData.waktu);
+      const endDate = new Date(formData.waktu_pengembalian);
+
+      let determinedCarStatus = "Tersedia";
+      
+      // Jika waktu sekarang berada di dalam rentang waktu peminjaman
+      if (now >= startDate && now <= endDate) {
+        determinedCarStatus = "Disewa";
+      } 
+      // Jika rentang peminjaman di masa lalu atau masa depan, statusnya tetap Tersedia
+
       // 1. CEK & AUTO-INSERT CUSTOMER BARU
       let finalCustomerId = formData.customer_id;
 
       if (!finalCustomerId) {
         let existingCustomer = null;
 
-        // Hanya cari data ke Supabase jika NIK diisi
         if (formData.nik) {
           const { data: checkData, error: checkError } = await supabase
             .from("customers")
@@ -288,7 +277,6 @@ export default function CreateTransaction() {
         }
 
         if (existingCustomer) {
-          // CEK TAMBAHAN: Kalau ternyata admin ngetik NIK manual dan itu NIK orang blacklist
           if (existingCustomer.status === "blacklist") {
             alert("GAGAL! NIK ini terdaftar sebagai customer yang telah di-blacklist.");
             setIsSubmitting(false);
@@ -296,14 +284,13 @@ export default function CreateTransaction() {
           }
           finalCustomerId = existingCustomer.id || existingCustomer.customer_id;
         } else {
-          // Jika NIK tidak diisi atau NIK tidak ditemukan, buat pelanggan baru
           const { data: newCustomer, error: customerError } = await supabase
             .from("customers")
             .insert([
               {
                 nama_pelanggan: formData.nama_customer,
                 kontak: formData.kontak,
-                nik: formData.nik || null, // PERBAIKAN: Jika string kosong, kirim null
+                nik: formData.nik || null, 
                 alamat: formData.alamat,
                 kota: formData.domisili,
               },
@@ -320,7 +307,6 @@ export default function CreateTransaction() {
       // 2. AUTO-INSERT MOBIL EKSTERNAL BARU (JIKA DIPERLUKAN)
       let finalCarId = formData.car_id;
 
-      // Hanya insert mobil eksternal baru jika finalCarId kosong
       if (isManualCar && !finalCarId) {
         const { data: newCar, error: carError } = await supabase
           .from("cars")
@@ -330,7 +316,7 @@ export default function CreateTransaction() {
               nomor_plat: formData.mobil_plat,
               tipe_kendaraan: formData.tipe_unit,
               transmisi: formData.transmisi,
-              status_mobil: "Tersedia",
+              status_mobil: determinedCarStatus,
               status_armada: "Eksternal",
             },
           ])
@@ -386,10 +372,10 @@ export default function CreateTransaction() {
           jam_pengembalian: jamKembali,
           rute: formData.rute,
           jumlah_hari: jumlah_hari,
-          dp: dbDp, // Menggunakan nilai DP yang sudah tervalidasi
+          dp: dbDp,
           total_pembayaran: currentTotalPay,
           sisa_pembayaran: finalSisaPay,
-          status_pembayaran: finalStatus, // Menggunakan status Lunas / Belum Lunas hasil kalkulasi
+          status_pembayaran: finalStatus,
           keterangan: formData.keterangan || null,
           foto_mobil: linkFoto,
           video_mobil: linkVideo,
@@ -397,6 +383,19 @@ export default function CreateTransaction() {
       ]);
 
       if (error) throw error;
+
+      // 5. UPDATE STATUS MOBIL SAAT TRANSAKSI DIBUAT
+      if (finalCarId) {
+        const pkColumn = cars.length > 0 && cars[0].cars_id !== undefined ? "cars_id" : "id";
+        const { error: carUpdateError } = await supabase
+          .from("cars")
+          .update({ status_mobil: determinedCarStatus })
+          .eq(pkColumn, finalCarId);
+
+        if (carUpdateError) {
+          console.error("Warning: Gagal mengupdate status mobil:", carUpdateError);
+        }
+      }
 
       setShowSuccessModal(true);
       setIsSubmitting(false);
@@ -508,7 +507,6 @@ export default function CreateTransaction() {
                   )}
                 </div>
 
-                {/* Indikator status customer */}
                 {isExistingCustomer ? (
                   <small className="text-primary mt-1 d-block fw-medium">
                     <i className="fas fa-user-check me-1"></i> Customer sudah
@@ -602,7 +600,6 @@ export default function CreateTransaction() {
                       className={`form-control border-0 py-2 ${isExistingCustomer ? "bg-secondary bg-opacity-10 text-muted" : "bg-light"}`}
                       placeholder="Masukkan 16 digit NIK..."
                       readOnly={isExistingCustomer}
-                      // Hapus parameter required di sini
                     />
                   </div>
                 </div>
@@ -706,7 +703,6 @@ export default function CreateTransaction() {
                 Data Kendaraan Terpilih
               </h6>
 
-              {/* Pilihan Sumber Kendaraan (Radio Buttons) */}
               <div className="mb-4">
                 <label className="form-label text-secondary small fw-bold d-block">
                   Sumber Kendaraan
@@ -765,7 +761,6 @@ export default function CreateTransaction() {
                 </div>
               </div>
 
-              {/* Form Dropdown Armada Sendiri */}
               {!isManualCar && (
                 <div className="mb-5 position-relative">
                   <label className="form-label text-secondary small fw-bold">
@@ -813,7 +808,6 @@ export default function CreateTransaction() {
                     <option value="">
                       -- Pilih Kendaraan dari Database --
                     </option>
-                    {/* HANYA TAMPILKAN MOBIL INTERNAL / DEFAULT LAMA */}
                     {cars
                       .filter(
                         (car) =>
@@ -833,7 +827,6 @@ export default function CreateTransaction() {
                 </div>
               )}
 
-              {/* Form Rent-to-Rent (Dropdown Eksternal & Manual Input) */}
               {isManualCar && (
                 <div
                   className="row g-4 mb-5 p-4 rounded-3"
@@ -885,7 +878,6 @@ export default function CreateTransaction() {
                       <option value="">
                         + Input Manual Mobil Eksternal Baru
                       </option>
-                      {/* HANYA TAMPILKAN MOBIL EKSTERNAL */}
                       {cars
                         .filter((car) => car.status_armada === "Eksternal")
                         .map((car) => (

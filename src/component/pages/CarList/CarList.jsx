@@ -30,7 +30,74 @@ export default function CarList() {
         .order("jenis_unit", { ascending: true });
 
       if (error) throw error;
-      setCars(data || []);
+      
+      let fetchedCars = data || [];
+
+      // ====================================================================
+      // LOGIKA OTOMATISASI STATUS: KEMBALI "TERSEDIA" SAAT REFRESH
+      // ====================================================================
+      const disewaCars = fetchedCars.filter((car) => car.status_mobil === "Disewa");
+
+      if (disewaCars.length > 0) {
+        // Ambil semua ID mobil yang sedang disewa
+        const disewaCarIds = disewaCars.map((car) => car.cars_id || car.id);
+
+        // Cek data transaksinya di database
+        const { data: txData, error: txError } = await supabase
+          .from("transactions")
+          .select("car_id, tanggal_pengembalian, jam_pengembalian")
+          .in("car_id", disewaCarIds);
+
+        if (!txError) {
+          const now = new Date();
+          const carsToMakeAvailable = [];
+
+          disewaCarIds.forEach((carId) => {
+            // Ambil seluruh riwayat transaksi untuk mobil ini
+            const carTxs = txData?.filter((tx) => String(tx.car_id) === String(carId)) || [];
+
+            if (carTxs.length === 0) {
+              // SKENARIO 1: Data transaksi sudah dihapus, tapi mobil masih berstatus "Disewa"
+              carsToMakeAvailable.push(carId);
+            } else {
+              // SKENARIO 2: Transaksi ada, cari jadwal pengembalian paling akhir
+              const latestTx = carTxs.reduce((latest, current) => {
+                const currDate = new Date(`${current.tanggal_pengembalian}T${current.jam_pengembalian || "00:00:00"}`);
+                const latestDate = new Date(`${latest.tanggal_pengembalian}T${latest.jam_pengembalian || "00:00:00"}`);
+                return currDate > latestDate ? current : latest;
+              });
+
+              const latestReturnTime = new Date(`${latestTx.tanggal_pengembalian}T${latestTx.jam_pengembalian || "00:00:00"}`);
+
+              // Jika waktu sekarang sudah melewati waktu pengembalian transaksi terakhir
+              if (now > latestReturnTime) {
+                carsToMakeAvailable.push(carId);
+              }
+            }
+          });
+
+          // Jika ditemukan mobil yang harus dikembalikan statusnya
+          if (carsToMakeAvailable.length > 0) {
+            const pkColumn = fetchedCars[0].cars_id !== undefined ? "cars_id" : "id";
+
+            // 1. Eksekusi update massal ke Supabase
+            await supabase
+              .from("cars")
+              .update({ status_mobil: "Tersedia" })
+              .in(pkColumn, carsToMakeAvailable);
+
+            // 2. Perbarui state lokal secara instan agar tabel di layar langsung berubah
+            fetchedCars = fetchedCars.map((car) =>
+              carsToMakeAvailable.includes(car.cars_id || car.id)
+                ? { ...car, status_mobil: "Tersedia" }
+                : car
+            );
+          }
+        }
+      }
+      // ====================================================================
+
+      setCars(fetchedCars);
     } catch (error) {
       console.error("Error fetching cars:", error.message);
     } finally {
@@ -118,7 +185,6 @@ export default function CarList() {
       ];
 
       rows = filteredCars.map((car, index) => {
-        // PERBAIKAN: Tambahkan car.no_gps
         const gps1Nomor = car.no_gps || car.gps_nomor || car.no_gps_1 || "-";
         const gps1Aktif = car.masa_aktif_gps || car.masa_aktif_gps_1 || "-";
         const gps1Status = car.status_gps || car.status_gps_1 || "-";
@@ -515,7 +581,6 @@ export default function CarList() {
                   </tr>
                 ) : (
                   currentItems.map((car, index) => {
-                    // PERBAIKAN: Tambahkan car.no_gps sebagai prioritas utama
                     const gps1Nomor = car.no_gps || car.gps_nomor || car.no_gps_1;
                     const gps1Aktif =
                       car.masa_aktif_gps || car.masa_aktif_gps_1;

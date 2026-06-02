@@ -332,6 +332,19 @@ export default function EditTransaction() {
     setIsSubmitting(true);
 
     try {
+      // PENENTUAN STATUS MOBIL BERDASARKAN WAKTU SEKARANG
+      const now = new Date();
+      const startDate = new Date(formData.waktu);
+      const endDate = new Date(formData.waktu_pengembalian);
+
+      let determinedCarStatus = "Tersedia";
+      
+      // Jika waktu sekarang berada di dalam rentang waktu peminjaman
+      if (now >= startDate && now <= endDate) {
+        determinedCarStatus = "Disewa";
+      } 
+      // Jika rentang peminjaman di masa lalu atau masa depan, statusnya tetap Tersedia
+
       // 1. CEK & AUTO-INSERT CUSTOMER BARU
       let finalCustomerId = formData.customer_id;
 
@@ -352,7 +365,6 @@ export default function EditTransaction() {
 
         if (existingCustomer) {
           // CEK TAMBAHAN (Sistem Lapis Dua):
-          // Kalau admin memaksakan ngetik NIK orang blacklist secara manual
           if (existingCustomer.status === "blacklist") {
             alert(
               "GAGAL! NIK ini terdaftar sebagai customer yang telah di-blacklist. Tidak dapat melakukan transaksi.",
@@ -369,7 +381,7 @@ export default function EditTransaction() {
               {
                 nama_pelanggan: formData.nama_customer,
                 kontak: formData.kontak,
-                nik: formData.nik || null, // PERBAIKAN: Jika string kosong, kirim null
+                nik: formData.nik || null,
                 alamat: formData.alamat,
                 kota: formData.domisili,
               },
@@ -396,7 +408,7 @@ export default function EditTransaction() {
                 nomor_plat: formData.mobil_plat,
                 tipe_kendaraan: formData.tipe_unit,
                 transmisi: formData.transmisi,
-                status_mobil: "Tersedia",
+                status_mobil: determinedCarStatus, // Set status awal sesuai kalkulasi waktu
                 status_armada: "Eksternal",
               },
             ])
@@ -470,6 +482,20 @@ export default function EditTransaction() {
         .eq("transaction_id", id);
 
       if (error) throw error;
+
+      // 5. UPDATE STATUS MOBIL SAAT TRANSAKSI DIEDIT
+      // Menerapkan update ke tabel mobil untuk mengubah ketersediaan
+      if (finalCarId) {
+        const pkColumn = cars.length > 0 && cars[0].cars_id !== undefined ? "cars_id" : "id";
+        const { error: carUpdateError } = await supabase
+          .from("cars")
+          .update({ status_mobil: determinedCarStatus })
+          .eq(pkColumn, finalCarId);
+
+        if (carUpdateError) {
+          console.error("Warning: Gagal mengupdate status mobil:", carUpdateError);
+        }
+      }
 
       setShowSuccessModal(true);
       setIsSubmitting(false);
@@ -837,7 +863,6 @@ export default function EditTransaction() {
                 </div>
               </div>
 
-              {/* Form Dropdown Armada Sendiri */}
               {!isManualCar && (
                 <div className="mb-5 position-relative">
                   <label className="form-label text-secondary small fw-bold">
@@ -885,7 +910,6 @@ export default function EditTransaction() {
                     <option value="">
                       -- Pilih Kendaraan dari Database --
                     </option>
-                    {/* HANYA TAMPILKAN MOBIL INTERNAL / DEFAULT LAMA */}
                     {cars
                       .filter(
                         (car) =>
@@ -905,7 +929,6 @@ export default function EditTransaction() {
                 </div>
               )}
 
-              {/* Form Rent-to-Rent (Dropdown Eksternal & Manual Input) */}
               {isManualCar && (
                 <div
                   className="row g-4 mb-5 p-4 rounded-3"
@@ -957,7 +980,6 @@ export default function EditTransaction() {
                       <option value="">
                         + Input Manual Mobil Eksternal Baru
                       </option>
-                      {/* HANYA TAMPILKAN MOBIL EKSTERNAL */}
                       {cars
                         .filter((car) => car.status_armada === "Eksternal")
                         .map((car) => (
