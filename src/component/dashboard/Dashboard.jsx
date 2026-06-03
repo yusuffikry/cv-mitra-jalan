@@ -112,11 +112,14 @@ export default function Dashboard() {
         }
       });
 
-      // Kalkulasi Stats Keuangan
-      const totalPemasukan = transactions.reduce(
-        (acc, curr) => acc + parseNumber(curr.total_pembayaran),
-        0,
-      );
+      // Kalkulasi Stats Keuangan (Hanya hitung yang Lunas)
+      const totalPemasukan = transactions
+        .filter((t) => t.status_pembayaran === "Lunas")
+        .reduce(
+          (acc, curr) => acc + parseNumber(curr.total_pembayaran),
+          0,
+        );
+
       const totalPengeluaran = expenses.reduce(
         (acc, curr) => acc + parseNumber(curr.total_pengeluaran),
         0,
@@ -185,7 +188,7 @@ export default function Dashboard() {
           const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
 
           const dailyIncome = transactions
-            .filter((t) => t.tanggal_sewa === dateStr)
+            .filter((t) => t.tanggal_sewa === dateStr && t.status_pembayaran === "Lunas")
             .reduce((sum, t) => sum + parseNumber(t.total_pembayaran), 0);
 
           const dailyExpense = expenses
@@ -205,7 +208,7 @@ export default function Dashboard() {
           const monthlyIncome = transactions
             .filter((t) => {
               const date = new Date(t.tanggal_sewa);
-              return date.getMonth() + 1 === i;
+              return date.getMonth() + 1 === i && t.status_pembayaran === "Lunas";
             })
             .reduce((sum, t) => sum + parseNumber(t.total_pembayaran), 0);
 
@@ -229,6 +232,7 @@ export default function Dashboard() {
       // --- KALKULASI TOP CARS ---
       const carRentCounts = {};
       transactions.forEach((t) => {
+        // Top cars tetap menghitung frekuensi jalan walaupun belum lunas
         if (t.cars) {
           const plat = t.cars.nomor_plat;
           if (!carRentCounts[plat])
@@ -242,14 +246,17 @@ export default function Dashboard() {
       setTopCars(sortedCars);
 
       // --- AKTIVITAS TERKINI ---
-      const mappedTrx = transactions.map((t) => ({
-        id: t.transaction_id,
-        type: "income",
-        title: `Penyewaan ${t.cars?.jenis_unit || "Unit"}`,
-        desc: `Pelanggan: ${t.customers?.nama_pelanggan || "Umum"}`,
-        date: t.created_at,
-        amount: parseNumber(t.total_pembayaran),
-      }));
+      const mappedTrx = transactions
+        .filter((t) => t.status_pembayaran === "Lunas") // Hanya tampilkan sebagai arus kas positif jika lunas
+        .map((t) => ({
+          id: t.transaction_id,
+          type: "income",
+          title: `Penyewaan ${t.cars?.jenis_unit || "Unit"} (Lunas)`,
+          desc: `Pelanggan: ${t.customers?.nama_pelanggan || "Umum"}`,
+          date: t.created_at,
+          amount: parseNumber(t.total_pembayaran),
+        }));
+        
       const mappedExp = expenses.map((e) => ({
         id: e.expense_id,
         type: "expense",

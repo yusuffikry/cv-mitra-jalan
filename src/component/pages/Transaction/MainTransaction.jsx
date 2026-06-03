@@ -168,13 +168,14 @@ export default function MainTransaction() {
       "ID Transaksi",
       "Dibuat Pada",
       "Waktu Peminjaman",
+      "Waktu Pengembalian",
+      "Jumlah Hari",
       "Nama Customer",
       "Merek Mobil",
       "Tipe Unit",
       "Plat Nomor",
       "Transmisi",
       "Rute",
-      "Jumlah Hari",
       "DP (Rp)",
       "Sisa Pembayaran (Rp)",
       "Total Pembayaran (Rp)",
@@ -195,13 +196,14 @@ export default function MainTransaction() {
         `TRX-${displayId}`,
         new Date(trx.created_at).toLocaleDateString("id-ID"),
         `${trx.tanggal_sewa} ${trx.jam_sewa || ""}`,
+        `${trx.tanggal_pengembalian || "-"} ${trx.jam_pengembalian || ""}`,
+        trx.jumlah_hari || 0,
         trx.customers?.nama_pelanggan || "-",
         trx.cars?.jenis_unit?.split(" ")[0] || "-",
         trx.cars?.jenis_unit || "-",
         trx.cars?.nomor_plat || "-",
         trx.cars?.transmisi || "-",
         trx.rute || "-",
-        trx.jumlah_hari || 0,
         trx.dp || 0,
         trx.sisa_pembayaran || 0,
         trx.total_pembayaran || 0,
@@ -220,10 +222,11 @@ export default function MainTransaction() {
       { wch: 15 },
       { wch: 15 },
       { wch: 20 },
-      { wch: 25 },
+      { wch: 20 },
       { wch: 15 },
       { wch: 25 },
       { wch: 15 },
+      { wch: 25 },
       { wch: 15 },
       { wch: 15 },
       { wch: 15 },
@@ -485,8 +488,9 @@ export default function MainTransaction() {
                 >
                   Rute
                 </th>
+                {/* Header Durasi & Pengembalian yang menggantikan Keterangan */}
                 <th
-                  className="py-2 text-dark border-bottom"
+                  className="py-2 text-dark border-bottom text-center"
                   style={{
                     backgroundColor: "#f1f3f5",
                     fontSize: "0.725rem",
@@ -494,7 +498,7 @@ export default function MainTransaction() {
                     letterSpacing: "0.5px",
                   }}
                 >
-                  Keterangan
+                  Durasi & Kembali
                 </th>
                 <th
                   className="py-2 text-dark border-bottom text-end"
@@ -609,11 +613,14 @@ export default function MainTransaction() {
                         </span>
                       </td>
 
-                      <td
-                        className="text-wrap text-muted small"
-                        style={{ maxWidth: "180px", fontSize: "0.8rem" }}
-                      >
-                        {item.keterangan || "-"}
+                      {/* Sel Durasi dan Pengembalian yang baru */}
+                      <td className="text-center text-secondary font-mono small">
+                        <div className="fw-bold text-dark">
+                          {item.jumlah_hari || 0} Hari
+                        </div>
+                        <div style={{ fontSize: "0.7rem" }}>
+                          {item.tanggal_pengembalian || "-"} - {item.jam_pengembalian || ""}
+                        </div>
                       </td>
 
                       <td className="text-end fw-bold text-dark font-mono">

@@ -19,12 +19,12 @@ export default function Income() {
   const itemsPerPage = 10;
 
   // --- INISIALISASI REACT-TO-PRINT ---
-    const componentRef = useRef(null);
-    const handlePrint = useReactToPrint({
-      contentRef: componentRef,
-      documentTitle: `Rekap_Pengeluaran_${filterMonth || "Semua_Waktu"}`,
-      removeAfterPrint: true,
-    });
+  const componentRef = useRef(null);
+  const handlePrint = useReactToPrint({
+    contentRef: componentRef,
+    documentTitle: `Rekap_Pendapatan_${filterMonth || "Semua_Waktu"}`,
+    removeAfterPrint: true,
+  });
 
   // --- AMBIL DATA DARI SUPABASE ---
   useEffect(() => {
@@ -76,6 +76,10 @@ export default function Income() {
     (sum, item) => sum + (Number(item.total_jalan) || 0), 0
   );
 
+  const grandTotalHari = filteredIncomes.reduce(
+    (sum, item) => sum + (Number(item.total_hari) || 0), 0
+  );
+
   // --- LOGIKA PAGINATION ---
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -102,16 +106,18 @@ export default function Income() {
       "No",
       "Jenis Unit",
       "Nomor Plat",
-      "Total Penghasilan (Rp)",
-      "Total Jalan (Kali)"
+      "Total Jalan (Kali)",
+      "Total Hari (Hari)",
+      "Total Penghasilan (Rp)"
     ];
 
     const rows = filteredIncomes.map((item, index) => [
       index + 1,
       item.jenis_unit || "-",
       item.nomor_plat || "-",
-      item.total_penghasilan || 0,
       item.total_jalan || 0,
+      item.total_hari || 0,
+      item.total_penghasilan || 0,
     ]);
 
     // Tambahkan baris Grand Total di akhir file Excel
@@ -119,8 +125,9 @@ export default function Income() {
       "",
       "TOTAL KESELURUHAN",
       "",
-      grandTotalPenghasilan,
-      grandTotalJalan
+      grandTotalJalan,
+      grandTotalHari,
+      grandTotalPenghasilan
     ];
 
     const dataToExport = [headers, ...rows, [], grandTotalRow];
@@ -133,8 +140,9 @@ export default function Income() {
       { wch: 5 },  // No
       { wch: 30 }, // Jenis Unit
       { wch: 15 }, // Nomor Plat
-      { wch: 25 }, // Total Penghasilan
       { wch: 20 }, // Total Jalan
+      { wch: 20 }, // Total Hari
+      { wch: 25 }, // Total Penghasilan
     ];
     worksheet["!cols"] = wscols;
 
@@ -282,7 +290,7 @@ export default function Income() {
                   className="fw-bold text-uppercase mb-1"
                   style={{ letterSpacing: "1px" }}
                 >
-                  Rekapitulasi Pengeluaran
+                  Rekapitulasi Pendapatan
                 </h3>
                 <p className="text-dark fw-bold mb-0">
                   Periode:{" "}
@@ -299,12 +307,13 @@ export default function Income() {
             <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.85rem" }}>
               <thead className="sticky-top bg-white shadow-sm table-light" style={{ zIndex: 10 }}>
                 <tr>
-                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "5%" }}>No</th>
-                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "20%" }}>Jenis Mobil</th>
-                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "15%" }}>Nomor Plat</th>
-                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "15%" }}>Total Jalan</th>
-                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-end" style={{ width: "35%" }}>Total Pemasukan</th>
-                  <th className="px-4 py-3 text-secondary fw-bold text-uppercase border-bottom text-center d-print-none" style={{ width: "10%" }}>Aksi</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "5%" }}>No</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-start" style={{ width: "20%" }}>Jenis Mobil</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "15%" }}>Nomor Plat</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "10%" }}>Total Jalan</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center" style={{ width: "10%" }}>Total Hari</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-end" style={{ width: "30%" }}>Total Pemasukan</th>
+                  <th className="px-3 py-3 text-secondary fw-bold text-uppercase border-bottom text-center d-print-none" style={{ width: "10%" }}>Aksi</th>
                 </tr>
               </thead>
               
@@ -312,14 +321,14 @@ export default function Income() {
               <tbody className="screen-only-rows d-print-none">
                 {loading ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-5 text-muted">
+                    <td colSpan="7" className="text-center py-5 text-muted">
                       <div className="spinner-border spinner-border-sm me-2" role="status"></div>
                       Memuat data laporan...
                     </td>
                   </tr>
                 ) : currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-5 text-muted">
+                    <td colSpan="7" className="text-center py-5 text-muted">
                       <i className="fas fa-box-open fs-2 mb-3 d-block opacity-50"></i>
                       Tidak ada data pendapatan yang ditemukan.
                     </td>
@@ -327,22 +336,27 @@ export default function Income() {
                 ) : (
                   currentItems.map((item, index) => (
                     <tr key={item.car_id || index}>
-                      <td className="px-4 text-muted text-center">{indexOfFirstItem + index + 1}</td>
-                      <td className="px-4 text-start"><div className="fw-bold text-dark text-uppercase">{item.jenis_unit || "-"}</div></td>
-                      <td className="px-4 text-center">
+                      <td className="px-3 text-muted text-center">{indexOfFirstItem + index + 1}</td>
+                      <td className="px-3 text-start"><div className="fw-bold text-dark text-uppercase">{item.jenis_unit || "-"}</div></td>
+                      <td className="px-3 text-center">
                         <span className="badge border text-dark bg-white px-2 py-1 shadow-sm text-nowrap" style={{ letterSpacing: "1px" }}>
                           {item.nomor_plat || "-"}
                         </span>
                       </td>
-                      <td className="px-4 text-center">
+                      <td className="px-3 text-center">
                         <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fs-6">
                           {item.total_jalan || 0} Kali
                         </span>
                       </td>
-                      <td className="px-4 text-end fw-bold text-success text-nowrap fs-6">
+                      <td className="px-3 text-center">
+                        <span className="text-dark fw-medium">
+                          {item.total_hari || 0} Hari
+                        </span>
+                      </td>
+                      <td className="px-3 text-end fw-bold text-success text-nowrap fs-6">
                         Rp {formatRupiah(item.total_penghasilan)}
                       </td>
-                      <td className="px-4 text-center d-print-none">
+                      <td className="px-3 text-center d-print-none">
                         <Link
                           to={`/income/show/${item.car_id}?month=${filterMonth}`}
                           className="btn btn-sm shadow-sm d-inline-flex align-items-center justify-content-center"
@@ -361,11 +375,12 @@ export default function Income() {
               <tbody className="print-all-rows d-none">
                 {filteredIncomes.map((item, index) => (
                   <tr key={item.car_id || index}>
-                    <td className="px-4 text-muted text-center border-bottom">{index + 1}</td>
-                    <td className="px-4 text-start fw-bold text-dark text-uppercase border-bottom">{item.jenis_unit || "-"}</td>
-                    <td className="px-4 text-center border-bottom">{item.nomor_plat || "-"}</td>
-                    <td className="px-4 text-center border-bottom">{item.total_jalan || 0} Kali</td>
-                    <td className="px-4 text-end fw-bold text-success text-nowrap border-bottom">Rp {formatRupiah(item.total_penghasilan)}</td>
+                    <td className="px-3 text-muted text-center border-bottom">{index + 1}</td>
+                    <td className="px-3 text-start fw-bold text-dark text-uppercase border-bottom">{item.jenis_unit || "-"}</td>
+                    <td className="px-3 text-center border-bottom">{item.nomor_plat || "-"}</td>
+                    <td className="px-3 text-center border-bottom">{item.total_jalan || 0} Kali</td>
+                    <td className="px-3 text-center border-bottom">{item.total_hari || 0} Hari</td>
+                    <td className="px-3 text-end fw-bold text-success text-nowrap border-bottom">Rp {formatRupiah(item.total_penghasilan)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -374,13 +389,16 @@ export default function Income() {
               {!loading && filteredIncomes.length > 0 && (
                 <tfoot className="table-light sticky-bottom shadow-sm" style={{ zIndex: 9 }}>
                   <tr>
-                    <td colSpan="3" className="px-4 py-3 text-end fw-bold text-dark text-uppercase border-top">
+                    <td colSpan="3" className="px-3 py-3 text-end fw-bold text-dark text-uppercase border-top">
                       TOTAL KESELURUHAN
                     </td>
-                    <td className="px-4 py-3 text-center fw-bold text-primary fs-6 border-top">
+                    <td className="px-3 py-3 text-center fw-bold text-primary fs-6 border-top">
                       {grandTotalJalan} Kali
                     </td>
-                    <td className="px-4 py-3 text-end fw-bold text-success fs-5 border-top text-nowrap">
+                    <td className="px-3 py-3 text-center fw-bold text-dark fs-6 border-top">
+                      {grandTotalHari} Hari
+                    </td>
+                    <td className="px-3 py-3 text-end fw-bold text-success fs-5 border-top text-nowrap">
                       Rp {formatRupiah(grandTotalPenghasilan)}
                     </td>
                     <td className="border-top d-print-none"></td>

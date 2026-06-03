@@ -6,30 +6,98 @@ import * as XLSX from "xlsx";
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // State Filter Pencarian & Waktu
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterMode, setFilterMode] = useState("semua"); // semua, bulanan, tahunan
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // PERBAIKAN 1: Tambahkan dependencies agar data otomatis di-fetch saat filter berubah
   useEffect(() => {
     fetchCustomers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterMode, selectedMonth, selectedYear]);
 
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // 1. Ambil semua data master customers
+      const { data: custData, error: custError } = await supabase
         .from("customers")
-        .select("*")
-        // Diurutkan berdasarkan total rental terbanyak (DESC), 
-        // lalu diurutkan berdasarkan abjad nama untuk total rental yang sama (ASC)
-        .order("total_rental", { ascending: false })
-        .order("nama_pelanggan", { ascending: true });
+        .select("*");
 
-      if (error) throw error;
-      setCustomers(data || []);
+      if (custError) throw custError;
+
+      // 2. Ambil semua riwayat transaksi untuk dikalkulasi di frontend
+      const { data: trxData, error: trxError } = await supabase
+        .from("transactions")
+        .select("customer_id, tanggal_sewa, tanggal_pengembalian, jumlah_hari, total_pembayaran, status_pembayaran");
+
+      if (trxError) throw trxError;
+
+      // Fungsi bantuan untuk mengecek apakah tanggal masuk dalam filter
+      const isDateInFilter = (dateString) => {
+        if (!dateString) return false;
+        const [year, month] = dateString.split("-"); // Pisahkan YYYY-MM-DD
+        
+        if (filterMode === "bulanan") {
+          return parseInt(year) === parseInt(selectedYear) && parseInt(month) === parseInt(selectedMonth);
+        } else if (filterMode === "tahunan") {
+          return parseInt(year) === parseInt(selectedYear);
+        }
+        return true;
+      };
+
+      // 3. Proses penggabungan dan kalkulasi dinamis
+      const processedCustomers = custData.map((cust) => {
+        // Cari transaksi milik customer ini
+        let myTransactions = trxData.filter(
+          (t) => t.customer_id === cust.customer_id || t.customer_id === cust.id
+        );
+
+        // Filter transaksi berdasarkan rentang waktu (tanggal_sewa ATAU tanggal_pengembalian)
+        if (filterMode !== "semua") {
+          myTransactions = myTransactions.filter(
+            (t) => isDateInFilter(t.tanggal_sewa) || isDateInFilter(t.tanggal_pengembalian)
+          );
+        }
+
+        // Kalkulasi Total
+        const total_rental = myTransactions.length;
+        const total_hari_sewa = myTransactions.reduce((sum, t) => sum + (Number(t.jumlah_hari) || 0), 0);
+        
+        // HANYA AKUMULASI PEMBAYARAN YANG STATUSNYA "Lunas"
+        const total_nominal_pembayaran = myTransactions
+          .filter((t) => t.status_pembayaran === "Lunas")
+          .reduce((sum, t) => sum + (Number(t.total_pembayaran) || 0), 0);
+
+        return {
+          ...cust,
+          total_rental,
+          total_hari_sewa,
+          total_nominal_pembayaran,
+        };
+      });
+
+      // 4. Urutkan berdasarkan total rental (terbanyak), lalu abjad
+      processedCustomers.sort((a, b) => {
+        if (b.total_rental !== a.total_rental) {
+          return b.total_rental - a.total_rental;
+        }
+        const nameA = a.nama_pelanggan || "";
+        const nameB = b.nama_pelanggan || "";
+        return nameA.localeCompare(nameB);
+      });
+
+      setCustomers(processedCustomers);
     } catch (error) {
       console.error("Error fetching customers:", error.message);
     } finally {
@@ -72,14 +140,26 @@ export default function Customers() {
     setCustomerToDelete(null);
   };
 
+  // PERBAIKAN 2: Sembunyikan pelanggan yang tidak memiliki transaksi di bulan/tahun tersebut
   const filteredCustomers = customers.filter((cust) => {
     const searchLower = searchTerm.toLowerCase();
-    const matchName = (cust.nama_pelanggan || "")
-      .toLowerCase()
-      .includes(searchLower);
+    const matchName = (cust.nama_pelanggan || "").toLowerCase().includes(searchLower);
     const matchNik = (cust.nik || "").toLowerCase().includes(searchLower);
-    return matchName || matchNik;
+    const matchSearch = matchName || matchNik;
+
+    let matchActive = true;
+    if (filterMode !== "semua") {
+      matchActive = cust.total_rental > 0;
+    }
+
+    return matchSearch && matchActive;
   });
+
+  // Fungsi untuk format rupiah
+  const formatRupiah = (angka) => {
+    if (!angka) return "0";
+    return new Intl.NumberFormat("id-ID").format(angka);
+  };
 
   const exportToExcel = () => {
     const headers = [
@@ -89,7 +169,9 @@ export default function Customers() {
       "Kontak",
       "Alamat (Domisili)",
       "Kota Rental",
-      "Total Rental",
+      "Total Rental (Kali)",
+      "Total Hari Sewa",
+      "Total Nominal Pembayaran (Rp)",
       "Status",
     ];
 
@@ -108,6 +190,8 @@ export default function Customers() {
         cust.alamat || "-",
         cust.kota || "-",
         cust.total_rental || 0,
+        cust.total_hari_sewa || 0,
+        cust.total_nominal_pembayaran || 0,
         displayStatus,
       ];
     });
@@ -127,12 +211,17 @@ export default function Customers() {
       { wch: 15 },
       { wch: 15 },
       { wch: 15 },
+      { wch: 25 },
+      { wch: 15 },
     ];
     worksheet["!cols"] = wscols;
-    XLSX.writeFile(
-      workbook,
-      `Data_Pelanggan_${new Date().toISOString().split("T")[0]}.xlsx`,
-    );
+
+    // Nama file dinamis sesuai filter
+    let fileName = `Data_Pelanggan_${new Date().toISOString().split("T")[0]}.xlsx`;
+    if (filterMode === "bulanan") fileName = `Data_Pelanggan_Bulan_${selectedMonth}_${selectedYear}.xlsx`;
+    if (filterMode === "tahunan") fileName = `Data_Pelanggan_Tahun_${selectedYear}.xlsx`;
+
+    XLSX.writeFile(workbook, fileName);
   };
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -186,7 +275,7 @@ export default function Customers() {
                 <input
                   type="text"
                   className={`form-control bg-light border-0 ${searchTerm ? "border-end-0" : ""} py-2`}
-                  placeholder="Cari nama atau NIK pelanggan..."
+                  placeholder="Cari nama atau NIK..."
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -212,6 +301,59 @@ export default function Customers() {
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Filter Waktu Transaksi */}
+            <div className="col-12 col-md-7 col-lg-8 d-flex flex-wrap gap-2 justify-content-md-end mt-2 mt-md-0">
+              <select
+                className="form-select form-select-sm w-auto shadow-sm border-light-subtle"
+                value={filterMode}
+                onChange={(e) => {
+                  setFilterMode(e.target.value);
+                  setCurrentPage(1);
+                }}
+                style={{ fontSize: "0.85rem", color: "#475569", fontWeight: "500" }}
+              >
+                <option value="semua">Semua Waktu</option>
+                <option value="bulanan">Bulanan</option>
+                <option value="tahunan">Tahunan</option>
+              </select>
+
+              {filterMode === "bulanan" && (
+                <select
+                  className="form-select form-select-sm w-auto shadow-sm border-light-subtle"
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    setSelectedMonth(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={{ fontSize: "0.85rem", color: "#475569", fontWeight: "500" }}
+                >
+                  {[
+                    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+                    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+                  ].map((month, idx) => (
+                    <option key={idx + 1} value={idx + 1}>{month}</option>
+                  ))}
+                </select>
+              )}
+
+              {filterMode !== "semua" && (
+                <select
+                  className="form-select form-select-sm w-auto shadow-sm border-light-subtle"
+                  value={selectedYear}
+                  onChange={(e) => {
+                    setSelectedYear(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={{ fontSize: "0.85rem", color: "#475569", fontWeight: "500" }}
+                >
+                  {[...Array(5)].map((_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return <option key={year} value={year}>{year}</option>;
+                  })}
+                </select>
+              )}
             </div>
           </div>
         </div>
@@ -244,13 +386,14 @@ export default function Customers() {
                 className="text-secondary fw-medium"
                 style={{ fontSize: "0.85rem" }}
               >
-                {searchTerm
-                  ? `Pelanggan dengan kata kunci "${searchTerm}" tidak ditemukan.`
+                {searchTerm || filterMode !== "semua"
+                  ? "Tidak ada pelanggan yang bertransaksi sesuai filter waktu."
                   : "Belum ada data pelanggan yang didaftarkan."}
               </span>
             </div>
           ) : (
             <>
+              {/* TAMPILAN DESKTOP */}
               <div className="d-none d-md-block bg-white">
                 <table
                   className="table table-hover align-middle mb-0 text-nowrap"
@@ -315,14 +458,14 @@ export default function Customers() {
                         Alamat (Domisili)
                       </th>
                       <th
-                        className="py-3 text-uppercase fw-semibold border-0"
+                        className="py-3 text-uppercase fw-semibold border-0 text-center"
                         style={{
                           color: "#475569",
                           fontSize: "0.75rem",
                           letterSpacing: "0.5px",
                         }}
                       >
-                        Kota Rental
+                        Frekuensi
                       </th>
                       <th
                         className="py-3 text-uppercase fw-semibold border-0 text-center"
@@ -332,7 +475,17 @@ export default function Customers() {
                           letterSpacing: "0.5px",
                         }}
                       >
-                        Total Rental
+                        Hari Sewa
+                      </th>
+                      <th
+                        className="py-3 text-uppercase fw-semibold border-0 text-end pe-4"
+                        style={{
+                          color: "#475569",
+                          fontSize: "0.75rem",
+                          letterSpacing: "0.5px",
+                        }}
+                      >
+                        Total Nominal
                       </th>
                       <th
                         className="py-3 text-uppercase fw-semibold border-0 text-center"
@@ -375,6 +528,7 @@ export default function Customers() {
                             >
                               {cust.nama_pelanggan || "-"}
                             </div>
+                            <small className="text-muted">{cust.kota || "-"}</small>
                           </td>
                           <td className="text-center">
                             <span
@@ -397,20 +551,25 @@ export default function Customers() {
                             className="text-wrap text-secondary"
                             style={{
                               minWidth: "200px",
-                              maxWidth: "300px",
+                              maxWidth: "250px",
                               fontSize: "0.825rem",
                               lineHeight: "1.4",
                             }}
                           >
                             {cust.alamat || "-"}
                           </td>
-                          <td className="text-secondary fw-medium">
-                            {cust.kota || "-"}
-                          </td>
                           <td className="text-center">
                             <span className="badge bg-body-secondary text-dark-emphasis fw-medium px-2.5 py-1.5 border border-light-subtle rounded-2">
                               {cust.total_rental || 0} Kali
                             </span>
+                          </td>
+                          <td className="text-center">
+                            <span className="text-dark fw-medium">
+                              {cust.total_hari_sewa || 0} Hari
+                            </span>
+                          </td>
+                          <td className="text-end pe-4 fw-semibold text-success">
+                            Rp {formatRupiah(cust.total_nominal_pembayaran)}
                           </td>
                           <td className="text-center">
                             <span
@@ -485,6 +644,8 @@ export default function Customers() {
                   </tbody>
                 </table>
               </div>
+
+              {/* TAMPILAN MOBILE (Card View) */}
               <div className="d-block d-md-none p-3">
                 <div className="row g-3">
                   {currentItems.map((cust, index) => {
@@ -542,7 +703,7 @@ export default function Customers() {
                             </span>
                           </div>
                           <div
-                            className="row g-2"
+                            className="row g-2 mb-2"
                             style={{ fontSize: "0.8rem" }}
                           >
                             <div className="col-6">
@@ -559,39 +720,39 @@ export default function Customers() {
                               </div>
                             </div>
                             <div className="col-6">
-                              <div className="text-muted small">
-                                Kota Rental
-                              </div>
-                              <div className="fw-medium text-dark-emphasis mt-0.5">
-                                {cust.kota || "-"}
-                              </div>
-                            </div>
-                            <div className="col-6">
-                              <div className="text-muted small">
-                                Total Rental
-                              </div>
+                              <div className="text-muted small">Frekuensi Sewa</div>
                               <div className="mt-0.5">
                                 <span className="badge bg-body-secondary text-dark-emphasis border px-2 py-0.5 rounded-1">
                                   {cust.total_rental || 0} Kali
                                 </span>
                               </div>
                             </div>
-                            <div className="col-12">
-                              <div className="text-muted small">
-                                Alamat Domisili
+                            <div className="col-6">
+                              <div className="text-muted small">Total Hari Sewa</div>
+                              <div className="mt-0.5 fw-medium text-dark">
+                                {cust.total_hari_sewa || 0} Hari
                               </div>
+                            </div>
+                            <div className="col-12 mt-2">
+                              <div className="text-muted small">Total Nominal Pembayaran</div>
+                              <div className="fw-bold text-success" style={{ fontSize: "0.9rem" }}>
+                                Rp {formatRupiah(cust.total_nominal_pembayaran)}
+                              </div>
+                            </div>
+                            <div className="col-12 mt-1">
+                              <div className="text-muted small">Alamat Lengkap</div>
                               <div
                                 className="text-secondary text-wrap mt-0.5"
                                 style={{ lineHeight: "1.3" }}
                               >
-                                {cust.alamat || "-"}
+                                {cust.alamat || "-"} ({cust.kota || "-"})
                               </div>
                             </div>
                           </div>
 
                           {/* Tombol Aksi Mobile */}
                           <div
-                            className="d-flex justify-content-end gap-2 border-top pt-2 mt-3"
+                            className="d-flex justify-content-end gap-2 border-top pt-2 mt-2"
                             style={{ borderColor: "#f1f5f9" }}
                           >
                             <Link
