@@ -7,10 +7,13 @@ import {
   Activity,
   AlertTriangle,
   Calendar,
+  BarChart3,
 } from "lucide-react";
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -26,6 +29,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
+  // State untuk mode filter (Bulanan atau Tahunan)
+  const [filterMode, setFilterMode] = useState("bulanan");
+  
   // State untuk filter bulan dan tahun
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -40,6 +46,7 @@ export default function Dashboard() {
 
   const [chartData, setChartData] = useState([]);
   const [pieData, setPieData] = useState([]);
+  const [expenseBarData, setExpenseBarData] = useState([]); // State u/ Bar Chart Pengeluaran
   const [topCars, setTopCars] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
 
@@ -49,10 +56,10 @@ export default function Dashboard() {
     return Number(cleanStr) || 0;
   };
 
-  // Panggil fetch setiap kali bulan atau tahun berubah
+  // Panggil fetch setiap kali filter berubah
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, filterMode]);
 
   const fetchDashboardData = async () => {
     try {
@@ -61,7 +68,7 @@ export default function Dashboard() {
       const [trxRes, expRes, carRes] = await Promise.all([
         supabase
           .from("transactions")
-          .select("*, cars(nomor_plat, jenis_unit), customers(nama_pelanggan)")
+          .select("*, cars(nomor_plat, jenis_unit, status_armada), customers(nama_pelanggan)")
           .order("created_at", { ascending: false }),
         supabase
           .from("expenses")
@@ -78,26 +85,34 @@ export default function Dashboard() {
       let expenses = expRes.data || [];
       const cars = carRes.data || [];
 
-      // --- FILTER BERDASARKAN BULAN & TAHUN ---
+      // --- FILTER BERDASARKAN MODE (BULANAN/TAHUNAN) ---
       transactions = transactions.filter((t) => {
         if (!t.tanggal_sewa) return false;
         const date = new Date(t.tanggal_sewa);
-        return (
-          date.getMonth() + 1 === parseInt(selectedMonth) &&
-          date.getFullYear() === parseInt(selectedYear)
-        );
+        if (filterMode === "bulanan") {
+          return (
+            date.getMonth() + 1 === parseInt(selectedMonth) &&
+            date.getFullYear() === parseInt(selectedYear)
+          );
+        } else {
+          return date.getFullYear() === parseInt(selectedYear);
+        }
       });
 
       expenses = expenses.filter((e) => {
         if (!e.tanggal_pengeluaran) return false;
         const date = new Date(e.tanggal_pengeluaran);
-        return (
-          date.getMonth() + 1 === parseInt(selectedMonth) &&
-          date.getFullYear() === parseInt(selectedYear)
-        );
+        if (filterMode === "bulanan") {
+          return (
+            date.getMonth() + 1 === parseInt(selectedMonth) &&
+            date.getFullYear() === parseInt(selectedYear)
+          );
+        } else {
+          return date.getFullYear() === parseInt(selectedYear);
+        }
       });
 
-      // Kalkulasi Stats
+      // Kalkulasi Stats Keuangan
       const totalPemasukan = transactions.reduce(
         (acc, curr) => acc + parseNumber(curr.total_pembayaran),
         0,
@@ -107,7 +122,7 @@ export default function Dashboard() {
         0,
       );
 
-      // --- FILTER HANYA MOBIL INTERNAL ---
+      // --- FILTER HANYA MOBIL INTERNAL UNTUK STATUS ---
       const internalCars = cars.filter(
         (c) => c.status_armada === "Internal" || !c.status_armada
       );
@@ -132,27 +147,81 @@ export default function Dashboard() {
         { name: "Pengeluaran", value: totalPengeluaran, color: "#ef4444" },
       ]);
 
-      // --- GENERATE CHART DATA BERDASARKAN BULAN TERPILIH ---
-      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+      // --- GENERATE DATA BAR CHART DISTRIBUSI PENGELUARAN ---
+      const expCategories = {
+        "Beban BBM": 0,
+        "Beban Gaji": 0,
+        "Beban GPS": 0,
+        "Pemeliharaan": 0,
+        "Angsuran": 0,
+        "Operasional": 0,
+        "Pajak": 0,
+        "Beban Lain-lain": 0,
+      };
+
+      expenses.forEach((e) => {
+        const cat = e.jenis_pengeluaran || "Beban Lain-lain";
+        if (expCategories[cat] !== undefined) {
+          expCategories[cat] += parseNumber(e.total_pengeluaran);
+        } else {
+          expCategories["Beban Lain-lain"] += parseNumber(e.total_pengeluaran);
+        }
+      });
+
+      // Ubah Object ke Array, buang kategori dengan nilai 0, urutkan besar -> kecil
+      const newExpenseBarData = Object.keys(expCategories)
+        .map((key) => ({ name: key, total: expCategories[key] }))
+        .filter((item) => item.total > 0)
+        .sort((a, b) => b.total - a.total);
+
+      setExpenseBarData(newExpenseBarData);
+
+      // --- GENERATE DATA LINE CHART ARUS KAS BERDASARKAN MODE ---
       const newChartData = [];
 
-      for (let i = 1; i <= daysInMonth; i++) {
-        // Format tanggal: YYYY-MM-DD
-        const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
+      if (filterMode === "bulanan") {
+        const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+        for (let i = 1; i <= daysInMonth; i++) {
+          const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
 
-        const dailyIncome = transactions
-          .filter((t) => t.tanggal_sewa === dateStr)
-          .reduce((sum, t) => sum + parseNumber(t.total_pembayaran), 0);
+          const dailyIncome = transactions
+            .filter((t) => t.tanggal_sewa === dateStr)
+            .reduce((sum, t) => sum + parseNumber(t.total_pembayaran), 0);
 
-        const dailyExpense = expenses
-          .filter((e) => e.tanggal_pengeluaran === dateStr)
-          .reduce((sum, e) => sum + parseNumber(e.total_pengeluaran), 0);
+          const dailyExpense = expenses
+            .filter((e) => e.tanggal_pengeluaran === dateStr)
+            .reduce((sum, e) => sum + parseNumber(e.total_pengeluaran), 0);
 
-        newChartData.push({
-          name: i.toString(), // Tampilkan hanya tanggalnya di sumbu X
-          pemasukan: Number(dailyIncome),
-          pengeluaran: Number(dailyExpense),
-        });
+          newChartData.push({
+            name: i.toString(),
+            pemasukan: Number(dailyIncome),
+            pengeluaran: Number(dailyExpense),
+          });
+        }
+      } else {
+        // Mode Tahunan (Agregasi 12 Bulan)
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+        for (let i = 1; i <= 12; i++) {
+          const monthlyIncome = transactions
+            .filter((t) => {
+              const date = new Date(t.tanggal_sewa);
+              return date.getMonth() + 1 === i;
+            })
+            .reduce((sum, t) => sum + parseNumber(t.total_pembayaran), 0);
+
+          const monthlyExpense = expenses
+            .filter((e) => {
+              const date = new Date(e.tanggal_pengeluaran);
+              return date.getMonth() + 1 === i;
+            })
+            .reduce((sum, e) => sum + parseNumber(e.total_pengeluaran), 0);
+
+          newChartData.push({
+            name: monthNames[i - 1],
+            pemasukan: Number(monthlyIncome),
+            pengeluaran: Number(monthlyExpense),
+          });
+        }
       }
 
       setChartData(newChartData);
@@ -294,7 +363,7 @@ export default function Dashboard() {
     <div className="h-full w-full bg-gray-50 font-sans">
       <div className="p-6 lg:p-8 pb-32 space-y-6 max-w-7xl mx-auto w-full">
         
-        {/* Header Dashboard & Filter Bulan/Tahun */}
+        {/* Header Dashboard & Filter Kombinasi */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
@@ -307,19 +376,38 @@ export default function Dashboard() {
           
           <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-gray-200">
             <Calendar size={18} className="text-gray-400 ml-1" />
+            
+            {/* Pilihan Mode Filter */}
             <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer focus:ring-0"
+              value={filterMode}
+              onChange={(e) => setFilterMode(e.target.value)}
+              className="bg-transparent text-sm font-bold text-emerald-600 outline-none cursor-pointer focus:ring-0"
             >
-              {[
-                "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
-                "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-              ].map((month, idx) => (
-                <option key={idx + 1} value={idx + 1}>{month}</option>
-              ))}
+              <option value="bulanan">Bulanan</option>
+              <option value="tahunan">Tahunan</option>
             </select>
             <span className="text-gray-300">|</span>
+
+            {/* Pilihan Bulan (Sembunyikan jika mode Tahunan) */}
+            {filterMode === "bulanan" && (
+              <>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer focus:ring-0"
+                >
+                  {[
+                    "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+                    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+                  ].map((month, idx) => (
+                    <option key={idx + 1} value={idx + 1}>{month}</option>
+                  ))}
+                </select>
+                <span className="text-gray-300">|</span>
+              </>
+            )}
+
+            {/* Pilihan Tahun (Dinamis 5 Tahun Terakhir) */}
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
@@ -370,8 +458,8 @@ export default function Dashboard() {
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Line Chart */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              {/* Line Chart Arus Kas */}
               <div className="lg:col-span-2 bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3">
@@ -381,7 +469,7 @@ export default function Dashboard() {
                     <div>
                       <h3 className="font-bold text-gray-800 text-lg">Arus Kas</h3>
                       <p className="text-xs text-gray-400 font-medium">
-                        Tren Pemasukan & Pengeluaran Bulan Ini
+                        Tren Pemasukan & Pengeluaran {filterMode === "bulanan" ? "Bulan Ini" : "Tahun Ini"}
                       </p>
                     </div>
                   </div>
@@ -426,7 +514,7 @@ export default function Dashboard() {
                           border: "none",
                           boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
                         }}
-                        labelFormatter={(label) => `Tanggal ${label}`}
+                        labelFormatter={(label) => filterMode === "bulanan" ? `Tanggal ${label}` : `Bulan ${label}`}
                         formatter={(value) =>
                           `Rp ${new Intl.NumberFormat("id-ID").format(value)}`
                         }
@@ -474,7 +562,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Pie Chart */}
+              {/* Pie Chart Rasio */}
               <div className="bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
                 <h3 className="font-bold text-gray-800 w-full text-left mb-1">
                   Rasio Keuangan
@@ -544,6 +632,79 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* BAR CHART: DISTRIBUSI PENGELUARAN (HORIZONTAL) */}
+            <div className="grid grid-cols-1 gap-6 mb-6">
+              <div className="bg-white p-5 lg:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2.5 bg-rose-50 rounded-xl text-rose-600">
+                      <BarChart3 size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-800 text-lg">Distribusi Jenis Pengeluaran</h3>
+                      <p className="text-xs text-gray-400 font-medium">
+                        Rincian biaya operasional {filterMode === "bulanan" ? "Bulan Ini" : "Tahun Ini"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="w-full" style={{ height: `${Math.max(250, expenseBarData.length * 45)}px` }}>
+                  {expenseBarData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                      Belum ada data pengeluaran
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={expenseBarData}
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f3f4f6" />
+                        <XAxis 
+                          type="number" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 11, fill: "#9ca3af" }}
+                          tickFormatter={(val) => {
+                            if (val === 0) return "Rp 0";
+                            if (val >= 1000000) return `Rp ${val / 1000000} Jt`;
+                            if (val >= 1000) return `Rp ${val / 1000}k`;
+                            return `Rp ${val}`;
+                          }}
+                        />
+                        <YAxis 
+                          dataKey="name" 
+                          type="category" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          width={110} 
+                          tick={{ fontSize: 11, fill: "#4b5563", fontWeight: "bold" }} 
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "none",
+                            boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                          }}
+                          formatter={(value) => `Rp ${new Intl.NumberFormat("id-ID").format(value)}`}
+                          cursor={{ fill: "#f3f4f6" }}
+                        />
+                        <Bar 
+                          dataKey="total" 
+                          fill="#ef4444" 
+                          radius={[0, 4, 4, 0]} 
+                          barSize={20}
+                          name="Total Pengeluaran"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* GRID BAWAH DENGAN FIXED HEIGHT (h-[400px]) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Table Section */}
@@ -590,7 +751,7 @@ export default function Dashboard() {
                       ) : (
                         <tr>
                           <td colSpan="4" className="p-8 text-center text-gray-400">
-                            Belum ada riwayat penyewaan di bulan ini.
+                            Belum ada riwayat penyewaan di {filterMode === "bulanan" ? "bulan" : "tahun"} ini.
                           </td>
                         </tr>
                       )}
@@ -624,7 +785,7 @@ export default function Dashboard() {
                     ))
                   ) : (
                     <p className="text-center text-sm text-gray-400 py-4">
-                      Belum ada aktivitas di bulan ini.
+                      Belum ada aktivitas di {filterMode === "bulanan" ? "bulan" : "tahun"} ini.
                     </p>
                   )}
                 </div>
