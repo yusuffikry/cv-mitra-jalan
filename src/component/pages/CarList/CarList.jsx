@@ -34,33 +34,31 @@ export default function CarList() {
       let fetchedCars = data || [];
 
       // ====================================================================
-      // LOGIKA OTOMATISASI STATUS: KEMBALI "TERSEDIA" SAAT REFRESH
+      // LOGIKA OTOMATISASI STATUS & TARIK JADWAL RENTAL
       // ====================================================================
       const disewaCars = fetchedCars.filter((car) => car.status_mobil === "Disewa");
+      const activeSchedules = {}; // Objek untuk menyimpan jadwal rental yang sedang berjalan
 
       if (disewaCars.length > 0) {
-        // Ambil semua ID mobil yang sedang disewa
         const disewaCarIds = disewaCars.map((car) => car.cars_id || car.id);
 
-        // Cek data transaksinya di database
         const { data: txData, error: txError } = await supabase
           .from("transactions")
-          .select("car_id, tanggal_pengembalian, jam_pengembalian")
+          .select("car_id, tanggal_sewa, jam_sewa, tanggal_pengembalian, jam_pengembalian")
           .in("car_id", disewaCarIds);
 
-        if (!txError) {
+        if (!txError && txData) {
           const now = new Date();
           const carsToMakeAvailable = [];
 
           disewaCarIds.forEach((carId) => {
-            // Ambil seluruh riwayat transaksi untuk mobil ini
-            const carTxs = txData?.filter((tx) => String(tx.car_id) === String(carId)) || [];
+            const carTxs = txData.filter((tx) => String(tx.car_id) === String(carId));
 
             if (carTxs.length === 0) {
-              // SKENARIO 1: Data transaksi sudah dihapus, tapi mobil masih berstatus "Disewa"
+              // Jika transaksi sudah dihapus tapi mobil masih "Disewa"
               carsToMakeAvailable.push(carId);
             } else {
-              // SKENARIO 2: Transaksi ada, cari jadwal pengembalian paling akhir
+              // Cari jadwal pengembalian paling akhir
               const latestTx = carTxs.reduce((latest, current) => {
                 const currDate = new Date(`${current.tanggal_pengembalian}T${current.jam_pengembalian || "00:00:00"}`);
                 const latestDate = new Date(`${latest.tanggal_pengembalian}T${latest.jam_pengembalian || "00:00:00"}`);
@@ -72,21 +70,25 @@ export default function CarList() {
               // Jika waktu sekarang sudah melewati waktu pengembalian transaksi terakhir
               if (now > latestReturnTime) {
                 carsToMakeAvailable.push(carId);
+              } else {
+                // Jika masih disewa, simpan jadwalnya
+                activeSchedules[carId] = {
+                  ambil: `${latestTx.tanggal_sewa} ${latestTx.jam_sewa || ""}`,
+                  kembali: `${latestTx.tanggal_pengembalian} ${latestTx.jam_pengembalian || ""}`
+                };
               }
             }
           });
 
-          // Jika ditemukan mobil yang harus dikembalikan statusnya
+          // Kembalikan status mobil ke "Tersedia"
           if (carsToMakeAvailable.length > 0) {
             const pkColumn = fetchedCars[0].cars_id !== undefined ? "cars_id" : "id";
 
-            // 1. Eksekusi update massal ke Supabase
             await supabase
               .from("cars")
               .update({ status_mobil: "Tersedia" })
               .in(pkColumn, carsToMakeAvailable);
 
-            // 2. Perbarui state lokal secara instan agar tabel di layar langsung berubah
             fetchedCars = fetchedCars.map((car) =>
               carsToMakeAvailable.includes(car.cars_id || car.id)
                 ? { ...car, status_mobil: "Tersedia" }
@@ -95,6 +97,21 @@ export default function CarList() {
           }
         }
       }
+
+      // Memasukkan jadwal ke dalam objek mobil untuk dirender
+      fetchedCars = fetchedCars.map((car) => {
+        const carId = car.cars_id || car.id;
+        if (car.status_mobil === "Disewa" && activeSchedules[carId]) {
+          return {
+            ...car,
+            jadwal_ambil: activeSchedules[carId].ambil,
+            jadwal_kembali: activeSchedules[carId].kembali
+          };
+        } else if (car.status_mobil === "Pemeliharaan") {
+          return { ...car, jadwal_ambil: "Maintenance", jadwal_kembali: "Maintenance" };
+        }
+        return { ...car, jadwal_ambil: "Ready", jadwal_kembali: "Ready" };
+      });
       // ====================================================================
 
       setCars(fetchedCars);
@@ -181,6 +198,8 @@ export default function CarList() {
         "Masa Aktif GPS Cadangan",
         "Status GPS Cadangan",
         "Keluhan",
+        "Jadwal Ambil",
+        "Jadwal Kembali",
         "Status",
       ];
 
@@ -209,28 +228,17 @@ export default function CarList() {
           gps2Aktif,
           gps2Status,
           car.keluhan_unit || "-",
+          car.jadwal_ambil || "-",
+          car.jadwal_kembali || "-",
           car.status_mobil || "-",
         ];
       });
 
       wscols = [
-        { wch: 5 },
-        { wch: 25 },
-        { wch: 15 },
-        { wch: 10 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 20 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 20 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 40 },
-        { wch: 15 },
+        { wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 15 },
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 },
+        { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
+        { wch: 40 }, { wch: 20 }, { wch: 20 }, { wch: 15 },
       ];
     } else {
       headers = [
@@ -240,6 +248,9 @@ export default function CarList() {
         "Plat Nomor",
         "Transmisi",
         "Sumber",
+        "Jadwal Ambil",
+        "Jadwal Kembali",
+        "Status"
       ];
       rows = filteredCars.map((car, index) => [
         index + 1,
@@ -248,14 +259,13 @@ export default function CarList() {
         car.nomor_plat || "-",
         car.transmisi || "-",
         "Rent-to-Rent",
+        car.jadwal_ambil || "-",
+        car.jadwal_kembali || "-",
+        car.status_mobil || "-",
       ]);
       wscols = [
-        { wch: 5 },
-        { wch: 25 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 15 },
+        { wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+        { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 15 }
       ];
     }
 
@@ -264,10 +274,7 @@ export default function CarList() {
     worksheet["!cols"] = wscols;
 
     const workbook = XLSX.utils.book_new();
-    const sheetName =
-      activeTab === "car-rent"
-        ? "Data Armada Internal"
-        : "Data Armada Eksternal";
+    const sheetName = activeTab === "car-rent" ? "Data Armada Internal" : "Data Armada Eksternal";
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     XLSX.writeFile(
@@ -280,6 +287,23 @@ export default function CarList() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredCars.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredCars.length / itemsPerPage);
+
+  // Komponen Helper untuk render cell jadwal
+  const renderSchedule = (val) => {
+    if (!val || val === "Ready") {
+      return <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Ready</span>;
+    }
+    if (val === "Maintenance") {
+      return <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Maint.</span>;
+    }
+    const [datePart, timePart] = val.split(" ");
+    return (
+      <div className="text-center font-mono small">
+        <div className="fw-bold text-dark">{datePart}</div>
+        <div className="text-muted" style={{ fontSize: "0.7rem" }}>{timePart || "-"}</div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -535,6 +559,30 @@ export default function CarList() {
                   <th
                     className="py-2 text-dark border-bottom text-center"
                     style={{
+                      width: "110px",
+                      backgroundColor: "#f1f3f5",
+                      fontSize: "0.725rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Jadwal Ambil
+                  </th>
+                  <th
+                    className="py-2 text-dark border-bottom text-center"
+                    style={{
+                      width: "110px",
+                      backgroundColor: "#f1f3f5",
+                      fontSize: "0.725rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Jadwal Kembali
+                  </th>
+                  <th
+                    className="py-2 text-dark border-bottom text-center"
+                    style={{
                       width: "120px",
                       backgroundColor: "#f1f3f5",
                       fontSize: "0.725rem",
@@ -562,7 +610,7 @@ export default function CarList() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan="12"
+                      colSpan="14"
                       className="text-center py-4 text-muted"
                       style={{ fontFamily: "monospace" }}
                     >
@@ -575,7 +623,7 @@ export default function CarList() {
                   </tr>
                 ) : currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan="12" className="text-center py-4 text-muted">
+                    <td colSpan="14" className="text-center py-4 text-muted">
                       Belum ada data unit rental internal yang ditemukan.
                     </td>
                   </tr>
@@ -689,7 +737,13 @@ export default function CarList() {
                         >
                           {car.keluhan_unit || "-"}
                         </td>
-                        <td className="text-center">
+                        <td className="text-center align-middle">
+                          {renderSchedule(car.jadwal_ambil)}
+                        </td>
+                        <td className="text-center align-middle">
+                          {renderSchedule(car.jadwal_kembali)}
+                        </td>
+                        <td className="text-center align-middle">
                           <span
                             className="fw-bold d-block mx-auto text-center py-1 rounded-1"
                             style={{
@@ -808,6 +862,42 @@ export default function CarList() {
                     Sumber Vendor
                   </th>
                   <th
+                    className="py-2 text-dark border-bottom text-center"
+                    style={{
+                      width: "110px",
+                      backgroundColor: "#f1f3f5",
+                      fontSize: "0.725rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Jadwal Ambil
+                  </th>
+                  <th
+                    className="py-2 text-dark border-bottom text-center"
+                    style={{
+                      width: "110px",
+                      backgroundColor: "#f1f3f5",
+                      fontSize: "0.725rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Jadwal Kembali
+                  </th>
+                  <th
+                    className="py-2 text-dark border-bottom text-center"
+                    style={{
+                      width: "120px",
+                      backgroundColor: "#f1f3f5",
+                      fontSize: "0.725rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Status
+                  </th>
+                  <th
                     className="text-center py-2 text-dark border-bottom"
                     style={{
                       width: "100px",
@@ -825,7 +915,7 @@ export default function CarList() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="9"
                       className="text-center py-4 text-muted"
                       style={{ fontFamily: "monospace" }}
                     >
@@ -838,69 +928,102 @@ export default function CarList() {
                   </tr>
                 ) : currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-4 text-muted">
+                    <td colSpan="9" className="text-center py-4 text-muted">
                       Belum ada data sub-kontrak eksternal (Rent-to-Rent).
                     </td>
                   </tr>
                 ) : (
-                  currentItems.map((car, index) => (
-                    <tr key={car.cars_id}>
-                      <td
-                        className="text-center text-muted py-2.5"
-                        style={{
-                          fontFamily: "SFMono-Regular, Menlo, monospace",
-                        }}
-                      >
-                        {String(indexOfFirstItem + index + 1).padStart(2, "0")}
-                      </td>
-                      <td>
-                        <div className="fw-bold text-dark">
-                          {car.jenis_unit || "-"}
-                        </div>
-                        <div
-                          className="text-muted small"
-                          style={{ fontSize: "0.7rem" }}
+                  currentItems.map((car, index) => {
+                    const isReady = car.status_mobil === "Tersedia";
+                    const isMaintenance = car.status_mobil === "Pemeliharaan";
+
+                    return (
+                      <tr key={car.cars_id}>
+                        <td
+                          className="text-center text-muted py-2.5"
+                          style={{
+                            fontFamily: "SFMono-Regular, Menlo, monospace",
+                          }}
                         >
-                          Tipe: {car.tipe_kendaraan || "-"}
-                        </div>
-                      </td>
-                      <td className="text-center">
-                        <span
-                          className="badge bg-light text-dark border px-2 py-1 font-mono d-block mx-auto"
-                          style={{ fontSize: "0.75rem", maxWidth: "120px" }}
-                        >
-                          {car.nomor_plat || "-"}
-                        </span>
-                      </td>
-                      <td className="text-center text-primary fw-medium">
-                        {car.transmisi || "-"}
-                      </td>
-                      <td className="text-center">
-                        <span
-                          className="badge border px-2 py-1 text-secondary bg-light"
-                          style={{ borderRadius: "2px" }}
-                        >
-                          Rent-to-Rent
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        <button
-                          onClick={() =>
-                            handleDeleteClick(
-                              car.cars_id,
-                              car.jenis_unit,
-                              car.nomor_plat,
-                            )
-                          }
-                          className="btn btn-xs btn-light border text-danger px-2 py-1"
-                          style={{ borderRadius: "3px" }}
-                          title="Hapus Mobil Eksternal"
-                        >
-                          <i className="fas fa-trash small me-1"></i>Hapus
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                          {String(indexOfFirstItem + index + 1).padStart(2, "0")}
+                        </td>
+                        <td>
+                          <div className="fw-bold text-dark">
+                            {car.jenis_unit || "-"}
+                          </div>
+                          <div
+                            className="text-muted small"
+                            style={{ fontSize: "0.7rem" }}
+                          >
+                            Tipe: {car.tipe_kendaraan || "-"}
+                          </div>
+                        </td>
+                        <td className="text-center">
+                          <span
+                            className="badge bg-light text-dark border px-2 py-1 font-mono d-block mx-auto"
+                            style={{ fontSize: "0.75rem", maxWidth: "120px" }}
+                          >
+                            {car.nomor_plat || "-"}
+                          </span>
+                        </td>
+                        <td className="text-center text-primary fw-medium">
+                          {car.transmisi || "-"}
+                        </td>
+                        <td className="text-center">
+                          <span
+                            className="badge border px-2 py-1 text-secondary bg-light"
+                            style={{ borderRadius: "2px" }}
+                          >
+                            Rent-to-Rent
+                          </span>
+                        </td>
+                        <td className="text-center align-middle">
+                          {renderSchedule(car.jadwal_ambil)}
+                        </td>
+                        <td className="text-center align-middle">
+                          {renderSchedule(car.jadwal_kembali)}
+                        </td>
+                        <td className="text-center align-middle">
+                          <span
+                            className="fw-bold d-block mx-auto text-center py-1 rounded-1"
+                            style={{
+                              maxWidth: "110px",
+                              fontSize: "0.75rem",
+                              backgroundColor: isReady
+                                ? "#e6f4ea"
+                                : isMaintenance
+                                  ? "#fce8e6"
+                                  : "#f1f3f5",
+                              color: isReady
+                                ? "#137333"
+                                : isMaintenance
+                                  ? "#c5221f"
+                                  : "#6c757d",
+                              border: `1px solid ${isReady ? "#c4eed0" : isMaintenance ? "#fad2cf" : "#dee2e6"}`,
+                            }}
+                          >
+                            {car.status_mobil || "-"}
+                          </span>
+                        </td>
+                        <td className="text-center">
+                          <button
+                            onClick={() =>
+                              handleDeleteClick(
+                                car.cars_id,
+                                car.jenis_unit,
+                                car.nomor_plat,
+                              )
+                            }
+                            className="btn btn-xs btn-light border text-danger px-2 py-1"
+                            style={{ borderRadius: "3px" }}
+                            title="Hapus Mobil Eksternal"
+                          >
+                            <i className="fas fa-trash small me-1"></i>Hapus
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

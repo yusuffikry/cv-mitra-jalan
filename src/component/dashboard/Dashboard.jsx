@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Calendar,
   BarChart3,
+  CreditCard,
 } from "lucide-react";
 import {
   LineChart,
@@ -49,6 +50,9 @@ export default function Dashboard() {
   const [expenseBarData, setExpenseBarData] = useState([]); // State u/ Bar Chart Pengeluaran
   const [topCars, setTopCars] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
+  
+  // State BARU untuk data transaksi yang Belum Lunas
+  const [unpaidTransactions, setUnpaidTransactions] = useState([]);
 
   const parseNumber = (val) => {
     if (!val) return 0;
@@ -81,12 +85,27 @@ export default function Dashboard() {
       if (expRes.error) throw expRes.error;
       if (carRes.error) throw carRes.error;
 
-      let transactions = trxRes.data || [];
+      const allTransactions = trxRes.data || [];
       let expenses = expRes.data || [];
       const cars = carRes.data || [];
 
-      // --- FILTER BERDASARKAN MODE (BULANAN/TAHUNAN) ---
-      transactions = transactions.filter((t) => {
+      // --- EKSTRAK DATA BELUM LUNAS (GLOBAL) ---
+      // Kita ambil dari seluruh data (sebelum difilter) agar hutang bulan lalu tetap muncul
+      const unpaidData = allTransactions
+        .filter((t) => t.status_pembayaran === "Belum Lunas")
+        .map((t) => ({
+          id: t.transaction_id,
+          customer: t.customers?.nama_pelanggan || "-",
+          armada: `${t.cars?.jenis_unit || "-"} (${t.cars?.nomor_plat || "-"})`,
+          waktu_ambil: `${t.tanggal_sewa || "-"} ${t.jam_sewa || ""}`,
+          waktu_kembali: `${t.tanggal_pengembalian || "-"} ${t.jam_pengembalian || ""}`,
+          sisa_pembayaran: parseNumber(t.sisa_pembayaran),
+          status: t.status_pembayaran,
+        }));
+      setUnpaidTransactions(unpaidData);
+
+      // --- FILTER TRANSAKSI BERDASARKAN MODE (BULANAN/TAHUNAN) ---
+      let transactionsFiltered = allTransactions.filter((t) => {
         if (!t.tanggal_sewa) return false;
         const date = new Date(t.tanggal_sewa);
         if (filterMode === "bulanan") {
@@ -112,8 +131,8 @@ export default function Dashboard() {
         }
       });
 
-      // Kalkulasi Stats Keuangan (Hanya hitung yang Lunas)
-      const totalPemasukan = transactions
+      // Kalkulasi Stats Keuangan (Hanya hitung yang Lunas untuk Pemasukan)
+      const totalPemasukan = transactionsFiltered
         .filter((t) => t.status_pembayaran === "Lunas")
         .reduce(
           (acc, curr) => acc + parseNumber(curr.total_pembayaran),
@@ -171,7 +190,6 @@ export default function Dashboard() {
         }
       });
 
-      // Ubah Object ke Array, buang kategori dengan nilai 0, urutkan besar -> kecil
       const newExpenseBarData = Object.keys(expCategories)
         .map((key) => ({ name: key, total: expCategories[key] }))
         .filter((item) => item.total > 0)
@@ -187,7 +205,7 @@ export default function Dashboard() {
         for (let i = 1; i <= daysInMonth; i++) {
           const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
 
-          const dailyIncome = transactions
+          const dailyIncome = transactionsFiltered
             .filter((t) => t.tanggal_sewa === dateStr && t.status_pembayaran === "Lunas")
             .reduce((sum, t) => sum + parseNumber(t.total_pembayaran), 0);
 
@@ -205,7 +223,7 @@ export default function Dashboard() {
         // Mode Tahunan (Agregasi 12 Bulan)
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
         for (let i = 1; i <= 12; i++) {
-          const monthlyIncome = transactions
+          const monthlyIncome = transactionsFiltered
             .filter((t) => {
               const date = new Date(t.tanggal_sewa);
               return date.getMonth() + 1 === i && t.status_pembayaran === "Lunas";
@@ -231,8 +249,7 @@ export default function Dashboard() {
 
       // --- KALKULASI TOP CARS ---
       const carRentCounts = {};
-      transactions.forEach((t) => {
-        // Top cars tetap menghitung frekuensi jalan walaupun belum lunas
+      transactionsFiltered.forEach((t) => {
         if (t.cars) {
           const plat = t.cars.nomor_plat;
           if (!carRentCounts[plat])
@@ -246,8 +263,8 @@ export default function Dashboard() {
       setTopCars(sortedCars);
 
       // --- AKTIVITAS TERKINI ---
-      const mappedTrx = transactions
-        .filter((t) => t.status_pembayaran === "Lunas") // Hanya tampilkan sebagai arus kas positif jika lunas
+      const mappedTrx = transactionsFiltered
+        .filter((t) => t.status_pembayaran === "Lunas")
         .map((t) => ({
           id: t.transaction_id,
           type: "income",
@@ -712,8 +729,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* GRID BAWAH DENGAN FIXED HEIGHT (h-[400px]) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* GRID TENGAH: MOBIL TERLARIS & AKTIVITAS TERKINI (h-[400px]) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               {/* Table Section */}
               <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[400px]">
                 <div className="p-3 lg:p-4 border-b flex items-center gap-3 flex-shrink-0 bg-white">
@@ -798,6 +815,73 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
+            {/* TABEL BARU: DAFTAR PIUTANG / BELUM LUNAS */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+              <div className="p-3 lg:p-4 border-b flex items-center justify-between flex-shrink-0 bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-rose-50 rounded-lg text-rose-600">
+                    <CreditCard size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-800 text-sm lg:text-base">
+                      Daftar Tagihan Belum Lunas (Piutang)
+                    </h3>
+                    <p className="text-xs text-gray-400 font-medium">
+                      Data seluruh pelanggan yang masih memiliki tunggakan
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold">
+                  {unpaidTransactions.length} Tagihan
+                </div>
+              </div>
+
+              <div className="overflow-x-auto w-full max-h-[400px]">
+                <table className="w-full text-left whitespace-nowrap">
+                  <thead className="text-gray-500 text-xs uppercase bg-gray-50/90 sticky top-0 z-10 backdrop-blur-sm shadow-sm">
+                    <tr>
+                      <th className="p-3 lg:p-4 font-bold">Pelanggan</th>
+                      <th className="p-3 lg:p-4 font-bold">Armada</th>
+                      <th className="p-3 lg:p-4 font-bold">Jadwal Ambil</th>
+                      <th className="p-3 lg:p-4 font-bold">Jadwal Kembali</th>
+                      <th className="p-3 lg:p-4 font-bold">Sisa Pembayaran</th>
+                      <th className="p-3 lg:p-4 font-bold text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-gray-100">
+                    {unpaidTransactions.length > 0 ? (
+                      unpaidTransactions.map((trx, idx) => (
+                        <tr key={trx.id || idx} className="hover:bg-rose-50/30 transition-colors">
+                          <td className="p-3 lg:p-4 font-bold text-gray-800">{trx.customer}</td>
+                          <td className="p-3 lg:p-4 text-gray-600">{trx.armada}</td>
+                          <td className="p-3 lg:p-4 text-gray-500 font-mono text-xs">{trx.waktu_ambil}</td>
+                          <td className="p-3 lg:p-4 text-gray-500 font-mono text-xs">{trx.waktu_kembali}</td>
+                          <td className="p-3 lg:p-4 font-bold text-rose-600 font-mono">
+                            Rp {new Intl.NumberFormat("id-ID").format(trx.sisa_pembayaran)}
+                          </td>
+                          <td className="p-3 lg:p-4 text-center">
+                            <span className="bg-rose-100 text-rose-700 border border-rose-200 px-2 py-1 rounded-md text-[10px] lg:text-[11px] font-bold uppercase">
+                              {trx.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6" className="p-8 text-center text-gray-400">
+                          <div className="flex flex-col items-center justify-center">
+                            <i className="fas fa-check-circle text-emerald-400 text-3xl mb-2"></i>
+                            <p>Semua tagihan pelanggan telah lunas.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </>
         )}
       </div>
