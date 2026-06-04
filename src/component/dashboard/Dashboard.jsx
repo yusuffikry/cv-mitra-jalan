@@ -41,17 +41,18 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     pemasukan: 0,
     pengeluaran: 0,
+    totalBelumLunas: 0,
     mobilTersedia: 0,
     mobilPemeliharaan: 0,
   });
 
   const [chartData, setChartData] = useState([]);
   const [pieData, setPieData] = useState([]);
-  const [expenseBarData, setExpenseBarData] = useState([]); // State u/ Bar Chart Pengeluaran
+  const [expenseBarData, setExpenseBarData] = useState([]);
   const [topCars, setTopCars] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   
-  // State BARU untuk data transaksi yang Belum Lunas
+  // State untuk data transaksi yang Belum Lunas
   const [unpaidTransactions, setUnpaidTransactions] = useState([]);
 
   const parseNumber = (val) => {
@@ -89,8 +90,7 @@ export default function Dashboard() {
       let expenses = expRes.data || [];
       const cars = carRes.data || [];
 
-      // --- EKSTRAK DATA BELUM LUNAS (GLOBAL) ---
-      // Kita ambil dari seluruh data (sebelum difilter) agar hutang bulan lalu tetap muncul
+      // --- EKSTRAK DATA BELUM LUNAS (GLOBAL / TIDAK TERPENGARUH FILTER WAKTU) ---
       const unpaidData = allTransactions
         .filter((t) => t.status_pembayaran === "Belum Lunas")
         .map((t) => ({
@@ -103,6 +103,12 @@ export default function Dashboard() {
           status: t.status_pembayaran,
         }));
       setUnpaidTransactions(unpaidData);
+
+      // Hitung Total Uang Belum Lunas
+      const totalBelumLunas = unpaidData.reduce(
+        (acc, curr) => acc + curr.sisa_pembayaran,
+        0
+      );
 
       // --- FILTER TRANSAKSI BERDASARKAN MODE (BULANAN/TAHUNAN) ---
       let transactionsFiltered = allTransactions.filter((t) => {
@@ -149,7 +155,6 @@ export default function Dashboard() {
         (c) => c.status_armada === "Internal" || !c.status_armada
       );
 
-      // Ketersediaan mobil tetap real-time, difilter dari armada internal saja
       const totalTersedia = internalCars.filter(
         (c) => c.status_mobil === "Tersedia",
       ).length;
@@ -160,6 +165,7 @@ export default function Dashboard() {
       setStats({
         pemasukan: totalPemasukan,
         pengeluaran: totalPengeluaran,
+        totalBelumLunas: totalBelumLunas,
         mobilTersedia: totalTersedia,
         mobilPemeliharaan: totalPemeliharaan,
       });
@@ -220,7 +226,6 @@ export default function Dashboard() {
           });
         }
       } else {
-        // Mode Tahunan (Agregasi 12 Bulan)
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
         for (let i = 1; i <= 12; i++) {
           const monthlyIncome = transactionsFiltered
@@ -294,9 +299,9 @@ export default function Dashboard() {
     }
   };
 
-  const formatRupiah = (angka) => {
+  // Fungsi format lengkap (tanpa Jt atau k) untuk StatCard
+  const formatRupiahFull = (angka) => {
     if (!angka) return "0";
-    if (angka >= 1000000) return (angka / 1000000).toFixed(1) + " Juta";
     return new Intl.NumberFormat("id-ID").format(angka);
   };
 
@@ -306,6 +311,7 @@ export default function Dashboard() {
       blue: "border-blue-500",
       green: "border-emerald-500",
       yellow: "border-amber-500",
+      orange: "border-orange-500", 
       red: "border-rose-500",
     };
     return (
@@ -401,7 +407,6 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-gray-200">
             <Calendar size={18} className="text-gray-400 ml-1" />
             
-            {/* Pilihan Mode Filter */}
             <select
               value={filterMode}
               onChange={(e) => setFilterMode(e.target.value)}
@@ -412,7 +417,6 @@ export default function Dashboard() {
             </select>
             <span className="text-gray-300">|</span>
 
-            {/* Pilihan Bulan (Sembunyikan jika mode Tahunan) */}
             {filterMode === "bulanan" && (
               <>
                 <select
@@ -431,7 +435,6 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Pilihan Tahun (Dinamis 5 Tahun Terakhir) */}
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
@@ -455,28 +458,34 @@ export default function Dashboard() {
         ) : (
           <>
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-4">
               <StatCard
                 title="Total Pemasukan"
-                value={`Rp ${formatRupiah(stats.pemasukan)}`}
+                value={`Rp ${formatRupiahFull(stats.pemasukan)}`}
                 color="green"
               />
               <StatCard
                 title="Total Pengeluaran"
-                value={`Rp ${formatRupiah(stats.pengeluaran)}`}
+                value={`Rp ${formatRupiahFull(stats.pengeluaran)}`}
                 color="red"
+              />
+              <StatCard
+                title="Total Belum Lunas"
+                value={`Rp ${formatRupiahFull(stats.totalBelumLunas)}`}
+                color="orange"
+                detail="Sisa tagihan pelanggan"
               />
               <StatCard
                 title="Mobil Tersedia"
                 value={`${stats.mobilTersedia} Unit`}
                 color="blue"
-                detail="Armada Internal (Real-time)"
+                detail="Garasi (Internal)"
               />
               <StatCard
-                title="Mobil Pemeliharaan"
+                title="Pemeliharaan"
                 value={`${stats.mobilPemeliharaan} Unit`}
                 color="yellow"
-                detail="Armada Internal (Real-time)"
+                detail="Perbaikan (Internal)"
                 isAlert={stats.mobilPemeliharaan > 0} 
               />
             </div>
@@ -632,7 +641,7 @@ export default function Dashboard() {
                     <span
                       className={`text-sm lg:text-base font-bold ${stats.pemasukan >= stats.pengeluaran ? "text-emerald-600" : "text-rose-600"}`}
                     >
-                      Rp {formatRupiah(stats.pemasukan - stats.pengeluaran)}
+                      Rp {formatRupiahFull(stats.pemasukan - stats.pengeluaran)}
                     </span>
                   </div>
                 </div>
@@ -729,9 +738,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* GRID TENGAH: MOBIL TERLARIS & AKTIVITAS TERKINI (h-[400px]) */}
+            {/* GRID TENGAH: MOBIL TERLARIS & AKTIVITAS TERKINI */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-              {/* Table Section */}
               <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[400px]">
                 <div className="p-3 lg:p-4 border-b flex items-center gap-3 flex-shrink-0 bg-white">
                   <div className="p-1.5 bg-amber-50 rounded-lg text-amber-600">
