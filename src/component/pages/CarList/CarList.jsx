@@ -24,6 +24,10 @@ export default function CarList() {
   const fetchCars = async () => {
     try {
       setLoading(true);
+      
+      // PENGAMAN 1: Cek status auth session Supabase terlebih dahulu
+      const { data: { session } } = await supabase.auth.getSession();
+
       const { data, error } = await supabase
         .from("cars")
         .select("*")
@@ -34,12 +38,13 @@ export default function CarList() {
       let fetchedCars = data || [];
 
       // ====================================================================
-      // LOGIKA OTOMATISASI STATUS & TARIK JADWAL RENTAL
+      // LOGIKA OTOMATISASI STATUS & TARIK JADWAL RENTAL (SUDAH DIAMANKAN)
       // ====================================================================
       const disewaCars = fetchedCars.filter((car) => car.status_mobil === "Disewa");
       const activeSchedules = {}; // Objek untuk menyimpan jadwal rental yang sedang berjalan
 
-      if (disewaCars.length > 0) {
+      // HANYA jalankan otomatisasi jika ada user yang login (mencegah bug terhapus saat logout)
+      if (session && disewaCars.length > 0) {
         const disewaCarIds = disewaCars.map((car) => car.cars_id || car.id);
 
         const { data: txData, error: txError } = await supabase
@@ -55,8 +60,10 @@ export default function CarList() {
             const carTxs = txData.filter((tx) => String(tx.car_id) === String(carId));
 
             if (carTxs.length === 0) {
-              // Jika transaksi sudah dihapus tapi mobil masih "Disewa"
-              carsToMakeAvailable.push(carId);
+              // PENGAMAN 2: Hanya ubah ke "Tersedia" jika txData memang ada isinya (bukan kosong karena RLS/Gagal Load)
+              if (txData.length > 0) {
+                carsToMakeAvailable.push(carId);
+              }
             } else {
               // Cari jadwal pengembalian paling akhir
               const latestTx = carTxs.reduce((latest, current) => {
@@ -80,7 +87,7 @@ export default function CarList() {
             }
           });
 
-          // Kembalikan status mobil ke "Tersedia"
+          // Kembalikan status mobil ke "Tersedia" di database
           if (carsToMakeAvailable.length > 0) {
             const pkColumn = fetchedCars[0].cars_id !== undefined ? "cars_id" : "id";
 
@@ -101,11 +108,12 @@ export default function CarList() {
       // Memasukkan jadwal ke dalam objek mobil untuk dirender
       fetchedCars = fetchedCars.map((car) => {
         const carId = car.cars_id || car.id;
-        if (car.status_mobil === "Disewa" && activeSchedules[carId]) {
+        if (car.status_mobil === "Disewa") {
           return {
             ...car,
-            jadwal_ambil: activeSchedules[carId].ambil,
-            jadwal_kembali: activeSchedules[carId].kembali
+            // PENGAMAN 3: Jika data transaksi gagal dimuat karena sedang proses logout, jangan tulis "Ready"
+            jadwal_ambil: activeSchedules[carId] ? activeSchedules[carId].ambil : "Memuat...",
+            jadwal_kembali: activeSchedules[carId] ? activeSchedules[carId].kembali : "Memuat..."
           };
         } else if (car.status_mobil === "Pemeliharaan") {
           return { ...car, jadwal_ambil: "Maintenance", jadwal_kembali: "Maintenance" };
@@ -296,6 +304,9 @@ export default function CarList() {
     if (val === "Maintenance") {
       return <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Maint.</span>;
     }
+    if (val === "Memuat...") {
+      return <span className="text-muted small fst-italic">Memuat...</span>;
+    }
     const [datePart, timePart] = val.split(" ");
     return (
       <div className="text-center font-mono small">
@@ -315,8 +326,7 @@ export default function CarList() {
         <div>
           <h5 className="fw-bold text-dark mb-0">Daftar Kendaraan / Armada</h5>
           <p className="text-muted mb-0" style={{ fontSize: "0.775rem" }}>
-            Total data unit logistik internal dan eksternal terintegrasi dalam
-            sistem ERP.
+            Total data unit logistik internal dan eksternal terintegrasi dalam sistem ERP.
           </p>
         </div>
 
@@ -354,8 +364,7 @@ export default function CarList() {
                 <button
                   className={`nav-link fw-bold ${activeTab === "car-rent" ? "text-white" : "text-dark bg-white border"}`}
                   style={{
-                    backgroundColor:
-                      activeTab === "car-rent" ? "#0052cc" : "#ffffff",
+                    backgroundColor: activeTab === "car-rent" ? "#0052cc" : "#ffffff",
                     borderRadius: "3px",
                     padding: "4px 12px",
                     fontSize: "0.775rem",
@@ -374,8 +383,7 @@ export default function CarList() {
                 <button
                   className={`nav-link fw-bold ${activeTab === "rent-to-rent" ? "text-white" : "text-dark bg-white border"}`}
                   style={{
-                    backgroundColor:
-                      activeTab === "rent-to-rent" ? "#0052cc" : "#ffffff",
+                    backgroundColor: activeTab === "rent-to-rent" ? "#0052cc" : "#ffffff",
                     borderRadius: "3px",
                     padding: "4px 12px",
                     fontSize: "0.775rem",
@@ -387,8 +395,7 @@ export default function CarList() {
                   }}
                   type="button"
                 >
-                  <i className="fas fa-exchange-alt me-1.5 small"></i>Rental
-                  Eksternal
+                  <i className="fas fa-exchange-alt me-1.5 small"></i>Rental Eksternal
                 </button>
               </li>
             </ul>
@@ -630,13 +637,11 @@ export default function CarList() {
                 ) : (
                   currentItems.map((car, index) => {
                     const gps1Nomor = car.no_gps || car.gps_nomor || car.no_gps_1;
-                    const gps1Aktif =
-                      car.masa_aktif_gps || car.masa_aktif_gps_1;
+                    const gps1Aktif = car.masa_aktif_gps || car.masa_aktif_gps_1;
                     const gps1Status = car.status_gps || car.status_gps_1;
 
                     const gps2Nomor = car.no_gps2 || car.no_gps_2;
-                    const gps2Aktif =
-                      car.masa_aktif_gps2 || car.masa_aktif_gps_2;
+                    const gps2Aktif = car.masa_aktif_gps2 || car.masa_aktif_gps_2;
                     const gps2Status = car.status_gps2 || car.status_gps_2;
 
                     const isReady = car.status_mobil === "Tersedia";
@@ -650,10 +655,7 @@ export default function CarList() {
                             fontFamily: "SFMono-Regular, Menlo, monospace",
                           }}
                         >
-                          {String(indexOfFirstItem + index + 1).padStart(
-                            2,
-                            "0",
-                          )}
+                          {String(indexOfFirstItem + index + 1).padStart(2, "0")}
                         </td>
                         <td>
                           <div className="fw-bold text-dark">
@@ -663,8 +665,7 @@ export default function CarList() {
                             className="text-muted small"
                             style={{ fontSize: "0.7rem" }}
                           >
-                            {car.tipe_kendaraan || "-"} •{" "}
-                            {car.tahun_produksi || "-"}
+                            {car.tipe_kendaraan || "-"} • {car.tahun_produksi || "-"}
                           </div>
                         </td>
                         <td className="text-center">
@@ -696,9 +697,7 @@ export default function CarList() {
                               className={`font-mono d-block ${gps1Status === "Aktif" ? "text-success" : "text-danger"}`}
                               style={{ fontSize: "0.675rem" }}
                             >
-                              <i
-                                className={`fas ${gps1Status === "Aktif" ? "fa-circle" : "fa-minus-circle"} me-1 small`}
-                              ></i>
+                              <i className={`fas ${gps1Status === "Aktif" ? "fa-circle" : "fa-minus-circle"} me-1 small`}></i>
                               s/d {gps1Aktif}
                             </small>
                           )}
@@ -714,17 +713,13 @@ export default function CarList() {
                                   className={`font-mono d-block ${gps2Status === "Aktif" ? "text-success" : "text-muted"}`}
                                   style={{ fontSize: "0.675rem" }}
                                 >
-                                  <i
-                                    className={`fas ${gps2Status === "Aktif" ? "fa-circle" : "fa-minus-circle"} me-1 small`}
-                                  ></i>
+                                  <i className={`fas ${gps2Status === "Aktif" ? "fa-circle" : "fa-minus-circle"} me-1 small`}></i>
                                   s/d {gps2Aktif}
                                 </small>
                               )}
                             </>
                           ) : (
-                            <span className="text-muted small fst-italic">
-                              -
-                            </span>
+                            <span className="text-muted small fst-italic">-</span>
                           )}
                         </td>
                         <td
@@ -745,20 +740,12 @@ export default function CarList() {
                         </td>
                         <td className="text-center align-middle">
                           <span
-                            className="fw-bold d-block mx-auto text-center py-1 rounded-1"
+                            className="badge bg-body-secondary text-dark-emphasis fw-bold d-block mx-auto text-center py-1 rounded-1"
                             style={{
                               maxWidth: "110px",
                               fontSize: "0.75rem",
-                              backgroundColor: isReady
-                                ? "#e6f4ea"
-                                : isMaintenance
-                                  ? "#fce8e6"
-                                  : "#f1f3f5",
-                              color: isReady
-                                ? "#137333"
-                                : isMaintenance
-                                  ? "#c5221f"
-                                  : "#6c757d",
+                              backgroundColor: isReady ? "#e6f4ea" : isMaintenance ? "#fce8e6" : "#f1f3f5",
+                              color: isReady ? "#137333" : isMaintenance ? "#c5221f" : "#6c757d",
                               border: `1px solid ${isReady ? "#c4eed0" : isMaintenance ? "#fad2cf" : "#dee2e6"}`,
                             }}
                           >
@@ -985,20 +972,12 @@ export default function CarList() {
                         </td>
                         <td className="text-center align-middle">
                           <span
-                            className="fw-bold d-block mx-auto text-center py-1 rounded-1"
+                            className="badge bg-body-secondary text-dark-emphasis fw-bold d-block mx-auto text-center py-1 rounded-1"
                             style={{
                               maxWidth: "110px",
                               fontSize: "0.75rem",
-                              backgroundColor: isReady
-                                ? "#e6f4ea"
-                                : isMaintenance
-                                  ? "#fce8e6"
-                                  : "#f1f3f5",
-                              color: isReady
-                                ? "#137333"
-                                : isMaintenance
-                                  ? "#c5221f"
-                                  : "#6c757d",
+                              backgroundColor: isReady ? "#e6f4ea" : isMaintenance ? "#fce8e6" : "#f1f3f5",
+                              color: isReady ? "#137333" : isMaintenance ? "#c5221f" : "#6c757d",
                               border: `1px solid ${isReady ? "#c4eed0" : isMaintenance ? "#fad2cf" : "#dee2e6"}`,
                             }}
                           >
@@ -1188,8 +1167,7 @@ export default function CarList() {
                 </div>
                 <h6 className="fw-bold text-dark mb-1">Berhasil Dihapus</h6>
                 <p className="text-muted mb-0" style={{ fontSize: "0.75rem" }}>
-                  Data inventaris unit kendaraan telah berhasil dikeluarkan dari
-                  sistem.
+                  Data inventaris unit kendaraan telah berhasil dikeluarkan dari sistem.
                 </p>
               </div>
             </div>
