@@ -25,7 +25,7 @@ export default function CarList() {
     try {
       setLoading(true);
       
-      // PENGAMAN 1: Cek status auth session Supabase terlebih dahulu
+      // PENGAMAN: Cek session agar fungsi sinkronisasi tidak berjalan liar saat logout
       const { data: { session } } = await supabase.auth.getSession();
 
       const { data, error } = await supabase
@@ -38,88 +38,100 @@ export default function CarList() {
       let fetchedCars = data || [];
 
       // ====================================================================
-      // LOGIKA OTOMATISASI STATUS & TARIK JADWAL RENTAL (SUDAH DIAMANKAN)
+      // LOGIKA BACA TRANSAKSI & PENENTUAN STATUS OTOMATIS
       // ====================================================================
-      const disewaCars = fetchedCars.filter((car) => car.status_mobil === "Disewa");
-      const activeSchedules = {}; // Objek untuk menyimpan jadwal rental yang sedang berjalan
-
-      // HANYA jalankan otomatisasi jika ada user yang login (mencegah bug terhapus saat logout)
-      if (session && disewaCars.length > 0) {
-        const disewaCarIds = disewaCars.map((car) => car.cars_id || car.id);
-
+      if (session && fetchedCars.length > 0) {
+        // Ambil semua transaksi untuk mencocokkan jadwal
         const { data: txData, error: txError } = await supabase
           .from("transactions")
-          .select("car_id, tanggal_sewa, jam_sewa, tanggal_pengembalian, jam_pengembalian")
-          .in("car_id", disewaCarIds);
+          .select("car_id, tanggal_sewa, jam_sewa, tanggal_pengembalian, jam_pengembalian");
 
         if (!txError && txData) {
+          // Ambil waktu lokal saat ini dengan format string agar tidak kacau zona waktu
           const now = new Date();
-          const carsToMakeAvailable = [];
+          const currentYear = now.getFullYear();
+          const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+          const currentDay = String(now.getDate()).padStart(2, '0');
+          const currentHours = String(now.getHours()).padStart(2, '0');
+          const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+          
+          const currentStringDate = `${currentYear}-${currentMonth}-${currentDay}`;
+          const currentStringTime = `${currentHours}:${currentMinutes}`;
 
-          disewaCarIds.forEach((carId) => {
+          const carsToUpdateDisewa = [];
+          const carsToUpdateTersedia = [];
+
+          fetchedCars = fetchedCars.map((car) => {
+            // Abaikan mobil yang sedang masuk bengkel (Pemeliharaan)
+            if (car.status_mobil === "Pemeliharaan") {
+              return { ...car, jadwal_ambil: "Maintenance", jadwal_kembali: "Maintenance" };
+            }
+
+            const carId = car.cars_id || car.id;
             const carTxs = txData.filter((tx) => String(tx.car_id) === String(carId));
 
-            if (carTxs.length === 0) {
-              // PENGAMAN 2: Hanya ubah ke "Tersedia" jika txData memang ada isinya (bukan kosong karena RLS/Gagal Load)
-              if (txData.length > 0) {
-                carsToMakeAvailable.push(carId);
-              }
-            } else {
-              // Cari jadwal pengembalian paling akhir
-              const latestTx = carTxs.reduce((latest, current) => {
-                const currDate = new Date(`${current.tanggal_pengembalian}T${current.jam_pengembalian || "00:00:00"}`);
-                const latestDate = new Date(`${latest.tanggal_pengembalian}T${latest.jam_pengembalian || "00:00:00"}`);
-                return currDate > latestDate ? current : latest;
+            if (carTxs.length > 0) {
+              // Sortir untuk mendapatkan transaksi yang tanggal baliknya paling jauh/terakhir
+              carTxs.sort((a, b) => {
+                const dateA = `${a.tanggal_pengembalian} ${a.jam_pengembalian || "00:00"}`;
+                const dateB = `${b.tanggal_pengembalian} ${b.jam_pengembalian || "00:00"}`;
+                return dateA > dateB ? -1 : 1; // Paling lama ada di urutan pertama
               });
 
-              const latestReturnTime = new Date(`${latestTx.tanggal_pengembalian}T${latestTx.jam_pengembalian || "00:00:00"}`);
+              const latestTx = carTxs[0];
+              const tglKembali = latestTx.tanggal_pengembalian || "0000-00-00";
+              const jamKembali = latestTx.jam_pengembalian || "00:00";
 
-              // Jika waktu sekarang sudah melewati waktu pengembalian transaksi terakhir
-              if (now > latestReturnTime) {
-                carsToMakeAvailable.push(carId);
-              } else {
-                // Jika masih disewa, simpan jadwalnya
-                activeSchedules[carId] = {
-                  ambil: `${latestTx.tanggal_sewa} ${latestTx.jam_sewa || ""}`,
-                  kembali: `${latestTx.tanggal_pengembalian} ${latestTx.jam_pengembalian || ""}`
+              // Cek apakah waktu saat ini SUDAH MELEWATI jadwal kembali
+              let isOverdue = false;
+              if (currentStringDate > tglKembali) {
+                isOverdue = true; // Tanggal sudah lewat
+              } else if (currentStringDate === tglKembali && currentStringTime >= jamKembali) {
+                isOverdue = true; // Tanggal sama, tapi jam sudah lewat
+              }
+
+              // JIKA BELUM JATUH TEMPO -> MOBIL STATUSNYA DISEWA
+              if (!isOverdue) {
+                if (car.status_mobil !== "Disewa") carsToUpdateDisewa.push(carId);
+
+                return {
+                  ...car,
+                  status_mobil: "Disewa", // Update tampilan UI
+                  jadwal_ambil: `${latestTx.tanggal_sewa} ${latestTx.jam_sewa || ""}`,
+                  jadwal_kembali: `${latestTx.tanggal_pengembalian} ${latestTx.jam_pengembalian || ""}`
                 };
               }
             }
+
+            // JIKA TIDAK ADA TRANSAKSI / SUDAH JATUH TEMPO -> MOBIL TERSEDIA
+            if (car.status_mobil === "Disewa") carsToUpdateTersedia.push(carId);
+
+            return {
+              ...car,
+              status_mobil: "Tersedia", // Update tampilan UI
+              jadwal_ambil: "Ready",
+              jadwal_kembali: "Ready"
+            };
           });
 
-          // Kembalikan status mobil ke "Tersedia" di database
-          if (carsToMakeAvailable.length > 0) {
-            const pkColumn = fetchedCars[0].cars_id !== undefined ? "cars_id" : "id";
+          // SINKRONISASI KE DATABASE SECARA DIAM-DIAM
+          const pkColumn = fetchedCars[0].cars_id !== undefined ? "cars_id" : "id";
 
-            await supabase
-              .from("cars")
-              .update({ status_mobil: "Tersedia" })
-              .in(pkColumn, carsToMakeAvailable);
-
-            fetchedCars = fetchedCars.map((car) =>
-              carsToMakeAvailable.includes(car.cars_id || car.id)
-                ? { ...car, status_mobil: "Tersedia" }
-                : car
-            );
+          if (carsToUpdateDisewa.length > 0) {
+            supabase.from("cars").update({ status_mobil: "Disewa" }).in(pkColumn, carsToUpdateDisewa).then();
+          }
+          if (carsToUpdateTersedia.length > 0) {
+            supabase.from("cars").update({ status_mobil: "Tersedia" }).in(pkColumn, carsToUpdateTersedia).then();
           }
         }
+      } else {
+        // Fallback UI statis jika user sedang logout
+        fetchedCars = fetchedCars.map((car) => {
+          if (car.status_mobil === "Pemeliharaan") return { ...car, jadwal_ambil: "Maintenance", jadwal_kembali: "Maintenance" };
+          if (car.status_mobil === "Disewa") return { ...car, jadwal_ambil: "Memuat...", jadwal_kembali: "Memuat..." };
+          return { ...car, jadwal_ambil: "Ready", jadwal_kembali: "Ready" };
+        });
       }
-
-      // Memasukkan jadwal ke dalam objek mobil untuk dirender
-      fetchedCars = fetchedCars.map((car) => {
-        const carId = car.cars_id || car.id;
-        if (car.status_mobil === "Disewa") {
-          return {
-            ...car,
-            // PENGAMAN 3: Jika data transaksi gagal dimuat karena sedang proses logout, jangan tulis "Ready"
-            jadwal_ambil: activeSchedules[carId] ? activeSchedules[carId].ambil : "Memuat...",
-            jadwal_kembali: activeSchedules[carId] ? activeSchedules[carId].kembali : "Memuat..."
-          };
-        } else if (car.status_mobil === "Pemeliharaan") {
-          return { ...car, jadwal_ambil: "Maintenance", jadwal_kembali: "Maintenance" };
-        }
-        return { ...car, jadwal_ambil: "Ready", jadwal_kembali: "Ready" };
-      });
       // ====================================================================
 
       setCars(fetchedCars);
@@ -299,17 +311,17 @@ export default function CarList() {
   // Komponen Helper untuk render cell jadwal
   const renderSchedule = (val) => {
     if (!val || val === "Ready") {
-      return <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Ready</span>;
+      return <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 text-nowrap">Ready</span>;
     }
     if (val === "Maintenance") {
-      return <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Maint.</span>;
+      return <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 text-nowrap">Maint.</span>;
     }
     if (val === "Memuat...") {
-      return <span className="text-muted small fst-italic">Memuat...</span>;
+      return <span className="text-muted small fst-italic text-nowrap">Memuat...</span>;
     }
     const [datePart, timePart] = val.split(" ");
     return (
-      <div className="text-center font-mono small">
+      <div className="text-center font-mono small text-nowrap">
         <div className="fw-bold text-dark">{datePart}</div>
         <div className="text-muted" style={{ fontSize: "0.7rem" }}>{timePart || "-"}</div>
       </div>
@@ -318,11 +330,11 @@ export default function CarList() {
 
   return (
     <div
-      className="container-fluid py-3 bg-white d-flex flex-column"
-      style={{ fontSize: "0.825rem", color: "#333333" }}
+      className="container-fluid py-3 bg-white d-flex flex-column w-100 h-100"
+      style={{ fontSize: "0.825rem", color: "#333333", overflow: "hidden" }}
     >
       {/* Header Utama */}
-      <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+      <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2 flex-shrink-0">
         <div>
           <h5 className="fw-bold text-dark mb-0">Daftar Kendaraan / Armada</h5>
           <p className="text-muted mb-0" style={{ fontSize: "0.775rem" }}>
@@ -354,7 +366,7 @@ export default function CarList() {
 
       {/* Tabs Kontrol & Search Bar */}
       <div
-        className="card bg-light border mb-3"
+        className="card bg-light border mb-3 flex-shrink-0"
         style={{ borderRadius: "3px" }}
       >
         <div className="card-body p-2">
@@ -437,194 +449,35 @@ export default function CarList() {
       {/* Kontainer Tabel Utama */}
       <div
         className="card border flex-grow-1 d-flex flex-column overflow-hidden"
-        style={{ borderRadius: "3px" }}
+        style={{ borderRadius: "3px", minHeight: 0, minWidth: 0 }}
       >
-        <div className="table-responsive flex-grow-1 overflow-auto">
+        <div className="table-responsive flex-grow-1 w-100" style={{ overflow: "auto" }}>
           {activeTab === "car-rent" ? (
             /* ================= TABEL INTERNAL ================= */
-            <table className="table table-sm table-hover align-middle mb-0 text-nowrap">
-              <thead>
+            <table className="table table-sm table-hover align-middle mb-0 text-nowrap w-100">
+              <thead className="sticky-top bg-white" style={{ zIndex: 10 }}>
                 <tr style={{ borderBottom: "2px solid #dee2e6" }}>
-                  <th
-                    className="text-center py-2 text-dark border-bottom"
-                    style={{
-                      width: "50px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    No
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom"
-                    style={{
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Unit Kendaraan
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "110px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Plat Nomor
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "100px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Transmisi
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "110px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Jatuh Tempo
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "110px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Tgl Servis
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "110px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Tgl Pajak
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom"
-                    style={{
-                      width: "160px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    GPS Utama (1)
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom"
-                    style={{
-                      width: "160px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    GPS Cadangan (2)
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom"
-                    style={{
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Keluhan Unit
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "110px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Jadwal Ambil
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "110px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Jadwal Kembali
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "120px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Status
-                  </th>
-                  <th
-                    className="text-center py-2 text-dark border-bottom"
-                    style={{
-                      width: "90px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Aksi
-                  </th>
+                  <th className="text-center py-2 text-dark border-bottom" style={{ width: "50px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>No</th>
+                  <th className="py-2 text-dark border-bottom" style={{ backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Unit Kendaraan</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "110px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Plat Nomor</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "100px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Transmisi</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "110px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Jatuh Tempo</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "110px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Tgl Servis</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "110px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Tgl Pajak</th>
+                  <th className="py-2 text-dark border-bottom" style={{ width: "160px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>GPS Utama (1)</th>
+                  <th className="py-2 text-dark border-bottom" style={{ width: "160px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>GPS Cadangan (2)</th>
+                  <th className="py-2 text-dark border-bottom" style={{ backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Keluhan Unit</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "110px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Jadwal Ambil</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "110px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Jadwal Kembali</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "120px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Status</th>
+                  <th className="text-center py-2 text-dark border-bottom" style={{ width: "90px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan="14"
-                      className="text-center py-4 text-muted"
-                      style={{ fontFamily: "monospace" }}
-                    >
-                      <div
-                        className="spinner-border spinner-border-sm me-2 text-secondary"
-                        role="status"
-                      ></div>
+                    <td colSpan="14" className="text-center py-4 text-muted" style={{ fontFamily: "monospace" }}>
+                      <div className="spinner-border spinner-border-sm me-2 text-secondary" role="status"></div>
                       Memuat data armada internal...
                     </td>
                   </tr>
@@ -649,54 +502,28 @@ export default function CarList() {
 
                     return (
                       <tr key={car.cars_id}>
-                        <td
-                          className="text-center text-muted py-2"
-                          style={{
-                            fontFamily: "SFMono-Regular, Menlo, monospace",
-                          }}
-                        >
+                        <td className="text-center text-muted py-2" style={{ fontFamily: "SFMono-Regular, Menlo, monospace" }}>
                           {String(indexOfFirstItem + index + 1).padStart(2, "0")}
                         </td>
                         <td>
-                          <div className="fw-bold text-dark">
-                            {car.jenis_unit || "-"}
-                          </div>
-                          <div
-                            className="text-muted small"
-                            style={{ fontSize: "0.7rem" }}
-                          >
+                          <div className="fw-bold text-dark">{car.jenis_unit || "-"}</div>
+                          <div className="text-muted small" style={{ fontSize: "0.7rem" }}>
                             {car.tipe_kendaraan || "-"} • {car.tahun_produksi || "-"}
                           </div>
                         </td>
                         <td className="text-center">
-                          <span
-                            className="badge bg-light text-dark border px-2 py-1 font-mono d-block mx-auto"
-                            style={{ fontSize: "0.75rem", maxWidth: "100px" }}
-                          >
+                          <span className="badge bg-light text-dark border px-2 py-1 font-mono d-block mx-auto" style={{ fontSize: "0.75rem", maxWidth: "100px" }}>
                             {car.nomor_plat || "-"}
                           </span>
                         </td>
-                        <td className="text-center text-primary fw-medium">
-                          {car.transmisi || "-"}
-                        </td>
-                        <td className="text-center text-secondary font-mono small">
-                          {car.tgl_jatuh_tempo || "-"}
-                        </td>
-                        <td className="text-center text-secondary font-mono small">
-                          {car.tgl_pergantian_oli || "-"}
-                        </td>
-                        <td className="text-center text-secondary font-mono small">
-                          {car.tgl_mati_pajak || "-"}
-                        </td>
+                        <td className="text-center text-primary fw-medium">{car.transmisi || "-"}</td>
+                        <td className="text-center text-secondary font-mono small">{car.tgl_jatuh_tempo || "-"}</td>
+                        <td className="text-center text-secondary font-mono small">{car.tgl_pergantian_oli || "-"}</td>
+                        <td className="text-center text-secondary font-mono small">{car.tgl_mati_pajak || "-"}</td>
                         <td>
-                          <div className="fw-bold text-dark font-mono small">
-                            {gps1Nomor || "-"}
-                          </div>
+                          <div className="fw-bold text-dark font-mono small">{gps1Nomor || "-"}</div>
                           {gps1Aktif && (
-                            <small
-                              className={`font-mono d-block ${gps1Status === "Aktif" ? "text-success" : "text-danger"}`}
-                              style={{ fontSize: "0.675rem" }}
-                            >
+                            <small className={`font-mono d-block ${gps1Status === "Aktif" ? "text-success" : "text-danger"}`} style={{ fontSize: "0.675rem" }}>
                               <i className={`fas ${gps1Status === "Aktif" ? "fa-circle" : "fa-minus-circle"} me-1 small`}></i>
                               s/d {gps1Aktif}
                             </small>
@@ -705,14 +532,9 @@ export default function CarList() {
                         <td>
                           {gps2Nomor || gps2Aktif ? (
                             <>
-                              <div className="fw-bold text-dark font-mono small">
-                                {gps2Nomor || "-"}
-                              </div>
+                              <div className="fw-bold text-dark font-mono small">{gps2Nomor || "-"}</div>
                               {gps2Aktif && (
-                                <small
-                                  className={`font-mono d-block ${gps2Status === "Aktif" ? "text-success" : "text-muted"}`}
-                                  style={{ fontSize: "0.675rem" }}
-                                >
+                                <small className={`font-mono d-block ${gps2Status === "Aktif" ? "text-success" : "text-muted"}`} style={{ fontSize: "0.675rem" }}>
                                   <i className={`fas ${gps2Status === "Aktif" ? "fa-circle" : "fa-minus-circle"} me-1 small`}></i>
                                   s/d {gps2Aktif}
                                 </small>
@@ -722,14 +544,7 @@ export default function CarList() {
                             <span className="text-muted small fst-italic">-</span>
                           )}
                         </td>
-                        <td
-                          className="text-wrap text-muted"
-                          style={{
-                            minWidth: "150px",
-                            maxWidth: "220px",
-                            fontSize: "0.8rem",
-                          }}
-                        >
+                        <td className="text-wrap text-muted" style={{ minWidth: "150px", maxWidth: "220px", fontSize: "0.8rem" }}>
                           {car.keluhan_unit || "-"}
                         </td>
                         <td className="text-center align-middle">
@@ -754,22 +569,11 @@ export default function CarList() {
                         </td>
                         <td className="text-center">
                           <div className="btn-group btn-group-sm">
-                            <Link
-                              to={`/carlist/edit/${car.cars_id}`}
-                              className="btn btn-light border text-primary"
-                              title="Edit"
-                              style={{ borderRadius: "3px 0 0 3px" }}
-                            >
+                            <Link to={`/carlist/edit/${car.cars_id}`} className="btn btn-light border text-primary" title="Edit" style={{ borderRadius: "3px 0 0 3px" }}>
                               <i className="fas fa-edit small"></i>
                             </Link>
                             <button
-                              onClick={() =>
-                                handleDeleteClick(
-                                  car.cars_id,
-                                  car.jenis_unit,
-                                  car.nomor_plat,
-                                )
-                              }
+                              onClick={() => handleDeleteClick(car.cars_id, car.jenis_unit, car.nomor_plat)}
                               className="btn btn-light border text-danger"
                               title="Hapus"
                               style={{ borderRadius: "0 3px 3px 0" }}
@@ -786,130 +590,25 @@ export default function CarList() {
             </table>
           ) : (
             /* ================= TABEL EKSTERNAL ================= */
-            <table className="table table-sm table-hover align-middle mb-0 text-nowrap">
-              <thead>
+            <table className="table table-sm table-hover align-middle mb-0 text-nowrap w-100">
+              <thead className="sticky-top bg-white" style={{ zIndex: 10 }}>
                 <tr style={{ borderBottom: "2px solid #dee2e6" }}>
-                  <th
-                    className="text-center py-2 text-dark border-bottom"
-                    style={{
-                      width: "50px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    No
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom"
-                    style={{
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Kendaraan Eksternal
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "180px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Plat Nomor
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "150px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Transmisi
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "150px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Sumber Vendor
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "110px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Jadwal Ambil
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "110px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Jadwal Kembali
-                  </th>
-                  <th
-                    className="py-2 text-dark border-bottom text-center"
-                    style={{
-                      width: "120px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Status
-                  </th>
-                  <th
-                    className="text-center py-2 text-dark border-bottom"
-                    style={{
-                      width: "100px",
-                      backgroundColor: "#f1f3f5",
-                      fontSize: "0.725rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Aksi
-                  </th>
+                  <th className="text-center py-2 text-dark border-bottom" style={{ width: "50px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>No</th>
+                  <th className="py-2 text-dark border-bottom" style={{ backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Kendaraan Eksternal</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "180px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Plat Nomor</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "150px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Transmisi</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "150px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Sumber Vendor</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "110px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Jadwal Ambil</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "110px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Jadwal Kembali</th>
+                  <th className="py-2 text-dark border-bottom text-center" style={{ width: "120px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Status</th>
+                  <th className="text-center py-2 text-dark border-bottom" style={{ width: "100px", backgroundColor: "#f1f3f5", fontSize: "0.725rem", fontWeight: 700, letterSpacing: "0.5px" }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan="9"
-                      className="text-center py-4 text-muted"
-                      style={{ fontFamily: "monospace" }}
-                    >
-                      <div
-                        className="spinner-border spinner-border-sm me-2 text-secondary"
-                        role="status"
-                      ></div>
+                    <td colSpan="9" className="text-center py-4 text-muted" style={{ fontFamily: "monospace" }}>
+                      <div className="spinner-border spinner-border-sm me-2 text-secondary" role="status"></div>
                       Memuat data armada eksternal...
                     </td>
                   </tr>
@@ -926,50 +625,28 @@ export default function CarList() {
 
                     return (
                       <tr key={car.cars_id}>
-                        <td
-                          className="text-center text-muted py-2.5"
-                          style={{
-                            fontFamily: "SFMono-Regular, Menlo, monospace",
-                          }}
-                        >
+                        <td className="text-center text-muted py-2.5" style={{ fontFamily: "SFMono-Regular, Menlo, monospace" }}>
                           {String(indexOfFirstItem + index + 1).padStart(2, "0")}
                         </td>
                         <td>
-                          <div className="fw-bold text-dark">
-                            {car.jenis_unit || "-"}
-                          </div>
-                          <div
-                            className="text-muted small"
-                            style={{ fontSize: "0.7rem" }}
-                          >
+                          <div className="fw-bold text-dark">{car.jenis_unit || "-"}</div>
+                          <div className="text-muted small" style={{ fontSize: "0.7rem" }}>
                             Tipe: {car.tipe_kendaraan || "-"}
                           </div>
                         </td>
                         <td className="text-center">
-                          <span
-                            className="badge bg-light text-dark border px-2 py-1 font-mono d-block mx-auto"
-                            style={{ fontSize: "0.75rem", maxWidth: "120px" }}
-                          >
+                          <span className="badge bg-light text-dark border px-2 py-1 font-mono d-block mx-auto" style={{ fontSize: "0.75rem", maxWidth: "120px" }}>
                             {car.nomor_plat || "-"}
                           </span>
                         </td>
-                        <td className="text-center text-primary fw-medium">
-                          {car.transmisi || "-"}
-                        </td>
+                        <td className="text-center text-primary fw-medium">{car.transmisi || "-"}</td>
                         <td className="text-center">
-                          <span
-                            className="badge border px-2 py-1 text-secondary bg-light"
-                            style={{ borderRadius: "2px" }}
-                          >
+                          <span className="badge border px-2 py-1 text-secondary bg-light" style={{ borderRadius: "2px" }}>
                             Rent-to-Rent
                           </span>
                         </td>
-                        <td className="text-center align-middle">
-                          {renderSchedule(car.jadwal_ambil)}
-                        </td>
-                        <td className="text-center align-middle">
-                          {renderSchedule(car.jadwal_kembali)}
-                        </td>
+                        <td className="text-center align-middle">{renderSchedule(car.jadwal_ambil)}</td>
+                        <td className="text-center align-middle">{renderSchedule(car.jadwal_kembali)}</td>
                         <td className="text-center align-middle">
                           <span
                             className="badge bg-body-secondary text-dark-emphasis fw-bold d-block mx-auto text-center py-1 rounded-1"
@@ -986,13 +663,7 @@ export default function CarList() {
                         </td>
                         <td className="text-center">
                           <button
-                            onClick={() =>
-                              handleDeleteClick(
-                                car.cars_id,
-                                car.jenis_unit,
-                                car.nomor_plat,
-                              )
-                            }
+                            onClick={() => handleDeleteClick(car.cars_id, car.jenis_unit, car.nomor_plat)}
                             className="btn btn-xs btn-light border text-danger px-2 py-1"
                             style={{ borderRadius: "3px" }}
                             title="Hapus Mobil Eksternal"
@@ -1010,7 +681,7 @@ export default function CarList() {
         </div>
 
         {/* Footer Pagination Kontrol */}
-        <div className="card-footer bg-light border-top p-2 d-flex justify-content-between align-items-center">
+        <div className="card-footer bg-light border-top p-2 d-flex justify-content-between align-items-center flex-shrink-0">
           <div className="text-muted" style={{ fontSize: "0.75rem" }}>
             Menampilkan{" "}
             <span className="fw-bold text-dark">
@@ -1079,6 +750,128 @@ export default function CarList() {
               </ul>
             </nav>
           )}
+        </div>
+      </div>
+
+      {/* TAMPILAN MOBILE (Card View) */}
+      <div className="d-block d-md-none mt-3">
+        <div className="row g-3">
+          {currentItems.map((car, index) => {
+            const isReady = car.status_mobil === "Tersedia";
+            const isMaintenance = car.status_mobil === "Pemeliharaan";
+
+            return (
+              <div className="col-12" key={`mob-${car.cars_id}`}>
+                <div className="card border border-light-subtle shadow-sm rounded-3 bg-white p-3">
+                  <div
+                    className="d-flex justify-content-between align-items-start border-bottom pb-2 mb-2"
+                    style={{ borderColor: "#f1f5f9" }}
+                  >
+                    <div>
+                      <span className="text-muted small fw-medium me-2">
+                        #{indexOfFirstItem + index + 1}
+                      </span>
+                      <span
+                        className="fw-bold text-dark"
+                        style={{ fontSize: "0.95rem" }}
+                      >
+                        {car.jenis_unit || "-"}
+                      </span>
+                    </div>
+                    <span
+                      className="badge rounded-1 px-2 py-1 border fw-semibold d-inline-flex align-items-center gap-1"
+                      style={{
+                        fontSize: "0.7rem",
+                        backgroundColor: isReady
+                          ? "#f0fdf4"
+                          : isMaintenance
+                            ? "#fce8e6"
+                            : "#f8fafc",
+                        borderColor: isReady
+                          ? "#bbf7d0"
+                          : isMaintenance
+                            ? "#fecaca"
+                            : "#e2e8f0",
+                        color: isReady
+                          ? "#15803d"
+                          : isMaintenance
+                            ? "#991b1b"
+                            : "#475569",
+                      }}
+                    >
+                      {car.status_mobil || "-"}
+                    </span>
+                  </div>
+                  <div
+                    className="row g-2 mb-2"
+                    style={{ fontSize: "0.8rem" }}
+                  >
+                    <div className="col-6">
+                      <div className="text-muted small">Plat Nomor</div>
+                      <div className="fw-semibold text-secondary mt-0.5">
+                        {car.nomor_plat || "-"}
+                      </div>
+                    </div>
+                    <div className="col-6">
+                      <div className="text-muted small">Transmisi</div>
+                      <div className="text-primary fw-medium mt-0.5">
+                        {car.transmisi || "-"}
+                      </div>
+                    </div>
+                    <div className="col-6">
+                      <div className="text-muted small">Jadwal Ambil</div>
+                      <div className="mt-0.5 text-dark">
+                        {renderSchedule(car.jadwal_ambil)}
+                      </div>
+                    </div>
+                    <div className="col-6">
+                      <div className="text-muted small">Jadwal Kembali</div>
+                      <div className="mt-0.5 text-dark">
+                        {renderSchedule(car.jadwal_kembali)}
+                      </div>
+                    </div>
+                    {activeTab === "car-rent" && (
+                      <div className="col-12 mt-2">
+                        <div className="text-muted small">Keluhan</div>
+                        <div className="text-secondary text-wrap mt-0.5 fst-italic">
+                          {car.keluhan_unit || "-"}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tombol Aksi Mobile */}
+                  <div
+                    className="d-flex justify-content-end gap-2 border-top pt-2 mt-2"
+                    style={{ borderColor: "#f1f5f9" }}
+                  >
+                    {activeTab === "car-rent" ? (
+                      <Link
+                        to={`/carlist/edit/${car.cars_id}`}
+                        className="btn btn-sm btn-light border text-primary px-3 d-flex align-items-center gap-1.5"
+                        style={{ fontSize: "0.75rem" }}
+                      >
+                        <i className="fas fa-edit"></i> Edit
+                      </Link>
+                    ) : null}
+                    <button
+                      onClick={() =>
+                        handleDeleteClick(
+                          car.cars_id,
+                          car.jenis_unit,
+                          car.nomor_plat,
+                        )
+                      }
+                      className="btn btn-sm btn-light border text-danger px-3 d-flex align-items-center gap-1.5"
+                      style={{ fontSize: "0.75rem" }}
+                    >
+                      <i className="fas fa-trash"></i> Hapus
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
